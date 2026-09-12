@@ -27,13 +27,21 @@ left join pg_tables t
   on t.schemaname = 'public' and t.tablename = e.tabla
 order by e.tabla;
 
--- Resumen en una sola fila. Esperado: 10 / 7 / 1 / 1
+-- Resumen en una sola fila.
+--   Solo la 1ª migración .............. 10 / 4 /  7 / 0 / 1 / 0
+--   Con la 2ª (permisos para operar) .. 10 / 10 / 22 / 1 / 1 / 1
 select
   (select count(*) from pg_tables
-     where schemaname = 'public')                      as tablas_creadas,
+     where schemaname = 'public')                      as tablas,
+  (select count(*) from pg_tables
+     where schemaname = 'public' and rowsecurity)      as con_permisos,
   (select count(*) from pg_policies
      where schemaname = 'public')                      as politicas,
-  (select count(*) from pg_proc
-     where proname = 'actualizar_nivel_socio')         as funcion_nivel,
+  (select count(*) from pg_views
+     where schemaname = 'public'
+       and viewname = 'catalogo_publico')              as vista_catalogo,
   (select count(*) from pg_trigger
-     where tgname = 'trg_nivel_socio')                 as trigger_nivel;
+     where tgname = 'trg_nivel_socio')                 as trigger_nivel,
+  (select count(*) from pg_proc
+     where proname = 'actualizar_nivel_socio'
+       and prosecdef)                                  as trigger_con_permiso;

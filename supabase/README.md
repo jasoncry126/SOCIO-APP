@@ -87,6 +87,41 @@ por pedido.
 
 ---
 
+## La segunda migración: permisos para operar
+
+`20260912100000_permisos_para_operar.sql` es obligatoria para que la app
+funcione, no opcional. `docs/13` define quién puede LEER cada tabla, pero no
+quién puede ESCRIBIR, y con RLS activo lo que no está permitido queda
+prohibido. Sin ella, comprobado contra PostgreSQL 16:
+
+| Acción | Sin la 2ª migración |
+|---|---|
+| Una marca se registra | bloqueado |
+| Un socio se registra | bloqueado |
+| El socio registra un pedido | bloqueado |
+| La marca despacha | 0 filas, **sin error** |
+| El nivel del socio sube al entregar | no sube, **sin error** |
+
+Además cierra las tres brechas de la sección siguiente, así que no cuesta
+trabajo extra. Añade sobre lo de `docs/13`:
+
+- permisos de escritura acotados a lo propio (cada quien crea y edita lo suyo);
+- RLS en las 6 tablas que no lo tenían;
+- la vista `catalogo_publico`, por la que el socio ve el catálogo **sin** la
+  columna `precio_mayorista` (CLAUDE.md regla nº 1, ahora en la base);
+- permisos por columna: un socio no puede ponerse `nivel = 'diamante'` ni una
+  marca `nivel_fiabilidad = 'aliada'`. Ambas cosas funcionaban y se probaron;
+- `security definer` en `actualizar_nivel_socio()`: el trigger corría con los
+  permisos de la marca, que no puede tocar la ficha del socio, así que el nivel
+  nunca subía.
+
+Se verifica con `./supabase/verificacion/ejecutar-local.sh`, que ahora corre el
+circuito de venta completo (`05-circuito-de-venta.sql`) y una batería de 13
+ataques (`06-ataques.sql`): leer el mayorista, ver pedidos ajenos, validarse el
+propio pago, regalarse dinero, borrar la bitácora, ascenderse de nivel.
+
+---
+
 ## Tres cosas que conviene decidir antes de poner dinero real
 
 No las cambié porque el pedido era implementar el diseño tal cual, y son decisiones

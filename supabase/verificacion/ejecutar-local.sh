@@ -4,7 +4,8 @@
 set -euo pipefail
 
 AQUI="$(cd "$(dirname "$0")" && pwd)"
-MIG="$AQUI/../migrations/20260912000000_modelo_de_datos_inicial.sql"
+MIGS=("$AQUI/../migrations/20260912000000_modelo_de_datos_inicial.sql"
+      "$AQUI/../migrations/20260912100000_permisos_para_operar.sql")
 PGBIN="$(ls -d /usr/lib/postgresql/*/bin | tail -1)"
 W="$(mktemp -d)"
 PUERTO=5599
@@ -21,10 +22,24 @@ ejecutar() { psql -h "$W" -p "$PUERTO" -U postgres -f "$1"; }
 echo "### Stub de lo que Supabase ya provee (auth.uid, roles anon/authenticated)"
 ejecutar "$AQUI/00-stub-supabase.sql" >/dev/null
 
-echo "### Aplicando la migración"
-psql -h "$W" -p "$PUERTO" -U postgres -v ON_ERROR_STOP=1 -f "$MIG"
+# En Supabase real, anon/authenticated reciben permisos automáticamente sobre
+# cada tabla nueva del esquema public. Aquí lo imitamos: primero se crean las
+# tablas, luego los permisos amplios, y AL FINAL la 2ª migración, que es la que
+# los recorta. Ese orden importa — al revés, los permisos amplios volverían a
+# pisar el recorte y el socio podría subirse de nivel a mano.
 
-for f in 01-inspeccionar-esquema 02-probar-reglas-negocio 03-probar-aislamiento-rls 04-cobertura-rls-faltante; do
+echo "### Aplicando la 1ª migración (modelo de datos de docs/13)"
+psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[0]}"
+
+echo "### Permisos por defecto de Supabase para anon/authenticated"
+psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 \
+  -c "grant usage on schema public to anon, authenticated;" \
+  -c "grant select, insert, update, delete on all tables in schema public to anon, authenticated;"
+
+echo "### Aplicando la 2ª migración (permisos para operar)"
+psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[1]}"
+
+for f in 01-inspeccionar-esquema 05-circuito-de-venta 06-ataques 04-cobertura-rls-faltante; do
   echo; echo "################ $f ################"
   ejecutar "$AQUI/$f.sql"
 done
