@@ -13,7 +13,9 @@ o nada.
 supabase/
   migrations/
     20260912000000_modelo_de_datos_inicial.sql   ← las 10 tablas + RLS + trigger
+  reiniciar-desde-cero.sql   ← ⚠️ borra las 10 tablas, para volver a empezar limpio
   verificacion/
+    comprobar-en-supabase.sql ← pégalo en el SQL Editor: dice si quedó bien aplicada
     ejecutar-local.sh        ← levanta un Postgres temporal y prueba todo
     00-stub-supabase.sql     ← imita lo que Supabase ya trae (auth.uid, roles)
     01-inspeccionar-esquema.sql
@@ -35,6 +37,13 @@ aplica:
 Entra a tu proyecto en supabase.com → **SQL Editor** → **New query**, pega todo el
 contenido de `migrations/20260912000000_modelo_de_datos_inicial.sql`, y pulsa **Run**.
 Si algo falla, no se crea nada a medias: la migración es una sola transacción.
+
+> **Si al pulsar Run sale `relation "usuarios_socios" already exists`:** la migración ya
+> se aplicó antes y estás ejecutándola por segunda vez. Postgres se detiene en la primera
+> tabla y no toca nada — la base queda intacta. Comprueba el estado con
+> `verificacion/comprobar-en-supabase.sql` (esperado: 10 tablas · 7 políticas · 1 función ·
+> 1 trigger). Solo si algo falta, y solo mientras la base esté vacía, usa
+> `reiniciar-desde-cero.sql` y vuelve a aplicar la migración.
 
 **Opción B — con el CLI de Supabase** (deja registro de la migración):
 ```bash
