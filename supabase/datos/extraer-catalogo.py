@@ -1,243 +1,229 @@
 #!/usr/bin/env python3
 """
-Saca el catálogo de Lab Péptidos de app/vendedor.html y lo convierte en SQL
-para las tablas 'marcas', 'productos' y 'presentaciones'.
+Extrae el catálogo de un proveedor desde su propia página web y lo deja listo
+para cargarlo en SOCIO.
 
-El catálogo hoy vive incrustado en el JavaScript del panel del vendedor. Este
-script lo lee de ahí — no hay que copiar nada a mano — y produce dos cosas:
+Fuente: el manifiesto de la web del proveedor (lib/manifest.js), que es donde
+la marca mantiene sus productos y sus precios de página. De ahí salen los
+cuatro datos que SOCIO necesita de cada presentación:
 
-  1. presentaciones-precios.csv  · plantilla con las 64 presentaciones para que
-                                   Jason complete el PRECIO MAYORISTA de cada una.
-                                   Ese dato no existe en el HTML: solo lo tiene él.
+    imagen · nombre · contexto · precio de página
 
-  2. seed-lab-peptidos.sql       · los INSERT listos para pegar en Supabase.
+El precio MAYORISTA no está aquí y no puede estarlo: es el precio al que la
+marca le vende a SOCIO, y lo escribe ella misma en su panel (proveedor.html)
+o en la columna correspondiente del CSV que este script genera.
 
 Uso:
-    # 1) generar la plantilla de precios
-    python3 extraer-catalogo.py --plantilla
+    # inventario del catálogo: qué hay, qué tiene precio, qué imagen le falta
+    python3 extraer-catalogo.py --revisar --sitio ruta/al/sitio
 
-    # 2) con los precios reales ya completados en el CSV
-    python3 extraer-catalogo.py --sql --marca-id <uuid> --desde-csv presentaciones-precios.csv
+    # CSV con los 4 campos + la columna de precio mayorista para completar
+    python3 extraer-catalogo.py --csv --sitio ruta/al/sitio
 
-    # 2-bis) o con precios PROVISIONALES, solo para probar que todo funciona
-    python3 extraer-catalogo.py --sql --marca-id <uuid> --margen 0.30
+    # SQL para cargar el catálogo en Supabase
+    python3 extraer-catalogo.py --sql --sitio ruta/al/sitio \
+        --marca-id <uuid> --desde-csv catalogo-proveedor.csv
 """
 
-import argparse, csv, json, pathlib, sys, uuid
+import argparse, csv, json, pathlib, re, subprocess, sys, uuid
 
-RAIZ = pathlib.Path(__file__).resolve().parents[2]
-FUENTE = RAIZ / "app" / "vendedor.html"
 AQUI = pathlib.Path(__file__).resolve().parent
-
-# Espacio de nombres fijo: el id de cada producto sale siempre igual, así el
-# seed se puede volver a aplicar tras un reinicio sin que cambien las claves.
 NS = uuid.UUID("6f1b6c6e-5f1e-4a5b-9c3d-0a1b2c3d4e5f")
 
 
-def bloque(texto: str, marcador: str, cierre: str):
-    """Extrae un literal JSON del JavaScript, por su declaración."""
-    i = texto.index(marcador)
-    j = texto.index(cierre, i)
-    return json.loads(texto[i + len(marcador): j + len(cierre) - 1])
+# --------------------------------------------------------------------------
+# Lectura del manifiesto
+# --------------------------------------------------------------------------
+
+def leer_sitio(raiz: pathlib.Path):
+    """Evalúa lib/manifest.js con node y devuelve la marca y sus productos."""
+    manifest = raiz / "lib" / "manifest.js"
+    if not manifest.exists():
+        sys.exit(f"❌ No encuentro {manifest}. ¿Es la carpeta del sitio del proveedor?")
+    js = (
+        "global.window={};"
+        f"require({str(manifest)!r});"
+        "process.stdout.write(JSON.stringify(window.__BRAND__||{}));"
+    )
+    try:
+        salida = subprocess.run(["node", "-e", js], capture_output=True,
+                                text=True, check=True).stdout
+    except FileNotFoundError:
+        sys.exit("❌ Hace falta node para leer el manifiesto del sitio.")
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"❌ No pude leer el manifiesto:\n{e.stderr}")
+    return json.loads(salida)
 
 
-def leer_catalogo():
-    t = FUENTE.read_text()
-    productos = bloque(t, "const productos = ", "\n];")
-    fichas = bloque(t, "const FICHAS = ", "\n};")
-    return productos, fichas
+def presentaciones(marca, raiz: pathlib.Path):
+    """Aplana el catálogo a una fila por presentación, con sus 4 campos."""
+    cats = marca.get("categories", {})
+    filas = []
+    for p in marca.get("products", []):
+        claves = ["blend"] if p.get("unit") == "blend" else [
+            str(c).replace(".", "_") for c in p.get("conc", [])
+        ]
+        # La unidad la declara el producto: casi todo va en mg, pero el agua
+        # bacteriostática va en ml y los combos no llevan concentración.
+        unidad = p.get("unit") or "mg"
+        etiquetas = ["Presentación única"] if p.get("unit") == "blend" else [
+            f"Vial {c} {unidad}" for c in p.get("conc", [])
+        ]
+        for clave, etiqueta in zip(claves, etiquetas):
+            precio = (p.get("prices") or {}).get(clave)
+            img = f"{p.get('img') or p['id']}-{clave}.webp"
+            filas.append({
+                "producto": p["name"],
+                "presentacion": etiqueta,
+                "categoria": (cats.get(p.get("cat"), {}) or {}).get("label", ""),
+                "contexto": p.get("blurb", ""),
+                "imagen": img,
+                "imagen_existe": (raiz / "assets" / "img" / "products" / img).exists(),
+                "precio_publico": precio,
+            })
+    return filas
+
+
+# --------------------------------------------------------------------------
+# Modos
+# --------------------------------------------------------------------------
+
+def revisar(marca, filas):
+    print(f"Marca: {marca.get('name','(sin nombre)')}")
+    print(f"Productos: {len({f['producto'] for f in filas})}")
+    print(f"Presentaciones: {len(filas)}\n")
+
+    con = [f for f in filas if f["precio_publico"] is not None]
+    sin = [f for f in filas if f["precio_publico"] is None]
+    print(f"✅ Con precio de página: {len(con)}")
+    print(f"⚠️  Sin precio: {len(sin)} — no se pueden publicar (docs/10)")
+    for f in sin:
+        print(f"     · {f['producto']} — {f['presentacion']}")
+
+    faltan = [f for f in con if not f["imagen_existe"]]
+    print(f"\n{'❌' if faltan else '✅'} Imágenes: "
+          f"{len(con)-len(faltan)}/{len(con)} presentaciones con precio tienen foto")
+    for f in faltan:
+        print(f"     · {f['producto']} — {f['presentacion']} → falta {f['imagen']}")
+
+    cats = {}
+    for f in con:
+        cats[f["categoria"]] = cats.get(f["categoria"], 0) + 1
+    print("\nCategorías (solo lo publicable):")
+    for c, n in sorted(cats.items(), key=lambda x: -x[1]):
+        print(f"     {n:>3}  {c}")
+
+
+def generar_csv(filas):
+    destino = AQUI / "catalogo-proveedor.csv"
+    con = [f for f in filas if f["precio_publico"] is not None]
+    with destino.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["producto", "presentacion", "categoria", "contexto",
+                    "imagen", "precio_publico", "precio_mayorista"])
+        for f in con:
+            w.writerow([f["producto"], f["presentacion"], f["categoria"],
+                        f["contexto"], f["imagen"], f["precio_publico"], ""])
+    print(f"✅ {destino.name}: {len(con)} presentaciones publicables")
+    print("   Falta una sola columna: precio_mayorista (lo pone la marca).")
 
 
 def q(v):
-    """Literal SQL: escapa comillas simples, o NULL si no hay valor."""
     if v is None or v == "":
         return "null"
     return "'" + str(v).replace("'", "''") + "'"
 
 
-def id_producto(p):
-    return uuid.uuid5(NS, f"{p['marca']}:{p['id']}:{p['nombre']}")
+def generar_sql(marca, filas, marca_id, precios):
+    porprod = {}
+    for f in filas:
+        if f["precio_publico"] is None:
+            continue
+        may = precios.get((f["producto"], f["presentacion"]))
+        if may is None:
+            continue
+        porprod.setdefault(f["producto"], {"info": f, "pres": []})["pres"].append((f, may))
 
+    L = ["-- Catálogo generado desde la web del proveedor por extraer-catalogo.py",
+         "-- NO editar a mano.", "", "begin;", ""]
+    for nombre, d in porprod.items():
+        info = d["info"]
+        pid = uuid.uuid5(NS, f"{marca_id}:{nombre}")
+        L += [f"-- {nombre} · {info['categoria']}",
+              "insert into productos (id, marca_id, nombre, categoria, descripcion, estado, activo)",
+              f"values ({q(pid)}, {q(marca_id)}, {q(nombre)}, {q(info['categoria'])},",
+              f"        {q(info['contexto'])}, 'aprobado', true)",
+              "on conflict (id) do nothing;"]
+        for f, may in d["pres"]:
+            vid = uuid.uuid5(NS, f"{marca_id}:{nombre}:{f['presentacion']}")
+            L += ["insert into presentaciones (id, producto_id, nombre, precio_mayorista, precio_publico)",
+                  f"values ({q(vid)}, {q(pid)}, {q(f['presentacion'])}, "
+                  f"{float(may):.2f}, {float(f['precio_publico']):.2f})",
+                  "on conflict (id) do nothing;"]
+        L.append("")
+    L += ["commit;"]
 
-def id_presentacion(p, v):
-    return uuid.uuid5(NS, f"{p['marca']}:{p['id']}:{p['nombre']}:{v['pres']}")
-
-
-def generar_plantilla(productos):
-    destino = AQUI / "presentaciones-precios.csv"
-    filas = 0
-    with destino.open("w", newline="", encoding="utf-8") as fh:
-        w = csv.writer(fh)
-        w.writerow(["producto", "presentacion", "precio_publico", "precio_mayorista"])
-        for p in productos:
-            for v in p["variantes"]:
-                w.writerow([p["nombre"], v["pres"], v["sug"], ""])
-                filas += 1
-    print(f"✅ {destino.name}: {filas} presentaciones por completar")
-    print("   Rellena la columna precio_mayorista y vuelve a correr el script con --sql.")
+    destino = AQUI / "seed-catalogo.sql"
+    destino.write_text("\n".join(L) + "\n", encoding="utf-8")
+    n = sum(len(d["pres"]) for d in porprod.values())
+    print(f"✅ {destino.name}: {len(porprod)} productos · {n} presentaciones")
 
 
 def cargar_precios(ruta):
-    """Lee el CSV completado. Devuelve {(producto, presentacion): mayorista}."""
     precios, faltan, malos = {}, [], []
     with open(ruta, newline="", encoding="utf-8") as fh:
         for fila in csv.DictReader(fh):
             clave = (fila["producto"], fila["presentacion"])
             crudo = (fila.get("precio_mayorista") or "").strip()
             if not crudo:
-                faltan.append(clave)
-                continue
+                faltan.append(clave); continue
             try:
                 may = float(crudo.replace(",", "."))
             except ValueError:
-                malos.append((clave, crudo))
-                continue
+                malos.append((clave, crudo)); continue
             pub = float(fila["precio_publico"])
-            # La base rechaza precio_publico <= precio_mayorista: sin margen no
-            # hay nada que repartir entre el socio y SOCIO.
             if may >= pub:
-                malos.append((clave, f"{may} ≥ precio público {pub}"))
-                continue
+                malos.append((clave, f"{may} ≥ precio de página {pub}")); continue
             precios[clave] = may
     return precios, faltan, malos
-
-
-def generar_sql(productos, fichas, marca_id, precios, margen):
-    L = []
-    a = L.append
-    a("-- ============================================================================")
-    a("-- Catálogo de Lab Péptidos · generado por extraer-catalogo.py")
-    a("-- NO editar a mano: se regenera desde app/vendedor.html")
-    a("-- ============================================================================")
-    if margen is not None:
-        a("--")
-        a(f"-- ⚠️  PRECIOS MAYORISTAS PROVISIONALES (precio público − {margen:.0%}).")
-        a("--     Son inventados, sirven solo para probar que el circuito funciona.")
-        a("--     Reemplázalos por los reales antes de vender nada:")
-        a("--     completa presentaciones-precios.csv y regenera con --desde-csv.")
-        a("--")
-    a("")
-    a("begin;")
-    a("")
-    a("-- La marca. El id debe ser el MISMO que Supabase Auth le dio a su cuenta,")
-    a("-- o las reglas de permisos no la dejarán ver su propio catálogo.")
-    a("insert into marcas (id, nombre, ruc, giro, ciudad_almacen, ciudad_punto,")
-    a("                    celular, clave_hash, nivel_fiabilidad)")
-    a("values (")
-    a(f"  {q(marca_id)},")
-    a("  'Lab Péptidos Perú',")
-    a("  '00000000000',            -- ⚠️ RUC real de la marca")
-    a("  'Salud · Bienestar · Cuidado de la piel',")
-    a("  'Cusco',                  -- almacén")
-    a("  'Lima',                   -- ciudad con entrega a domicilio")
-    a("  '000000000',              -- ⚠️ celular real de la marca")
-    a("  'gestionado_por_supabase_auth',  -- la clave vive en Auth, no aquí")
-    a("  'nueva'")
-    a(")")
-    a("on conflict (id) do nothing;")
-    a("")
-
-    n_pres = 0
-    sin_precio = []
-    for p in productos:
-        # docs/10: ningún producto puede publicarse sin precio. Si ninguna de sus
-        # presentaciones tiene mayorista, el producto entero queda fuera del seed
-        # en vez de publicarse vacío.
-        vendibles = [
-            v for v in p["variantes"]
-            if precios is None or (p["nombre"], v["pres"]) in precios
-        ]
-        if not vendibles:
-            sin_precio.append(p["nombre"])
-            continue
-
-        pid = id_producto(p)
-        ficha = fichas.get(str(p["id"]), {})
-        desc = ficha.get("desc") or p.get("det")
-        a(f"-- {p['nombre']} · {p.get('categoria','')}")
-        a("insert into productos (id, marca_id, nombre, categoria, emoji, descripcion,")
-        a("                       estado, activo)")
-        a(f"values ({q(pid)}, {q(marca_id)}, {q(p['nombre'])}, {q(p.get('categoria'))},")
-        a(f"        {q(p.get('emoji') or '📦')}, {q(desc)}, 'aprobado', true)")
-        a("on conflict (id) do nothing;")
-        for v in vendibles:
-            vid = id_presentacion(p, v)
-            pub = float(v["sug"])
-            if precios is not None:
-                may = precios[(p["nombre"], v["pres"])]
-            else:
-                may = round(pub * (1 - margen), 2)
-            stock = v.get("stock") or {}
-            alm = stock.get("cusco") or 0
-            pto = stock.get("lima") or 0
-            a("insert into presentaciones (id, producto_id, nombre, precio_mayorista,")
-            a("                            precio_publico, stock_almacen, stock_punto)")
-            a(f"values ({q(vid)}, {q(pid)}, {q(v['pres'])}, {may:.2f}, {pub:.2f}, {alm}, {pto})")
-            a("on conflict (id) do nothing;")
-            n_pres += 1
-        a("")
-
-    a("commit;")
-    destino = AQUI / "seed-lab-peptidos.sql"
-    destino.write_text("\n".join(L) + "\n", encoding="utf-8")
-    n_prod = len(productos) - len(sin_precio)
-    print(f"✅ {destino.name}: 1 marca · {n_prod} productos · {n_pres} presentaciones")
-    if sin_precio:
-        print(f"   ⚠️  {len(sin_precio)} productos quedaron fuera por no tener ninguna")
-        print("      presentación con precio (docs/10: nada se publica sin precio).")
-    return n_pres
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--plantilla", action="store_true",
-                    help="genera el CSV de precios para completar")
-    ap.add_argument("--sql", action="store_true", help="genera el seed SQL")
-    ap.add_argument("--marca-id", help="uuid de la cuenta de la marca en Supabase Auth")
-    ap.add_argument("--desde-csv", help="CSV con los precios mayoristas reales")
-    ap.add_argument("--margen", type=float,
-                    help="margen PROVISIONAL (0.30 = mayorista 30%% por debajo del público)")
-    args = ap.parse_args()
+    ap.add_argument("--sitio", required=True, help="carpeta del sitio del proveedor")
+    ap.add_argument("--revisar", action="store_true")
+    ap.add_argument("--csv", action="store_true")
+    ap.add_argument("--sql", action="store_true")
+    ap.add_argument("--marca-id")
+    ap.add_argument("--desde-csv")
+    a = ap.parse_args()
 
-    if not args.plantilla and not args.sql:
-        ap.error("elige --plantilla o --sql")
+    raiz = pathlib.Path(a.sitio).expanduser().resolve()
+    marca = leer_sitio(raiz)
+    filas = presentaciones(marca, raiz)
 
-    productos, fichas = leer_catalogo()
-    print(f"Leído de {FUENTE.relative_to(RAIZ)}: {len(productos)} productos, "
-          f"{sum(len(p['variantes']) for p in productos)} presentaciones\n")
-
-    if args.plantilla:
-        generar_plantilla(productos)
-        return
-
-    if not args.marca_id:
-        ap.error("--sql necesita --marca-id (el uuid de la cuenta de la marca en Auth)")
-    try:
-        uuid.UUID(args.marca_id)
-    except ValueError:
-        ap.error(f"--marca-id no es un uuid válido: {args.marca_id}")
-
-    if bool(args.desde_csv) == bool(args.margen is not None):
-        ap.error("elige --desde-csv (precios reales) o --margen (provisionales), no ambos")
-
-    precios = None
-    if args.desde_csv:
-        precios, faltan, malos = cargar_precios(args.desde_csv)
+    if a.revisar:
+        revisar(marca, filas); return
+    if a.csv:
+        generar_csv(filas); return
+    if a.sql:
+        if not a.marca_id or not a.desde_csv:
+            ap.error("--sql necesita --marca-id y --desde-csv")
+        try:
+            uuid.UUID(a.marca_id)
+        except ValueError:
+            ap.error(f"--marca-id no es un uuid válido: {a.marca_id}")
+        precios, faltan, malos = cargar_precios(a.desde_csv)
         if malos:
             print("❌ Precios que la base rechazaría:")
-            for (prod, pres), motivo in malos:
-                print(f"   · {prod} — {pres}: {motivo}")
+            for (p, pr), m in malos:
+                print(f"   · {p} — {pr}: {m}")
             sys.exit(1)
         if faltan:
-            print(f"⚠️  {len(faltan)} presentaciones sin precio mayorista; quedan fuera del seed:")
-            for prod, pres in faltan[:10]:
-                print(f"   · {prod} — {pres}")
-            if len(faltan) > 10:
-                print(f"   · … y {len(faltan)-10} más")
-            print()
-
-    generar_sql(productos, fichas, args.marca_id, precios, args.margen)
+            print(f"⚠️  {len(faltan)} presentaciones sin precio mayorista; quedan fuera.")
+        generar_sql(marca, filas, a.marca_id, precios); return
+    ap.error("elige --revisar, --csv o --sql")
 
 
 if __name__ == "__main__":
