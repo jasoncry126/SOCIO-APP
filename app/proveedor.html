@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOCIO Marcas — Panel del Proveedor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --tinta:#14261E; --tinta-suave:#3D5248;
+    --fondo:#F2F4EF; --tarjeta:#FFFFFF; --linea:#DFE4DC;
+    --sol:#EFA51F; --sol-osc:#C9860F;
+    --chicha:#E84D8A; --chicha-bg:#FDEDF4;
+    --ok:#1E8A5A; --ok-bg:#E4F4EC;
+    --alerta:#B7791F; --alerta-bg:#FBF1DC;
+    --rojo:#C0392B; --rojo-bg:#FCE9E6;
+    --info:#2B6CB0; --info-bg:#E8F0FA;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Instrument Sans',system-ui,sans-serif;background:var(--fondo);color:var(--tinta);min-height:100vh}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+  .num{font-variant-numeric:tabular-nums}
+  @keyframes aparece{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* ===== Registro / ingreso ===== */
+  #auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:26px 16px;background:var(--tinta)}
+  #auth.oculto{display:none}
+  .auth-caja{width:100%;max-width:470px}
+  .auth-hero{text-align:center;color:#F2F4EF;margin-bottom:20px}
+  .auth-hero .logo{font-family:'Archivo',sans-serif;font-weight:900;font-stretch:110%;font-size:38px}
+  .auth-hero .logo span{color:var(--sol)}
+  .auth-hero .sub{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--sol);font-weight:800;margin-top:2px}
+  .auth-hero p{font-size:14px;color:#B9C6BE;margin-top:10px;line-height:1.5}
+  .auth-panel{background:var(--fondo);border-radius:20px;padding:20px}
+  .auth-tabs{display:flex;background:#E7EAE4;border-radius:11px;padding:4px;margin-bottom:16px}
+  .auth-tab{flex:1;border:none;background:none;padding:9px;border-radius:8px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--tinta-suave);cursor:pointer}
+  .auth-tab.on{background:#fff;color:var(--tinta);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .beneficios{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
+  .beneficio{display:flex;gap:9px;font-size:12.5px;color:var(--tinta-suave);line-height:1.5}
+  .beneficio b{color:var(--tinta)}
+
+  /* ===== Estructura ===== */
+  .app{display:none;min-height:100vh}
+  .app.ver{display:flex}
+  .lateral{width:238px;background:var(--tinta);color:#DDE5DF;padding:22px 14px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+  .lateral .logo{font-family:'Archivo',sans-serif;font-weight:900;font-stretch:110%;font-size:22px;color:#F2F4EF;padding:0 10px 2px}
+  .lateral .logo span{color:var(--sol)}
+  .lateral .sub{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#8FA398;padding:0 10px 18px;font-weight:700}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:11px 10px;border-radius:10px;border:none;background:none;color:#B9C6BE;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;width:100%}
+  .nav-item:hover{background:rgba(255,255,255,.06)}
+  .nav-item.on{background:rgba(239,165,31,.14);color:#F2F4EF}
+  .nav-item.on .punto{background:var(--sol)}
+  .nav-item .punto{width:7px;height:7px;border-radius:50%;background:#4A5F54;flex-shrink:0}
+  .nav-item .globo{margin-left:auto;background:var(--chicha);color:#fff;font-size:10.5px;font-weight:700;border-radius:99px;padding:2px 7px}
+  .lateral .pie{margin-top:auto;padding:12px 10px;font-size:11.5px;color:#8FA398;border-top:1px solid rgba(255,255,255,.1);line-height:1.5}
+  .lateral .pie b{color:#DDE5DF;display:block;font-size:12.5px}
+  .lateral .pie button{border:none;background:none;color:#8FA398;font-family:inherit;font-size:11px;font-weight:700;text-decoration:underline;cursor:pointer;margin-top:7px;padding:0}
+
+  .principal{flex:1;padding:26px 30px;max-width:1120px}
+  .cab{margin-bottom:18px}
+  .cab h1{font-family:'Archivo',sans-serif;font-weight:800;font-size:23px;font-stretch:105%}
+  .cab p{font-size:13px;color:var(--tinta-suave);margin-top:3px;max-width:660px;line-height:1.55}
+  .vista{display:none}
+  .vista.on{display:block;animation:aparece .18s ease-out}
+
+  /* ===== Componentes ===== */
+  .tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:15px}
+  .chip{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+  .chip-ok{background:var(--ok-bg);color:var(--ok)}
+  .chip-alerta{background:var(--alerta-bg);color:var(--alerta)}
+  .chip-info{background:var(--info-bg);color:var(--info)}
+  .chip-sol{background:#FCF0D8;color:var(--sol-osc)}
+  .btn{border:none;border-radius:10px;padding:11px 16px;font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;transition:transform .1s ease-out}
+  .btn:active{transform:scale(.98)}
+  .btn-sol{background:var(--sol);color:var(--tinta)}
+  .btn-sol:hover{background:var(--sol-osc)}
+  .btn-borde{background:none;border:1.5px solid var(--tinta);color:var(--tinta)}
+  .btn-fantasma{background:none;color:var(--tinta-suave)}
+  .btn-w{width:100%;margin-top:9px}
+  .campo{margin-bottom:13px}
+  .campo label{display:block;font-size:12.5px;font-weight:700;color:var(--tinta-suave);margin-bottom:5px}
+  .campo label small{font-weight:500;color:#7C8B82}
+  .campo input,.campo select,.campo textarea{width:100%;padding:11px 12px;border:1px solid var(--linea);border-radius:10px;font-family:inherit;font-size:14px;background:#fff;color:var(--tinta)}
+  .campo textarea{resize:vertical;min-height:74px}
+  .campo input:focus,.campo select:focus,.campo textarea:focus{outline:2px solid var(--sol);outline-offset:1px;border-color:var(--sol)}
+  .campo .err{font-size:11.5px;color:var(--rojo);margin-top:4px;display:none}
+  .campo.mal input,.campo.mal select{border-color:var(--rojo)}
+  .campo.mal .err{display:block}
+  .dos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pista{font-size:11.5px;color:#7C8B82;margin-top:4px;line-height:1.45}
+  .seccion-titulo{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tinta-suave);margin:20px 0 10px}
+
+  .metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:20px}
+  .metrica small{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tinta-suave);margin-bottom:5px}
+  .metrica .valor{font-family:'Archivo',sans-serif;font-weight:900;font-size:25px;font-stretch:105%}
+  .metrica .detalle{font-size:11.5px;color:var(--tinta-suave);margin-top:3px}
+  .metrica.urgente{border-color:var(--sol);box-shadow:0 0 0 1px var(--sol)}
+  .metrica.urgente .valor{color:var(--sol-osc)}
+
+  .vacio{padding:30px 22px;text-align:center;border:1.5px dashed var(--linea);border-radius:14px}
+  .vacio .ic{font-size:32px}
+  .vacio h3{font-size:15.5px;font-weight:800;margin-top:9px;font-family:'Archivo',sans-serif}
+  .vacio p{font-size:13px;color:var(--tinta-suave);margin-top:5px;line-height:1.55;max-width:450px;margin-left:auto;margin-right:auto}
+
+  /* ===== Pedidos ===== */
+  .pedido{margin-bottom:12px}
+  .ped-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .ped-cab .cod{font-family:'Archivo',sans-serif;font-weight:900;font-size:15px;letter-spacing:.03em}
+  .ped-cab .items{font-size:13px;margin-top:3px;font-weight:600}
+  .ped-cab .lado{text-align:right}
+  .ped-cab .lado b{font-family:'Archivo',sans-serif;font-weight:800;font-size:16px}
+  .ped-cab .lado small{display:block;font-size:10.5px;color:var(--tinta-suave)}
+  .envio-caja{background:var(--fondo);border-radius:11px;padding:11px;margin-top:11px;font-size:12.5px;line-height:1.6}
+  .envio-caja .fila{display:flex;gap:8px;padding:2px 0}
+  .envio-caja .fila b{min-width:98px;color:var(--tinta-suave);font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase;flex-shrink:0;padding-top:2px}
+  .zona-guia{display:flex;gap:8px;margin-top:11px;padding-top:11px;border-top:1px dashed var(--linea);flex-wrap:wrap}
+  .zona-guia input{flex:1;min-width:180px;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;font-family:inherit;font-size:13px}
+  .zona-guia input:focus{outline:2px solid var(--sol);outline-offset:1px;border-color:var(--sol)}
+
+  /* ===== Catálogo ===== */
+  .prod{margin-bottom:11px}
+  .prod-cab{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .prod-cab .mini{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;background:#E4F4EC}
+  .prod-cab .info{flex:1;min-width:170px}
+  .prod-cab h3{font-size:14.5px;font-weight:800;font-family:'Archivo',sans-serif}
+  .prod-cab p{font-size:12px;color:var(--tinta-suave);margin-top:1px}
+  .interruptor{width:42px;height:24px;border-radius:99px;background:var(--linea);border:none;cursor:pointer;position:relative;flex-shrink:0;transition:background .15s}
+  .interruptor::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s ease-out;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .interruptor.on{background:var(--ok)}
+  .interruptor.on::after{transform:translateX(18px)}
+  .interruptor:disabled{opacity:.35;cursor:not-allowed}
+  .vtabla{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:11px}
+  .vtabla th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tinta-suave);padding:7px 6px;border-bottom:1px solid var(--linea);font-weight:700}
+  .vtabla td{padding:9px 6px;border-bottom:1px solid var(--linea)}
+  .vtabla tr:last-child td{border:none}
+  .vtabla .der{text-align:right}
+  .stock-mini{display:inline-flex;align-items:center;gap:5px;background:var(--fondo);border-radius:8px;padding:3px 8px;font-size:11.5px;font-weight:700}
+  .stock-mini.cero{background:var(--rojo-bg);color:var(--rojo)}
+  .stock-mini input{width:52px;border:1px solid var(--linea);border-radius:6px;padding:3px 5px;font-family:inherit;font-size:11.5px;text-align:right}
+
+  /* ===== Asistente ===== */
+  .pasos{display:flex;gap:6px;margin-bottom:18px}
+  .paso{flex:1;text-align:center}
+  .paso .barra{height:4px;border-radius:2px;background:var(--linea);margin-bottom:6px}
+  .paso.on .barra{background:var(--sol)}
+  .paso span{font-size:10.5px;font-weight:700;color:var(--tinta-suave);text-transform:uppercase;letter-spacing:.05em}
+  .paso.on span{color:var(--tinta)}
+  .pf{display:none} .pf.on{display:block;animation:aparece .16s ease-out}
+  .grid-asis{display:grid;grid-template-columns:1fr;gap:18px}
+  @media(min-width:920px){.grid-asis{grid-template-columns:1.25fr .75fr}}
+  .var-fila{display:grid;grid-template-columns:1.25fr .8fr .8fr .62fr .62fr auto;gap:7px;align-items:end;margin-bottom:10px}
+  .var-fila .campo{margin:0}
+  .var-fila .quitar{border:none;background:var(--rojo-bg);color:var(--rojo);border-radius:9px;padding:11px 10px;cursor:pointer;font-size:14px;line-height:1}
+  @media(max-width:820px){.var-fila{grid-template-columns:1fr 1fr}}
+  .margen-chip{display:inline-block;background:var(--ok-bg);color:var(--ok);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:800;margin-top:4px}
+  .margen-chip.flojo{background:var(--alerta-bg);color:var(--alerta)}
+  .margen-chip.malo{background:var(--rojo-bg);color:var(--rojo)}
+  .reparto{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}
+  .reparto div{background:rgba(255,255,255,.07);border-radius:8px;padding:7px 6px;text-align:center}
+  .reparto small{display:block;font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:#8FA398;font-weight:700}
+  .reparto b{font-family:'Archivo',sans-serif;font-weight:800;font-size:12.5px;display:block;margin-top:2px}
+  .reparto .socio b{color:var(--sol)}
+  .reparto .prov b{color:#9FD9BC}
+  .aviso-margen{background:var(--alerta-bg);color:var(--alerta);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.55;margin-top:10px}
+
+  .previa{background:var(--fondo);border:1px solid var(--linea);border-radius:15px;padding:14px;align-self:start}
+  .previa .tit{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-suave);margin-bottom:10px}
+  .previa-card{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:12px;display:flex;gap:11px}
+  .previa-img{width:54px;height:54px;border-radius:10px;background:#E4F4EC;display:flex;align-items:center;justify-content:center;font-size:23px;flex-shrink:0}
+  .previa-info h4{font-size:13.5px;font-weight:800}
+  .previa-info p{font-size:11.5px;color:var(--tinta-suave);line-height:1.5;margin-top:2px}
+  .niveles-caja{background:var(--tinta);color:#F2F4EF;border-radius:13px;padding:13px;margin-top:12px}
+  .niveles-caja .tit{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#B9C6BE;margin-bottom:9px}
+  .niv-fila{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0}
+  .niv-fila b{font-family:'Archivo',sans-serif;font-weight:800}
+  .niv-fila .g{color:var(--sol)}
+
+  .expli{background:var(--fondo);border-radius:11px;padding:12px;font-size:12.5px;line-height:1.65;color:var(--tinta-suave);margin-bottom:12px}
+  .expli b{color:var(--tinta)}
+  .expli .tit{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta-suave);margin-bottom:7px}
+  .expli ul{padding-left:16px;margin-top:6px} .expli li{margin-bottom:4px}
+  .niv-prod{border-top:1px dashed rgba(255,255,255,.16);margin-top:9px;padding-top:9px}
+  .niv-prod:first-child{border:none;margin-top:0;padding-top:0}
+  .niv-prod .nombre{font-size:11.5px;font-weight:800;color:var(--sol);margin-bottom:5px}
+  .corte-caja{background:#FCF0D8;border-radius:11px;padding:12px;margin-top:11px;font-size:12.5px;line-height:1.6;color:var(--sol-osc)}
+  .corte-caja b{font-weight:800}
+  .check{display:flex;gap:10px;align-items:flex-start;padding:11px;border:1px solid var(--linea);border-radius:10px;margin-bottom:9px;cursor:pointer;background:#fff}
+  .check input{margin-top:2px;width:16px;height:16px;accent-color:var(--ok);flex-shrink:0}
+  .check span{font-size:12.5px;line-height:1.5}
+  .nota{display:flex;gap:10px;border-radius:10px;padding:11px 12px;font-size:12.5px;line-height:1.55;margin:11px 0}
+  .nota-info{background:var(--info-bg);color:var(--info)}
+  .nota-sol{background:#FCF0D8;color:var(--sol-osc)}
+
+  .kit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .kit-slot{border:1.5px dashed var(--linea);border-radius:12px;padding:15px 8px;text-align:center;cursor:pointer;background:#fff;font-family:inherit}
+  .kit-slot.lleno{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+  .kit-slot .ic{font-size:21px}
+  .kit-slot span{display:block;font-size:10.5px;font-weight:700;color:var(--tinta-suave);margin-top:4px;line-height:1.35}
+  .kit-slot.lleno span{color:var(--ok)}
+
+  table.liq{width:100%;border-collapse:collapse;font-size:13px}
+  table.liq th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta-suave);text-align:left;padding:8px 10px;border-bottom:1px solid var(--linea)}
+  table.liq td{padding:10px;border-bottom:1px solid var(--linea)}
+  table.liq tr:last-child td{border:none}
+  table.liq .der{text-align:right}
+
+  /* ===== Mi dinero ===== */
+  .fiab-cinta{display:flex;align-items:center;gap:12px;background:var(--tinta);color:#F2F4EF;border-radius:15px;padding:14px;margin-bottom:16px;flex-wrap:wrap}
+  .fiab-cinta .med{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:23px;flex-shrink:0}
+  .fiab-cinta .info{flex:1;min-width:210px}
+  .fiab-cinta .info b{font-family:'Archivo',sans-serif;font-weight:800;font-size:15px;display:block}
+  .fiab-cinta .info small{font-size:11.5px;color:#B9C6BE;display:block;margin-top:2px;line-height:1.45}
+  .barra-f{height:7px;border-radius:99px;background:rgba(255,255,255,.14);margin-top:8px;overflow:hidden}
+  .barra-f span{display:block;height:100%;background:var(--sol);border-radius:99px;transition:width .4s cubic-bezier(.22,.61,.36,1)}
+  .fiab-regla{background:rgba(239,165,31,.16);border-radius:10px;padding:9px 11px;font-size:12px;font-weight:700;color:var(--sol);flex-shrink:0}
+
+  .escalera-f{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .esc-f{display:flex;align-items:center;gap:11px;padding:11px;border-radius:12px;border:1.5px solid var(--linea);background:#fff}
+  .esc-f.actual{border-color:var(--sol);background:#FFFBF2;box-shadow:0 0 0 1px var(--sol)}
+  .esc-f.lograda{opacity:.6}
+  .esc-f .ic{font-size:20px;flex-shrink:0}
+  .esc-f .t{flex:1;min-width:0}
+  .esc-f .t b{font-size:13.5px;font-family:'Archivo',sans-serif;font-weight:800}
+  .esc-f .t small{display:block;font-size:11px;color:var(--tinta-suave);margin-top:1px;line-height:1.4}
+  .esc-f .c{font-size:11.5px;font-weight:800;color:var(--ok);text-align:right;flex-shrink:0;line-height:1.4}
+
+  .hito{display:flex;align-items:center;gap:8px;font-size:11.5px;margin-top:3px}
+  .hito .pt{width:8px;height:8px;border-radius:50%;background:var(--linea);flex-shrink:0}
+  .hito.ok .pt{background:var(--ok)}
+  .hito.ok{color:var(--ok);font-weight:700}
+  .hito.esp{color:var(--tinta-suave)}
+  .dinero-tot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--ok-bg);border:1px solid #BEE3D0;border-radius:14px;padding:15px;margin-bottom:14px}
+  .dinero-tot .v{font-family:'Archivo',sans-serif;font-weight:900;font-size:27px;color:var(--ok)}
+  .dinero-tot small{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tinta-suave)}
+
+  .toast{position:fixed;bottom:22px;right:22px;background:var(--tinta);color:#fff;padding:13px 18px;border-radius:12px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(6px);z-index:60;max-width:360px}
+  .toast.ver{opacity:1;transform:none}
+
+  @media(max-width:780px){
+    .app.ver{flex-direction:column}
+    .lateral{width:100%;flex-direction:row;align-items:center;overflow-x:auto;padding:12px;gap:6px}
+    .lateral .logo{font-size:17px;padding:0 6px}
+    .lateral .sub,.lateral .pie{display:none}
+    .nav-item{width:auto;white-space:nowrap;padding:9px 12px}
+    .principal{padding:18px 14px}
+    .dos{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH ================= -->
+<div id="auth">
+  <div class="auth-caja">
+    <div class="auth-hero">
+      <div class="logo">S<span>O</span>CIO</div>
+      <div class="sub">Panel de marca</div>
+      <p>Tu producto, vendido por una red de socios independientes. Tú solo despachas pedidos ya pagados.</p>
+    </div>
+    <div class="auth-panel">
+      <div class="auth-tabs">
+        <button class="auth-tab on" id="t-reg" onclick="modoAuth('reg')">Registrar mi marca</button>
+        <button class="auth-tab" id="t-ing" onclick="modoAuth('ing')">Ya tengo cuenta</button>
+      </div>
+
+      <div id="f-reg">
+        <div class="beneficios">
+          <div class="beneficio"><span>💰</span><span><b>Suscripción sin costo.</b> No cobramos por publicar tu catálogo.</span></div>
+          <div class="beneficio"><span>🛡️</span><span><b>Nunca despachas al aire.</b> Solo recibes pedidos con pago ya validado.</span></div>
+          <div class="beneficio"><span>⚡</span><span><b>Cobras al despachar.</b> Tu dinero se libera por hitos: parte al registrar la guía y el resto al confirmarse la entrega.</span></div>
+          <div class="beneficio"><span>🤝</span><span><b>Vendedores sin planilla.</b> Ellos consiguen los clientes, tú entregas.</span></div>
+        </div>
+        <div class="campo" id="c-marca"><label>Nombre de la marca</label><input id="r-marca" placeholder="Ej. Lab Péptidos Perú"><div class="err">Ingresa el nombre de tu marca.</div></div>
+        <div class="dos">
+          <div class="campo" id="c-ruc"><label>RUC</label><input id="r-ruc" inputmode="numeric" maxlength="11" placeholder="11 dígitos"><div class="err">El RUC debe tener 11 dígitos.</div></div>
+          <div class="campo" id="c-giro"><label>Giro de negocio</label>
+            <select id="r-giro"><option value="">Elige…</option><option>Salud y bienestar</option><option>Cuidado personal y cosmética</option><option>Alimentos y bebidas</option><option>Tecnología</option><option>Hogar</option><option>Otro</option></select>
+            <div class="err">Elige tu giro.</div></div>
+        </div>
+        <div class="dos">
+          <div class="campo" id="c-alm"><label>Ciudad del almacén</label><input id="r-almacen" placeholder="Ej. Cusco"><div class="err">Indica dónde está tu almacén.</div></div>
+          <div class="campo"><label>Ciudad con entrega a domicilio <small>· opcional</small></label><input id="r-punto" placeholder="Ej. Lima"></div>
+        </div>
+        <div class="dos">
+          <div class="campo" id="c-cel"><label>Celular <small>· será tu usuario</small></label><input id="r-cel" inputmode="numeric" maxlength="9" placeholder="9XX XXX XXX"><div class="err">Celular válido de 9 dígitos.</div></div>
+          <div class="campo" id="c-clave"><label>Crea tu clave</label><input id="r-clave" type="password" maxlength="12" placeholder="Mínimo 4 caracteres"><div class="err">Mínimo 4 caracteres.</div></div>
+        </div>
+        <label class="check"><input type="checkbox" id="r-t1"><span>Acepto el <b>contrato de comisión mercantil</b>: SOCIO intermedia la venta, recauda por mi cuenta y me liquida con su detalle. Mi empresa es responsable de sus productos, permisos e información; SOCIO actúa como enlace comercial y de despacho.</span></label>
+        <label class="check"><input type="checkbox" id="r-t2"><span>Me comprometo a <b>despachar todo pedido pagado</b> dentro del plazo que declare en cada producto.</span></label>
+        <div class="campo" id="c-terms"><div class="err">Debes aceptar ambas declaraciones.</div></div>
+        <button class="btn btn-sol btn-w" onclick="registrarMarca()">Registrar mi marca</button>
+      </div>
+
+      <div id="f-ing" style="display:none">
+        <div class="campo" id="c-icel"><label>Celular</label><input id="i-cel" inputmode="numeric" maxlength="9" placeholder="9XX XXX XXX"><div class="err">Ingresa tu celular.</div></div>
+        <div class="campo" id="c-iclave"><label>Clave</label><input id="i-clave" type="password" maxlength="12" placeholder="Tu clave"><div class="err">Celular o clave incorrectos.</div></div>
+        <button class="btn btn-sol btn-w" onclick="ingresarMarca()">Entrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PANEL ================= -->
+<div class="app" id="app">
+  <aside class="lateral">
+    <div class="logo">S<span>O</span>CIO</div>
+    <div class="sub">Panel de marca</div>
+    <button class="nav-item on" data-v="v-inicio" onclick="ir('v-inicio')"><span class="punto"></span>Resumen</button>
+    <button class="nav-item" data-v="v-pedidos" onclick="ir('v-pedidos')"><span class="punto"></span>Pedidos<span class="globo" id="g-ped" style="display:none">0</span></button>
+    <button class="nav-item" data-v="v-catalogo" onclick="ir('v-catalogo')"><span class="punto"></span>Mi catálogo</button>
+    <button class="nav-item" data-v="v-nuevo" onclick="ir('v-nuevo')"><span class="punto"></span>Cargar producto</button>
+    <button class="nav-item" data-v="v-kit" onclick="ir('v-kit')"><span class="punto"></span>Material de venta</button>
+    <button class="nav-item" data-v="v-liq" onclick="ir('v-liq')"><span class="punto"></span>Mi dinero<span class="globo" id="g-din" style="display:none">0</span></button>
+    <div class="pie"><b id="pie-marca">Mi marca</b><span id="pie-ubic"></span><button onclick="salir()">Cerrar sesión</button></div>
+  </aside>
+
+  <main class="principal">
+
+    <section class="vista on" id="v-inicio">
+      <div class="cab"><h1 id="saludo">Hola 👋</h1><p>Todo pedido que ves aquí ya está pagado y validado por SOCIO. Tu única tarea es empaquetar, despachar y registrar la guía.</p></div>
+      <div class="metricas">
+        <div class="tarjeta metrica urgente"><small>Por despachar</small><div class="valor num" id="m-desp">0</div><div class="detalle">pedidos pagados</div></div>
+        <div class="tarjeta metrica"><small>Productos publicados</small><div class="valor num" id="m-prod">0</div><div class="detalle" id="m-prod-det">aún sin catálogo</div></div>
+        <div class="tarjeta metrica"><small>Presentaciones activas</small><div class="valor num" id="m-vars">0</div><div class="detalle">visibles para la red</div></div>
+        <div class="tarjeta metrica"><small>Disponible para retirar</small><div class="valor num" id="m-liq">S/ 0</div><div class="detalle">liberado por hitos</div></div>
+      </div>
+      <div class="seccion-titulo">Cómo funciona tu semana</div>
+      <div class="tarjeta" style="font-size:13.5px;line-height:1.75">
+        <b>1.</b> Publicas tus productos con sus presentaciones, precios de página y stock por almacén.<br>
+        <b>2.</b> Los socios los venden a su red y registran el pedido pagando su precio de distribuidor.<br>
+        <b>3.</b> SOCIO valida el pago y recién ahí el pedido aparece en tu bandeja.<br>
+        <b>4.</b> Despachas con guía y <b>tu dinero se libera por hitos</b>, no por calendario: una parte al registrar la guía y el resto al confirmarse la entrega.
+      </div>
+    </section>
+
+    <section class="vista" id="v-pedidos">
+      <div class="cab"><h1>Pedidos</h1><p>Pagados y listos para despachar, con todos los datos que la agencia te va a pedir.</p></div>
+      <div class="seccion-titulo">⚡ Pagados por despachar</div>
+      <div id="lista-desp"></div>
+      <div class="seccion-titulo">En camino</div>
+      <div id="lista-camino"></div>
+      <div class="seccion-titulo">Entregados</div>
+      <div id="lista-ent"></div>
+    </section>
+
+    <section class="vista" id="v-catalogo">
+      <div class="cab"><h1>Mi catálogo</h1>
+        <p>Tú defines el <b>precio de página</b> (el que ve el público). SOCIO calcula el precio de cada socio según su nivel — tú recibes tu precio de proveedor íntegro en cada venta.</p></div>
+      <div id="lista-catalogo"></div>
+    </section>
+
+    <section class="vista" id="v-nuevo">
+      <div class="cab"><h1>Cargar producto</h1><p>Un producto puede tener varias presentaciones (mg, tamaños, packs), cada una con su precio y su stock por almacén.</p></div>
+      <div class="pasos">
+        <div class="paso on" id="ps1"><div class="barra"></div><span>1 · Producto</span></div>
+        <div class="paso" id="ps2"><div class="barra"></div><span>2 · Presentaciones</span></div>
+        <div class="paso" id="ps3"><div class="barra"></div><span>3 · Despacho</span></div>
+        <div class="paso" id="ps4"><div class="barra"></div><span>4 · Revisión</span></div>
+      </div>
+      <div class="grid-asis">
+        <div>
+          <div class="pf on" id="pf1">
+            <div class="tarjeta">
+              <div class="campo" id="c-nombre"><label>Nombre del producto</label><input id="n-nombre" placeholder="Ej. GHK-Cu" oninput="previa()"><div class="err">Ingresa el nombre.</div></div>
+              <div class="dos">
+                <div class="campo"><label>Categoría</label><input id="n-cat" placeholder="Ej. Piel / Recuperación / Combos" oninput="previa()"></div>
+                <div class="campo"><label>Ícono <small>· hasta tener fotos</small></label><input id="n-emoji" maxlength="2" value="🧪" oninput="previa()"></div>
+              </div>
+              <div class="campo"><label>Descripción para el socio <small>· qué es y qué recibe el cliente</small></label>
+                <textarea id="n-desc" placeholder="Qué es, presentación, conservación…"></textarea>
+                <div class="pista">Describe lo que el cliente recibe: contenido, presentación, tamaño y condiciones de entrega. Mientras más claro, menos preguntas y menos devoluciones para ti.</div></div>
+              <button class="btn btn-sol btn-w" onclick="paso(2)">Continuar a presentaciones</button>
+            </div>
+          </div>
+
+          <div class="pf" id="pf2">
+            <div class="tarjeta">
+              <div class="nota nota-info" style="margin-top:0">📦 <span>Una fila por presentación. El <b>precio de página</b> es el que ve el público; el socio compra con su descuento por nivel y nunca puede vender por debajo de ese precio.</span></div>
+              <div class="nota" style="background:#FCF0D8;color:#8A5D0F">⚠️ <span><b>Toda presentación necesita su precio mayorista y de página, sin excepción.</b> SOCIO no publica presentaciones "a cotizar": el socio nunca debe contactar directamente a tu empresa para conocer un precio — esa es la regla que protege a toda la red.</span></div>
+              <div class="expli">
+                <div class="tit">¿Por qué el socio tiene descuentos distintos?</div>
+                <b>Tú siempre cobras tu precio mayorista íntegro</b>, sin importar quién haga la venta. Lo que se reparte es el margen entre tu mayorista y el precio de página: una parte va al vendedor y el resto es la comisión de SOCIO. Cuando un socio sube de nivel, <b>SOCIO le cede parte de su propia comisión</b> — tu precio no se toca.
+                <ul>
+                  <li><b>🥉 Bronce</b> — 40% del margen · socio nuevo, recién validado.</li>
+                  <li><b>🥈 Plata</b> — 50% del margen · al llegar a 10 ventas entregadas.</li>
+                  <li><b>🥇 Oro</b> — 60% del margen · al llegar a 25 ventas entregadas.</li>
+                  <li><b>💎 Diamante</b> — 70% del margen · 50 ventas y tres meses activo.</li>
+                </ul>
+                El nivel se revisa cada trimestre y depende de <b>ventas entregadas, no de pedidos registrados</b>. Quienes más margen se llevan son los que más volumen te generan.
+              </div>
+              <div id="variantes"></div>
+              <button class="btn btn-borde btn-w" onclick="agregarVariante()">+ Agregar otra presentación</button>
+              <div class="campo" id="c-vars" style="margin-top:10px"><div class="err">Completa al menos una presentación con nombre y precio.</div></div>
+              <button class="btn btn-sol btn-w" onclick="paso(3)">Continuar a despacho</button>
+              <button class="btn btn-fantasma btn-w" onclick="paso(1)">Volver</button>
+            </div>
+          </div>
+
+          <div class="pf" id="pf3">
+            <div class="tarjeta">
+              <div class="dos">
+                <div class="campo"><label>Tiempo de preparación</label>
+                  <select id="n-prep"><option>Mismo día</option><option selected>24 horas</option><option>48 horas</option></select></div>
+                <div class="campo"><label>Cobertura</label>
+                  <select id="n-cob"><option selected>Todo el Perú por agencia</option><option>Solo mi ciudad</option><option>Mi ciudad + provincias principales</option></select></div>
+              </div>
+              <div class="seccion-titulo" style="margin-top:6px">Horas de corte</div>
+              <div class="corte-caja">⏰ <b>Recomendado:</b> define hasta qué hora recibes pedidos para despachar el mismo día. Los socios pueden vender las 24 horas, pero los pedidos que entren después del corte se despachan al día siguiente. Así organizas tu cierre de día y evitas reclamos por demoras.</div>
+              <div class="dos" style="margin-top:12px">
+                <div class="campo"><label>Corte para envío nacional <small>· por agencia</small></label>
+                  <select id="n-corte-nac">
+                    <option>12:00 p. m.</option><option selected>2:00 p. m.</option><option>4:00 p. m.</option><option>5:00 p. m.</option><option>Sin corte</option>
+                  </select>
+                  <div class="pista">Después de esta hora, el pedido sale al siguiente día hábil.</div></div>
+                <div class="campo"><label>Corte para entrega local <small>· misma ciudad</small></label>
+                  <select id="n-corte-loc">
+                    <option>11:00 a. m.</option><option selected>1:00 p. m.</option><option>3:00 p. m.</option><option>6:00 p. m.</option><option>No aplica</option>
+                  </select>
+                  <div class="pista">Pedidos antes de esta hora se entregan el mismo día en tu ciudad.</div></div>
+              </div>
+              <div class="campo"><label>Días de despacho</label>
+                <select id="n-dias"><option selected>Lunes a viernes</option><option>Lunes a sábado</option><option>Todos los días</option></select></div>
+              <div class="nota nota-sol">🚚 <span>Las tarifas de agencia, los plazos y tus horas de corte se muestran al socio en cada ficha de producto, para que sepa exactamente qué prometerle a su cliente. Tú no pagas el flete.</span></div>
+              <button class="btn btn-sol btn-w" onclick="paso(4)">Continuar a revisión</button>
+              <button class="btn btn-fantasma btn-w" onclick="paso(2)">Volver</button>
+            </div>
+          </div>
+
+          <div class="pf" id="pf4">
+            <div class="tarjeta">
+              <div class="expli" style="margin-bottom:14px">
+                <div class="tit">Qué revisa SOCIO y qué no</div>
+                SOCIO es el <b>enlace comercial</b> entre tu marca y los vendedores: no fiscalizamos productos ni permisos. Los permisos, registros y la legalidad de lo que vendes corresponden a tu empresa y a tu RUC, y ya fueron evaluados por los organismos competentes.
+                <br><br>Nuestra revisión es <b>comercial</b>: que la información esté completa, que los precios sean coherentes y que las condiciones de entrega sean claras — para que el socio venda bien y el cliente reciba lo que esperaba.
+              </div>
+
+              <div class="seccion-titulo" style="margin-top:0">Condiciones del producto</div>
+              <label class="check"><input type="checkbox" id="n-d1"><span>El producto se entrega <b>nuevo y sellado</b>, en su empaque original y sin abrir.</span></label>
+              <label class="check"><input type="checkbox" id="n-d2"><span>El <b>empaque de despacho</b> es adecuado para el transporte: protege el contenido y llega en las mismas condiciones en que salió.</span></label>
+              <label class="check"><input type="checkbox" id="n-d3"><span>La <b>descripción y las fotos corresponden</b> a lo que el cliente va a recibir: presentación, cantidad y contenido reales.</span></label>
+              <label class="check"><input type="checkbox" id="n-d4"><span>Mi empresa es <b>responsable del producto</b>, de sus permisos y de la información que publica. SOCIO actúa solo como enlace comercial y de despacho.</span></label>
+              <div class="campo" id="c-decl"><div class="err">Marca las cuatro condiciones para continuar.</div></div>
+
+              <div class="seccion-titulo">Material de apoyo <small style="font-weight:500;text-transform:none;letter-spacing:0">· opcional, ayuda al socio a vender</small></div>
+              <button class="btn btn-borde btn-w" style="margin-top:0" onclick="aviso('Ficha del producto adjuntada ✓')">📎 Ficha del producto o manual de uso</button>
+              <button class="btn btn-borde btn-w" onclick="aviso('Recomendaciones adjuntadas ✓')">📎 Recomendaciones de manejo y conservación</button>
+              <div class="campo" style="margin-top:12px"><label>Recomendaciones para el socio y su cliente <small>· se muestran en la ficha</small></label>
+                <textarea id="n-reco" placeholder="Ej. Conservar refrigerado entre 2 y 8 °C · No exponer al sol durante el traslado · Frágil, embalar con protección"></textarea>
+                <div class="pista">Escribe lo que el socio debe saber y transmitir: manejo, conservación, cuidados de traslado, garantía que ofreces.</div></div>
+
+              <div class="nota nota-info">🔍 <span><b>Revisión comercial (24–48 h):</b> verificamos que la información esté completa y las condiciones de entrega sean claras, y luego lo publicamos a la red.</span></div>
+              <button class="btn btn-sol btn-w" onclick="enviarRevision()">Enviar a revisión</button>
+              <button class="btn btn-fantasma btn-w" onclick="paso(3)">Volver</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="previa">
+            <div class="tit">Así lo verá el socio</div>
+            <div class="previa-card">
+              <div class="previa-img" id="pv-emoji">🧪</div>
+              <div class="previa-info"><h4 id="pv-nombre">Nuevo producto</h4><p id="pv-detalle">Tu marca · categoría</p></div>
+            </div>
+            <div class="niveles-caja">
+              <div class="tit">Precio del socio según su nivel</div>
+              <div id="pv-niveles"></div>
+              <div class="aviso-margen" id="pv-aviso" style="display:none"></div>
+              <p style="font-size:10.5px;color:#8FA398;margin-top:9px;line-height:1.5">Tú cobras tu precio mayorista íntegro en cada venta. Lo que se reparte entre el socio y SOCIO es el margen hasta el precio de página — tu precio nunca se toca.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="vista" id="v-kit">
+      <div class="cab"><h1>Material de venta</h1><p>Lo que subas aquí es lo que tus socios publicarán en TikTok, Instagram y WhatsApp. Mejor material, más ventas — para ellos y para ti.</p></div>
+      <div id="lista-kit"></div>
+    </section>
+
+    <section class="vista" id="v-liq">
+      <div class="cab"><h1>Mi dinero</h1><p>Tu dinero se libera por hitos, no por calendario: cobras apenas el pedido cruza cada etapa verificable.</p></div>
+      <div id="zona-liq"></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= Almacenamiento ================= */
+const mem = {};
+function guardar(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ mem[k]=JSON.stringify(v); } }
+function leer(k,d){ try{ const x=localStorage.getItem(k); if(x!==null) return JSON.parse(x); }catch(e){ if(mem[k]!==undefined) return JSON.parse(mem[k]); } return d; }
+function val(id){ const e=document.getElementById(id); return e?e.value:''; }
+
+/* ================= Niveles (los define SOCIO) ================= */
+/* El nivel define qué parte del MARGEN DISPONIBLE se lleva el socio.
+   Margen = precio de página − precio mayorista del proveedor.
+   El proveedor cobra siempre su mayorista íntegro. */
+const NIVELES = [
+  {nombre:'Bronce',  med:'🥉', parte:0.40},
+  {nombre:'Plata',   med:'🥈', parte:0.50},
+  {nombre:'Oro',     med:'🥇', parte:0.60},
+  {nombre:'Diamante',med:'💎', parte:0.70},
+];
+/* SOCIO nunca baja de este piso por transacción */
+function pisoSocio(pub){ return Math.max(3, Math.round(pub*0.03*100)/100); }
+function repartir(mayorista, publico, parte){
+  const margen = Math.round((publico - mayorista)*100)/100;
+  if(margen <= 0) return {margen, socio:0, plataforma:0, paga:publico, valido:false};
+  let socio = Math.round(margen*parte*100)/100;
+  const piso = Math.min(pisoSocio(publico), margen);       // si el margen es menor al piso, SOCIO se queda con lo que haya
+  if(margen - socio < piso) socio = Math.round((margen - piso)*100)/100;
+  if(socio < 0) socio = 0;
+  const plataforma = Math.round((margen - socio)*100)/100;
+  return {margen, socio, plataforma, paga: Math.round((publico - socio)*100)/100, valido:true};
+}
+
+/* ===== Niveles de fiabilidad de la marca: cuándo se libera su dinero ===== */
+const FIABILIDAD = [
+  {nombre:'Marca nueva', ic:'🌱', meta:0,   guia:0,    entrega:1,   req:'Al registrar tu marca',            reglaTxt:'100% al confirmarse la entrega'},
+  {nombre:'Confiable',   ic:'✅', meta:20,  guia:0.70, entrega:0.30, req:'20 entregas sin incidencias',      reglaTxt:'70% al registrar guía · 30% a la entrega'},
+  {nombre:'Preferente',  ic:'⭐', meta:60,  guia:0.90, entrega:0.10, req:'60 entregas, menos de 2% de incidencias', reglaTxt:'90% al registrar guía · 10% a la entrega'},
+  {nombre:'Aliada',      ic:'🏅', meta:150, guia:1,    entrega:0,   req:'150 entregas y 6 meses de historial', reglaTxt:'100% al registrar la guía'},
+];
+function entregasHechas(){ return peds().filter(function(x){ return x.estado==='entregado'; }).length; }
+function nivelFiab(){
+  const n = entregasHechas();
+  let i = 0;
+  FIABILIDAD.forEach(function(f,k){ if(n >= f.meta) i = k; });
+  return Object.assign({}, FIABILIDAD[i], {idx:i});
+}
+function nivelFiabSig(){ const a = nivelFiab(); return a.idx < FIABILIDAD.length-1 ? FIABILIDAD[a.idx+1] : null; }
+/* Un pedido local (entrega a domicilio en la misma ciudad) libera 100% al entregarse */
+function esLocal(p){ return (p.entrega||'').indexOf('Domicilio')!==-1; }
+function repartoPedido(p){
+  const f = nivelFiab();
+  const gPct = esLocal(p) ? 0 : f.guia;
+  const ePct = esLocal(p) ? 1 : f.entrega;
+  const total = Number(p.proveedor)||0;
+  const porGuia = Math.round(total*gPct*100)/100;
+  const porEntrega = Math.round((total - porGuia)*100)/100;
+  const liberado = (p.estado==='entregado') ? total : (p.estado==='camino' ? porGuia : 0);
+  return {total, porGuia, porEntrega, liberado, pendiente: Math.round((total-liberado)*100)/100, local:esLocal(p), ePct};
+}
+
+let marca = null;
+let borrador = [];
+
+/* ================= Auth ================= */
+function modoAuth(m){
+  document.getElementById('t-reg').classList.toggle('on', m==='reg');
+  document.getElementById('t-ing').classList.toggle('on', m==='ing');
+  document.getElementById('f-reg').style.display = m==='reg'?'block':'none';
+  document.getElementById('f-ing').style.display = m==='ing'?'block':'none';
+}
+function marcarC(id,mal){ const e=document.getElementById(id); if(e) e.classList.toggle('mal',mal); return !mal; }
+function registrarMarca(){
+  const nombre=val('r-marca').trim(), ruc=val('r-ruc').trim(), giro=val('r-giro'),
+        almacen=val('r-almacen').trim(), punto=val('r-punto').trim(),
+        cel=val('r-cel').trim(), clave=val('r-clave');
+  const t = document.getElementById('r-t1').checked && document.getElementById('r-t2').checked;
+  let ok=true;
+  ok = marcarC('c-marca', !nombre) && ok;
+  ok = marcarC('c-ruc', !/^\d{11}$/.test(ruc)) && ok;
+  ok = marcarC('c-giro', !giro) && ok;
+  ok = marcarC('c-alm', !almacen) && ok;
+  ok = marcarC('c-cel', !/^9\d{8}$/.test(cel)) && ok;
+  ok = marcarC('c-clave', clave.length<4) && ok;
+  ok = marcarC('c-terms', !t) && ok;
+  if(!ok){ aviso('Revisa los campos marcados'); return; }
+  const marcas = leer('prov_marcas', {});
+  if(marcas[cel]){ marcarC('c-cel', true); aviso('Ese celular ya tiene una cuenta de marca'); return; }
+  marcas[cel] = {nombre, ruc, giro, almacen, punto, cel, clave, creado:new Date().toISOString()};
+  guardar('prov_marcas', marcas);
+  guardar('prov_sesion', cel);
+  abrir(marcas[cel]);
+  aviso('¡Marca registrada! Carga tu primer producto para que la red lo venda ☀️');
+}
+function ingresarMarca(){
+  const cel=val('i-cel').trim(), clave=val('i-clave');
+  const m = leer('prov_marcas', {})[cel];
+  if(!m || m.clave!==clave){ marcarC('c-iclave', true); aviso('Celular o clave incorrectos'); return; }
+  marcarC('c-iclave', false);
+  guardar('prov_sesion', cel);
+  abrir(m);
+}
+function abrir(m){
+  marca = m;
+  document.getElementById('auth').classList.add('oculto');
+  document.getElementById('app').classList.add('ver');
+  document.getElementById('saludo').textContent = 'Hola, ' + m.nombre + ' 👋';
+  document.getElementById('pie-marca').textContent = m.nombre;
+  document.getElementById('pie-ubic').textContent = 'Almacén ' + m.almacen + (m.punto ? ' · Entregas ' + m.punto : '');
+  if(!borrador.length) agregarVariante(); else pintarVariantes();
+  pintarTodo();
+  ir('v-inicio');
+}
+function salir(){
+  guardar('prov_sesion', null); marca=null;
+  document.getElementById('app').classList.remove('ver');
+  document.getElementById('auth').classList.remove('oculto');
+  modoAuth('ing');
+}
+
+/* ================= Datos ================= */
+function cat(){ return marca ? leer('prov_cat_'+marca.cel, []) : []; }
+function guardarCat(c){ if(marca) guardar('prov_cat_'+marca.cel, c); }
+function peds(){ return marca ? leer('prov_ped_'+marca.cel, []) : []; }
+function guardarPeds(p){ if(marca) guardar('prov_ped_'+marca.cel, p); }
+
+/* ================= Navegación ================= */
+function ir(id){
+  document.querySelectorAll('.vista').forEach(x=>x.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on', n.dataset.v===id));
+  pintarTodo();
+}
+function pintarTodo(){
+  if(!marca) return;
+  pintarCatalogo(); pintarPedidos(); pintarKit(); pintarLiq(); pintarMetricas(); previa();
+}
+
+/* ================= Métricas ================= */
+function pintarMetricas(){
+  const c = cat(), p = peds();
+  const porD = p.filter(x=>x.estado==='pagado').length;
+  document.getElementById('m-desp').textContent = porD;
+  document.getElementById('m-prod').textContent = c.length;
+  document.getElementById('m-prod-det').textContent = c.length ? (c.filter(x=>x.estado==='revision').length + ' en revisión') : 'aún sin catálogo';
+  document.getElementById('m-vars').textContent = c.filter(x=>x.activo).reduce((a,x)=>a+x.variantes.length,0);
+  let disp = 0;
+  p.filter(x=>x.estado!=='pagado').forEach(x=>{ disp += repartoPedido(x).liberado; });
+  document.getElementById('m-liq').textContent = 'S/ ' + disp.toFixed(0);
+  const g = document.getElementById('g-ped');
+  g.textContent = porD; g.style.display = porD ? '' : 'none';
+}
+
+/* ================= Catálogo ================= */
+function pintarCatalogo(){
+  const c = cat();
+  const cont = document.getElementById('lista-catalogo');
+  if(!c.length){
+    cont.innerHTML = '<div class="vacio"><div class="ic">📦</div><h3>Tu catálogo está vacío</h3>'+
+      '<p>Carga tu primer producto con sus presentaciones, precios y stock. Cuando SOCIO lo apruebe, toda la red podrá venderlo.</p>'+
+      '<button class="btn btn-sol" style="margin-top:13px" onclick="ir(\'v-nuevo\')">Cargar mi primer producto</button></div>';
+    return;
+  }
+  cont.innerHTML = c.map(function(p,i){
+    const estado = p.estado==='revision' ? '<span class="chip chip-info">🔍 En revisión</span>'
+      : (p.activo ? '<span class="chip chip-ok">Visible</span>' : '<span class="chip chip-alerta">Pausado</span>');
+    const colB = marca.punto ? '<th class="der">Stock '+marca.punto+'</th>' : '';
+    const filas = p.variantes.map(function(vr,j){
+      const celB = marca.punto
+        ? '<td class="der"><span class="stock-mini '+(Number(vr.stockB)===0?'cero':'')+'"><input type="number" min="0" value="'+vr.stockB+'" onchange="setStock('+i+','+j+',\'stockB\',this.value)"> u.</span></td>'
+        : '';
+      const mg = Math.round((Number(vr.sug)-Number(vr.may||0))*100)/100;
+      return '<tr><td><b>'+vr.pres+'</b></td>'+
+        '<td class="der num">S/ '+Number(vr.may||0).toFixed(2)+'</td>'+
+        '<td class="der num">S/ '+Number(vr.sug).toFixed(2)+'</td>'+
+        '<td class="der"><span class="margen-chip '+(mg<=0?'malo':(mg < pisoSocio(vr.sug)*2 ?'flojo':''))+'">S/ '+mg.toFixed(2)+'</span></td>'+
+        '<td class="der"><span class="stock-mini '+(Number(vr.stockA)===0?'cero':'')+'"><input type="number" min="0" value="'+vr.stockA+'" onchange="setStock('+i+','+j+',\'stockA\',this.value)"> u.</span></td>'+
+        celB+'</tr>';
+    }).join('');
+    return '<div class="tarjeta prod"><div class="prod-cab">'+
+      '<div class="mini">'+(p.emoji||'📦')+'</div>'+
+      '<div class="info"><h3>'+p.nombre+'</h3><p>'+(p.cat||'Sin categoría')+' · '+p.variantes.length+' presentación'+(p.variantes.length>1?'es':'')+' · prep. '+p.prep+
+        (p.corteNac?' · ⏰ corte nacional '+p.corteNac:'')+(p.corteLoc && p.corteLoc!=='No aplica'?' · local '+p.corteLoc:'')+'</p></div>'+
+      estado+'<button class="interruptor '+(p.activo?'on':'')+'" '+(p.estado==='revision'?'disabled':'')+' onclick="alternar('+i+')" aria-label="Activar o pausar"></button>'+
+      '</div><table class="vtabla"><thead><tr><th>Presentación</th><th class="der">Tu mayorista</th><th class="der">Precio página</th><th class="der">Margen</th><th class="der">Stock '+marca.almacen+'</th>'+colB+'</tr></thead><tbody>'+filas+'</tbody></table></div>';
+  }).join('');
+}
+function setStock(i,j,campo,v){
+  const c = cat(); c[i].variantes[j][campo] = Math.max(0, parseInt(v)||0);
+  guardarCat(c); pintarCatalogo(); pintarMetricas();
+  aviso('Stock actualizado — los socios ya ven la cantidad nueva');
+}
+function alternar(i){
+  const c = cat(); if(c[i].estado==='revision') return;
+  c[i].activo = !c[i].activo; guardarCat(c); pintarCatalogo(); pintarMetricas();
+  aviso(c[i].activo ? '"'+c[i].nombre+'" visible para los socios' : '"'+c[i].nombre+'" pausado');
+}
+
+/* ================= Asistente ================= */
+function paso(n){
+  if(n>=2 && !val('n-nombre').trim()){ marcarC('c-nombre', true); aviso('Ingresa el nombre del producto'); return; }
+  marcarC('c-nombre', false);
+  if(n>=3){
+    leerVariantes();
+    const conNombre = borrador.filter(function(x){return x.pres;});
+    if(!conNombre.length){ marcarC('c-vars', true); aviso('Completa al menos una presentación'); return; }
+    const incompleta = conNombre.find(function(x){return !(x.sug>0) || !(x.may>0);});
+    if(incompleta){
+      marcarC('c-vars', true);
+      aviso('"'+incompleta.pres+'" necesita precio mayorista Y de página — SOCIO no publica presentaciones sin precio');
+      return;
+    }
+    marcarC('c-vars', false);
+  }
+  [1,2,3,4].forEach(function(i){
+    document.getElementById('pf'+i).classList.toggle('on', i===n);
+    document.getElementById('ps'+i).classList.toggle('on', i<=n);
+  });
+}
+function agregarVariante(){ leerVariantes(); borrador.push({pres:'', may:'', sug:'', stockA:0, stockB:0}); pintarVariantes(); }
+function quitarVariante(i){
+  if(borrador.length===1){ aviso('Necesitas al menos una presentación'); return; }
+  leerVariantes(); borrador.splice(i,1); pintarVariantes(); previa();
+}
+function pintarVariantes(){
+  const cont = document.getElementById('variantes');
+  if(!cont || !marca) return;
+  cont.innerHTML = borrador.map(function(x,i){
+    return '<div class="var-fila">'+
+      '<div class="campo"><label>'+(i===0?'Presentación':'')+'</label><input value="'+x.pres+'" placeholder="Ej. Vial 50 mg" oninput="previa()" id="vp-'+i+'"></div>'+
+      '<div class="campo"><label>'+(i===0?'Tu precio mayorista S/':'')+'</label><input type="number" value="'+x.may+'" placeholder="80" oninput="previa()" id="vm-'+i+'"></div>'+
+      '<div class="campo"><label>'+(i===0?'Precio página S/':'')+'</label><input type="number" value="'+x.sug+'" placeholder="115" oninput="previa()" id="vs-'+i+'"></div>'+
+      '<div class="campo"><label>'+(i===0?'Stock '+marca.almacen:'')+'</label><input type="number" min="0" value="'+x.stockA+'" id="va-'+i+'"></div>'+
+      '<div class="campo"><label>'+(i===0?'Stock '+(marca.punto||'—'):'')+'</label><input type="number" min="0" value="'+x.stockB+'" id="vb-'+i+'" '+(marca.punto?'':'disabled')+'></div>'+
+      '<button class="quitar" onclick="quitarVariante('+i+')" aria-label="Quitar">🗑</button></div>';
+  }).join('');
+}
+function leerVariantes(){
+  borrador = borrador.map(function(x,i){
+    const p = document.getElementById('vp-'+i), s = document.getElementById('vs-'+i),
+          m = document.getElementById('vm-'+i),
+          a = document.getElementById('va-'+i), b = document.getElementById('vb-'+i);
+    return {
+      pres: p ? p.value.trim() : x.pres,
+      may: m ? (parseFloat(m.value)||0) : x.may,
+      sug: s ? (parseFloat(s.value)||0) : x.sug,
+      stockA: a ? (parseInt(a.value)||0) : x.stockA,
+      stockB: b ? (parseInt(b.value)||0) : x.stockB
+    };
+  });
+}
+function previa(){
+  if(!marca) return;
+  const e = document.getElementById('pv-emoji'); if(!e) return;
+  e.textContent = val('n-emoji') || '📦';
+  document.getElementById('pv-nombre').textContent = val('n-nombre') || 'Nuevo producto';
+  leerVariantes();
+  const primera = borrador.find(function(x){return x.sug>0;});
+  document.getElementById('pv-detalle').innerHTML =
+    marca.nombre + ' · ' + (val('n-cat')||'categoría') +
+    (primera ? '<br>Precio página: <b>S/ '+primera.sug.toFixed(2)+'</b>' : '');
+  const conPrecio = borrador.filter(function(x){ return x.sug>0 && x.may>0; });
+  document.getElementById('pv-niveles').innerHTML = conPrecio.length
+    ? conPrecio.map(function(vr){
+        const m = Math.round((vr.sug - vr.may)*100)/100;
+        const pctM = Math.round(m/vr.sug*100);
+        let clase = 'ok', txt = 'Margen S/ '+m.toFixed(2)+' ('+pctM+'%)';
+        if(m <= 0){ clase='malo'; txt = '⚠️ El precio de página debe ser mayor que tu mayorista'; }
+        else if(m < pisoSocio(vr.sug)*2){ clase='flojo'; txt = 'Margen ajustado: S/ '+m.toFixed(2)+' ('+pctM+'%)'; }
+        const filas = m>0 ? NIVELES.map(function(n){
+          const r = repartir(vr.may, vr.sug, n.parte);
+          return '<div class="niv-fila"><span>'+n.med+' '+n.nombre+'</span><span>socio gana <b class="num g">S/ '+r.socio.toFixed(2)+'</b> · SOCIO <b class="num">S/ '+r.plataforma.toFixed(2)+'</b></span></div>';
+        }).join('') : '';
+        const r0 = m>0 ? repartir(vr.may, vr.sug, NIVELES[0].parte) : null;
+        const cajas = r0 ? '<div class="reparto">'+
+            '<div class="prov"><small>Tú cobras</small><b class="num">S/ '+vr.may.toFixed(2)+'</b></div>'+
+            '<div class="socio"><small>Socio Bronce</small><b class="num">S/ '+r0.socio.toFixed(2)+'</b></div>'+
+            '<div><small>SOCIO</small><b class="num">S/ '+r0.plataforma.toFixed(2)+'</b></div></div>' : '';
+        return '<div class="niv-prod"><div class="nombre">'+(vr.pres||'Presentación sin nombre')+' · página S/ '+vr.sug.toFixed(2)+'</div>'+
+          '<span class="margen-chip '+clase+'">'+txt+'</span>'+cajas+filas+'</div>';
+      }).join('')
+    : '<p style="font-size:12px;color:#8FA398">Ingresa tu precio mayorista y el precio de página de cada presentación para ver el reparto.</p>';
+  const av = document.getElementById('pv-aviso');
+  if(av){
+    const flojas = conPrecio.filter(function(x){ const m=x.sug-x.may; return m>0 && repartir(x.may,x.sug,NIVELES[0].parte).socio < 5; });
+    const malas = conPrecio.filter(function(x){ return (x.sug-x.may) <= 0; });
+    if(malas.length){
+      av.style.display='block';
+      av.innerHTML = '⚠️ <b>Revisa tus precios:</b> en '+malas.length+' presentación'+(malas.length>1?'es':'')+' el precio de página no supera tu mayorista. Sin margen no hay nada que repartir y el producto no se puede publicar.';
+    } else if(flojas.length){
+      av.style.display='block';
+      av.innerHTML = '💡 <b>Margen ajustado:</b> en '+flojas.length+' presentación'+(flojas.length>1?'es':'')+' un socio nuevo ganaría menos de S/ 5 por unidad. Puedes publicarlo igual, pero pocos socios elegirán venderlo frente a productos con mejor margen.';
+    } else av.style.display='none';
+  }
+}
+function enviarRevision(){
+  const decls = ['n-d1','n-d2','n-d3','n-d4'].every(function(id){ return document.getElementById(id).checked; });
+  if(!decls){ marcarC('c-decl', true); aviso('Marca las cuatro condiciones del producto'); return; }
+  marcarC('c-decl', false);
+  leerVariantes();
+  const conNombre = borrador.filter(function(x){return x.pres;});
+  if(!conNombre.length){ aviso('Completa al menos una presentación'); return; }
+  const incompleta = conNombre.find(function(x){return !(x.sug>0) || !(x.may>0);});
+  if(incompleta){
+    marcarC('c-vars', true); paso(2);
+    aviso('"'+incompleta.pres+'" necesita precio mayorista Y de página antes de enviar a revisión');
+    return;
+  }
+  const vars = conNombre;
+  const sinMargen = vars.filter(function(x){ return (x.sug - x.may) <= 0; });
+  if(sinMargen.length){
+    marcarC('c-vars', true); paso(2);
+    aviso('El precio de página debe ser mayor que tu mayorista en todas las presentaciones');
+    return;
+  }
+  const c = cat();
+  c.unshift({
+    nombre: val('n-nombre').trim(), cat: val('n-cat').trim(), emoji: val('n-emoji')||'📦',
+    desc: val('n-desc').trim(), prep: val('n-prep'), cobertura: val('n-cob'),
+    corteNac: val('n-corte-nac'), corteLoc: val('n-corte-loc'), dias: val('n-dias'),
+    reco: val('n-reco').trim(),
+    variantes: vars, estado:'revision', activo:false,
+    kit:{fotos:false, videos:false, textos:false}, creado:new Date().toISOString()
+  });
+  guardarCat(c);
+  ['n-nombre','n-cat','n-desc','n-reco'].forEach(function(id){ const e=document.getElementById(id); if(e) e.value=''; });
+  ['n-d1','n-d2','n-d3','n-d4'].forEach(function(id){ document.getElementById(id).checked=false; });
+  borrador = [{pres:'', may:'', sug:'', stockA:0, stockB:0}];
+  pintarVariantes(); paso(1); ir('v-catalogo');
+  aviso('Producto enviado a revisión ✓ SOCIO responde en 24–48 h');
+}
+
+/* ================= Pedidos ================= */
+function pintarPedidos(){
+  const p = peds();
+  const porD = p.filter(function(x){return x.estado==='pagado';});
+  const cam = p.filter(function(x){return x.estado==='camino';});
+  const ent = p.filter(function(x){return x.estado==='entregado';});
+  document.getElementById('lista-desp').innerHTML = porD.length ? porD.map(tarjetaPedido).join('')
+    : '<div class="vacio"><div class="ic">☀️</div><h3>Nada pendiente</h3><p>Cuando un socio venda tu producto y SOCIO valide el pago, el pedido aparecerá aquí con los datos de envío listos para la guía.</p></div>';
+  document.getElementById('lista-camino').innerHTML = cam.length ? cam.map(tarjetaPedido).join('')
+    : '<p style="font-size:13px;color:var(--tinta-suave)">Sin envíos en camino.</p>';
+  document.getElementById('lista-ent').innerHTML = ent.length ? ent.map(tarjetaPedido).join('')
+    : '<p style="font-size:13px;color:var(--tinta-suave)">Aún sin entregas registradas.</p>';
+}
+function tarjetaPedido(x){
+  const chip = x.estado==='pagado' ? '<span class="chip chip-sol">💰 Pagado</span>'
+    : x.estado==='camino' ? '<span class="chip chip-info">En camino</span>'
+    : '<span class="chip chip-ok">Entregado</span>';
+  const r = repartoPedido(x);
+  let acc;
+  if(x.estado==='pagado'){
+    const adelanto = r.local
+      ? 'Entrega local: cobras el 100% al confirmar la entrega, el mismo día.'
+      : (r.porGuia>0 ? 'Al registrar la guía se te libera <b>S/ '+r.porGuia.toFixed(2)+'</b> hoy mismo.'
+                     : 'Como marca nueva, cobras el 100% al confirmarse la entrega.');
+    acc = '<div class="zona-guia"><input id="guia-'+x.codigo+'" placeholder="N° de guía del courier"><button class="btn btn-sol" onclick="despachar(\''+x.codigo+'\')">Marcar despachado</button></div>'+
+      '<p style="font-size:11.5px;color:var(--sol-osc);margin-top:7px;line-height:1.5">💰 '+adelanto+'</p>';
+  } else if(x.estado==='camino'){
+    acc = '<div class="zona-guia"><span style="font-size:12px;color:var(--info);font-weight:600;flex:1">📦 Guía '+x.guia+'</span>'+
+      '<button class="btn btn-ok" onclick="confirmarEntrega(\''+x.codigo+'\')">Confirmar entrega</button></div>'+
+      '<p style="font-size:11.5px;color:var(--tinta-suave);margin-top:7px;line-height:1.5">💰 Liberado S/ '+r.liberado.toFixed(2)+' · quedan <b>S/ '+r.pendiente.toFixed(2)+'</b> hasta confirmar la entrega.</p>';
+  } else {
+    acc = '<div class="zona-guia" style="border:none;padding-top:7px"><span style="font-size:12px;color:var(--ok);font-weight:600">✓ Entregado · guía '+x.guia+' · liberado S/ '+r.total.toFixed(2)+'</span></div>';
+  }
+  return '<div class="tarjeta pedido"><div class="ped-cab">'+
+    '<div><span class="cod">'+x.codigo+'</span> '+chip+'<div class="items">'+x.items+'</div></div>'+
+    '<div class="lado"><b class="num">S/ '+Number(x.proveedor).toFixed(2)+'</b><small>tu precio + envío</small></div></div>'+
+    '<div class="envio-caja">'+
+      '<div class="fila"><b>Recibe</b><span>'+x.destinatario+' · DNI/RUC '+x.doc+' · '+x.celular+'</span></div>'+
+      '<div class="fila"><b>Entrega</b><span>'+x.entrega+'</span></div>'+
+      '<div class="fila"><b>Vendido por</b><span>'+x.socio+'</span></div>'+
+    '</div>'+acc+'</div>';
+}
+function confirmarEntrega(codigo){
+  const p = peds();
+  const x = p.find(function(y){ return y.codigo===codigo; });
+  if(!x) return;
+  const antes = nivelFiab();
+  const r = repartoPedido(x);
+  x.estado = 'entregado'; x.fechaEntrega = new Date().toISOString();
+  guardarPeds(p); pintarTodo();
+  const despues = nivelFiab();
+  aviso(despues.idx > antes.idx
+    ? despues.ic+' ¡Subiste a '+despues.nombre+'! Ahora cobras: '+despues.reglaTxt
+    : codigo+' entregado ✓ Se liberaron S/ '+r.pendiente.toFixed(2)+' — ya puedes retirarlos');
+}
+function despachar(codigo){
+  const inp = document.getElementById('guia-'+codigo);
+  const guia = inp ? inp.value.trim() : '';
+  if(!guia){ if(inp) inp.focus(); aviso('Ingresa el número de guía para confirmar el despacho'); return; }
+  const p = peds();
+  const x = p.find(function(y){return y.codigo===codigo;});
+  x.estado='camino'; x.guia=guia;
+  guardarPeds(p); pintarTodo();
+  const rr = repartoPedido(x);
+  aviso(rr.liberado>0
+    ? codigo+' despachado ✓ Se liberaron S/ '+rr.liberado.toFixed(2)+' a tu favor'
+    : codigo+' despachado ✓ El socio y su cliente ya ven la guía '+guia);
+}
+
+/* ================= Kit ================= */
+function pintarKit(){
+  const c = cat();
+  const cont = document.getElementById('lista-kit');
+  if(!c.length){
+    cont.innerHTML = '<div class="vacio"><div class="ic">📸</div><h3>Primero carga un producto</h3>'+
+      '<p>El material de venta se sube por producto: fotos, videos y textos que tus socios publicarán tal cual.</p>'+
+      '<button class="btn btn-sol" style="margin-top:13px" onclick="ir(\'v-nuevo\')">Cargar producto</button></div>';
+    return;
+  }
+  cont.innerHTML = c.map(function(p,i){
+    const completo = p.kit.fotos && p.kit.videos && p.kit.textos;
+    return '<div class="tarjeta" style="margin-bottom:12px"><div class="prod-cab" style="margin-bottom:12px">'+
+      '<div class="mini">'+p.emoji+'</div><div class="info"><h3>'+p.nombre+'</h3><p>'+(p.cat||'')+'</p></div>'+
+      '<span class="chip '+(completo?'chip-ok':'chip-alerta')+'">'+(completo?'Kit completo':'Kit incompleto')+'</span></div>'+
+      '<div class="kit-grid">'+
+      '<button class="kit-slot '+(p.kit.fotos?'lleno':'')+'" onclick="subirKit('+i+',\'fotos\')"><div class="ic">'+(p.kit.fotos?'✅':'🖼')+'</div><span>Fotos HD</span></button>'+
+      '<button class="kit-slot '+(p.kit.videos?'lleno':'')+'" onclick="subirKit('+i+',\'videos\')"><div class="ic">'+(p.kit.videos?'✅':'🎬')+'</div><span>Reels / TikTok</span></button>'+
+      '<button class="kit-slot '+(p.kit.textos?'lleno':'')+'" onclick="subirKit('+i+',\'textos\')"><div class="ic">'+(p.kit.textos?'✅':'✍️')+'</div><span>Textos WhatsApp</span></button>'+
+      '</div></div>';
+  }).join('');
+}
+function subirKit(i, tipo){
+  const c = cat(); c[i].kit[tipo] = !c[i].kit[tipo]; guardarCat(c); pintarKit();
+  aviso(c[i].kit[tipo] ? 'Material cargado para '+c[i].nombre : 'Material retirado de '+c[i].nombre);
+}
+
+/* ================= Liquidaciones ================= */
+function pintarLiq(){
+  const cont = document.getElementById('zona-liq');
+  const todos = peds();
+  const f = nivelFiab(), sig = nivelFiabSig(), hechas = entregasHechas();
+  const pct = sig ? Math.min(100, Math.round((hechas - f.meta) / (sig.meta - f.meta) * 100)) : 100;
+
+  const cinta = '<div class="fiab-cinta"><div class="med">'+f.ic+'</div>'+
+    '<div class="info"><b>'+f.nombre+'</b><small>Cobras: '+f.reglaTxt+'</small>'+
+    (sig ? '<small>Te faltan <b>'+(sig.meta-hechas)+' entrega'+((sig.meta-hechas)===1?'':'s')+'</b> para '+sig.nombre+' — '+sig.reglaTxt+'</small><div class="barra-f"><span style="width:'+pct+'%"></span></div>'
+         : '<small>Nivel máximo: cobras todo al despachar ☀️</small>')+
+    '</div><div class="fiab-regla">'+hechas+' entregas</div></div>';
+
+  const conMovimiento = todos.filter(function(x){ return x.estado!=='pagado'; });
+  if(!conMovimiento.length){
+    cont.innerHTML = cinta + '<div class="vacio"><div class="ic">🧾</div><h3>Sin movimientos todavía</h3>'+
+      '<p>Cuando despaches tu primer pedido verás aquí cuánto se libera de inmediato y cuánto queda en tránsito hasta la confirmación de entrega.</p></div>' + escaleraFiab();
+    document.getElementById('g-din').style.display='none';
+    return;
+  }
+
+  let disp = 0, transito = 0;
+  conMovimiento.forEach(function(x){ const r = repartoPedido(x); disp += r.liberado; transito += r.pendiente; });
+  disp = Math.round(disp*100)/100; transito = Math.round(transito*100)/100;
+  const com = Math.round(disp*0.05*100)/100;
+
+  const g = document.getElementById('g-din');
+  if(disp > 0){ g.textContent = 'S/'+Math.round(disp); g.style.display=''; } else g.style.display='none';
+
+  const filas = conMovimiento.map(function(x){
+    const r = repartoPedido(x);
+    const hitoGuia = '<div class="hito ok"><span class="pt"></span>Guía registrada'+(r.local?' · entrega local':'')+' — '+(r.local?'sin adelanto':'liberó S/ '+r.porGuia.toFixed(2))+'</div>';
+    const hitoEnt = x.estado==='entregado'
+      ? '<div class="hito ok"><span class="pt"></span>Entrega confirmada — liberó S/ '+r.porEntrega.toFixed(2)+'</div>'
+      : '<div class="hito esp"><span class="pt"></span>Falta confirmar entrega — libera S/ '+r.porEntrega.toFixed(2)+'</div>';
+    return '<tr><td><b>'+x.codigo+'</b><br><span style="font-size:11.5px;color:var(--tinta-suave)">'+x.items+'</span>'+hitoGuia+hitoEnt+'</td>'+
+      '<td class="der num" style="color:var(--ok);font-weight:700">S/ '+r.liberado.toFixed(2)+'</td>'+
+      '<td class="der num" style="color:var(--tinta-suave)">'+(r.pendiente>0?'S/ '+r.pendiente.toFixed(2):'—')+'</td></tr>';
+  }).join('');
+
+  cont.innerHTML = cinta +
+    '<div class="dinero-tot"><div><small>Disponible para retirar</small><div class="v num">S/ '+disp.toFixed(2)+'</div></div>'+
+    '<div style="text-align:right"><small>En tránsito</small><div class="v num" style="color:var(--tinta-suave);font-size:19px">S/ '+transito.toFixed(2)+'</div></div>'+
+    '<button class="btn btn-ok" '+(disp<=0?'disabled style="opacity:.4"':'')+' onclick="retirar('+disp+')">Retirar S/ '+disp.toFixed(2)+'</button></div>'+
+    '<div class="tarjeta" style="padding:6px 10px"><table class="liq">'+
+    '<thead><tr><th>Pedido e hitos</th><th class="der">Liberado</th><th class="der">En tránsito</th></tr></thead><tbody>'+filas+'</tbody></table></div>'+
+    '<div class="tarjeta" style="margin-top:12px">'+
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13.5px"><span>Liberado a tu favor</span><b class="num">S/ '+disp.toFixed(2)+'</b></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13.5px;color:var(--tinta-suave)"><span>Comisión SOCIO (5%)</span><span class="num">− S/ '+com.toFixed(2)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:9px 0 0;border-top:1px dashed var(--linea);font-size:15px;font-weight:800"><span>Te transferimos</span><b class="num">S/ '+(disp-com).toFixed(2)+'</b></div>'+
+    '<p style="font-size:11.5px;color:var(--tinta-suave);margin-top:10px;line-height:1.55"><b>¿Por qué retenemos hasta la entrega?</b> El cliente no te compró a ti: le compró a SOCIO, y el vendedor ya le cobró. La confirmación de entrega es la única prueba que tenemos —tú, el vendedor y nosotros— de que el pedido llegó bien. Es lo que hace que la red confíe en tu marca y siga vendiéndola.</p>'+
+    '<p style="font-size:11.5px;color:var(--tinta-suave);margin-top:8px;line-height:1.5">Este detalle acompaña la factura por comisión mercantil que SOCIO te emite.</p></div>' +
+    escaleraFiab();
+}
+function escaleraFiab(){
+  const a = nivelFiab();
+  return '<div class="seccion-titulo">Cómo cobras según tu historial</div><div class="escalera-f">'+
+    FIABILIDAD.map(function(f,i){
+      const clase = i===a.idx ? 'actual' : (i<a.idx ? 'lograda' : '');
+      return '<div class="esc-f '+clase+'"><span class="ic">'+f.ic+'</span>'+
+        '<span class="t"><b>'+f.nombre+'</b><small>'+f.req+(i===a.idx?' · tu nivel actual':'')+'</small></span>'+
+        '<span class="c">'+f.reglaTxt+'</span></div>';
+    }).join('')+'</div>'+
+    '<p style="font-size:11.5px;color:var(--tinta-suave);margin-top:9px;line-height:1.55">Cuenta como incidencia: paquete no despachado tras registrar guía, producto distinto al publicado, o llegada en mal estado por embalaje deficiente. No cuentan los retrasos de la agencia ni los rechazos del cliente por arrepentimiento.</p>';
+}
+function retirar(monto){
+  if(monto<=0) return;
+  aviso('Retiro de S/ '+monto.toFixed(2)+' solicitado — se transfiere a tu cuenta registrada en el día');
+}
+
+/* ================= Aviso ================= */
+let tt;
+function aviso(m){
+  const t = document.getElementById('toast');
+  t.textContent = m; t.classList.add('ver');
+  clearTimeout(tt); tt = setTimeout(function(){ t.classList.remove('ver'); }, 2800);
+}
+
+/* ================= Arranque ================= */
+(function(){
+  const cel = leer('prov_sesion', null);
+  if(cel){
+    const m = leer('prov_marcas', {})[cel];
+    if(m){ abrir(m); return; }
+  }
+  modoAuth('reg');
+})();
+</script>
+</body>
+</html>

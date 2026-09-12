@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOCIO Control — Panel Administrador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --tinta:#14261E; --tinta-suave:#3D5248;
+    --fondo:#F2F4EF; --tarjeta:#FFFFFF; --linea:#DFE4DC;
+    --sol:#EFA51F; --sol-osc:#C9860F;
+    --chicha:#E84D8A; --chicha-bg:#FDEDF4;
+    --ok:#1E8A5A; --ok-bg:#E4F4EC;
+    --alerta:#B7791F; --alerta-bg:#FBF1DC;
+    --rojo:#C0392B; --rojo-bg:#FCE9E6;
+    --info:#2B6CB0; --info-bg:#E8F0FA;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Instrument Sans',system-ui,sans-serif;background:var(--fondo);color:var(--tinta);min-height:100vh}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+  .num{font-variant-numeric:tabular-nums}
+
+  .app{display:flex;min-height:100vh}
+  .lateral{width:236px;background:var(--tinta);color:#DDE5DF;padding:22px 14px;display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+  .lateral .logo{font-family:'Archivo',sans-serif;font-weight:900;font-stretch:110%;font-size:22px;color:#F2F4EF;padding:0 10px 2px}
+  .lateral .logo span{color:var(--sol)}
+  .lateral .sub{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#8FA398;padding:0 10px 18px;font-weight:700}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:11px 10px;border-radius:10px;border:none;background:none;color:#B9C6BE;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;width:100%}
+  .nav-item:hover{background:rgba(255,255,255,.06)}
+  .nav-item.activo{background:rgba(239,165,31,.14);color:#F2F4EF}
+  .nav-item.activo .punto{background:var(--sol)}
+  .nav-item .punto{width:7px;height:7px;border-radius:50%;background:#4A5F54;flex-shrink:0}
+  .nav-item .globo{margin-left:auto;background:var(--chicha);color:#fff;font-size:10.5px;font-weight:700;border-radius:99px;padding:2px 7px}
+  .lateral .pie{margin-top:auto;padding:12px 10px;font-size:11.5px;color:#8FA398;border-top:1px solid rgba(255,255,255,.1)}
+  .lateral .pie b{color:#DDE5DF;display:block;font-size:12.5px}
+
+  .principal{flex:1;padding:26px 30px;max-width:1120px}
+  .cab{margin-bottom:18px}
+  .cab h1{font-family:'Archivo',sans-serif;font-weight:800;font-size:23px;font-stretch:105%}
+  .cab p{font-size:13px;color:var(--tinta-suave);margin-top:3px;max-width:640px}
+  .vista{display:none}
+  .vista.activa{display:block;animation:aparece .18s ease-out}
+  @keyframes aparece{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:15px}
+  .chip{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+  .chip-ok{background:var(--ok-bg);color:var(--ok)}
+  .chip-alerta{background:var(--alerta-bg);color:var(--alerta)}
+  .chip-rojo{background:var(--rojo-bg);color:var(--rojo)}
+  .chip-info{background:var(--info-bg);color:var(--info)}
+  .chip-sol{background:#FCF0D8;color:var(--sol-osc)}
+  .chip-gris{background:#EEF1EC;color:var(--tinta-suave)}
+  .btn{border:none;border-radius:10px;padding:9px 14px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:transform .1s ease-out}
+  .btn:active{transform:scale(.98)}
+  .btn-ok{background:var(--ok);color:#fff}
+  .btn-rojo{background:var(--rojo-bg);color:var(--rojo)}
+  .btn-borde{background:none;border:1.5px solid var(--tinta);color:var(--tinta)}
+  .btn-fantasma{background:none;color:var(--tinta-suave)}
+
+  .metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:20px}
+  .metrica small{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tinta-suave);margin-bottom:5px}
+  .metrica .valor{font-family:'Archivo',sans-serif;font-weight:900;font-size:25px;font-stretch:105%}
+  .metrica .detalle{font-size:11.5px;color:var(--tinta-suave);margin-top:3px}
+  .metrica.urgente{border-color:var(--sol);box-shadow:0 0 0 1px var(--sol)}
+  .metrica.critica{border-color:var(--rojo);box-shadow:0 0 0 1px var(--rojo)}
+  .metrica.critica .valor{color:var(--rojo)}
+  .metrica.urgente .valor{color:var(--sol-osc)}
+
+  .seccion-titulo{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tinta-suave);margin:20px 0 10px}
+
+  /* ===== Cola de validación ===== */
+  .val-item{margin-bottom:12px}
+  .val-cab{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .val-cab .cod{font-family:'Archivo',sans-serif;font-weight:900;font-size:15px;letter-spacing:.04em}
+  .val-cab .quien{font-size:12px;color:var(--tinta-suave);line-height:1.5;flex:1;min-width:200px}
+  .cruce{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0;padding:12px;background:var(--fondo);border-radius:10px}
+  .cruce .dato small{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tinta-suave)}
+  .cruce .dato .v{font-family:'Archivo',sans-serif;font-weight:800;font-size:16px;margin-top:2px}
+  .cruce .dato .v.mal{color:var(--rojo)}
+  .cruce .dato .v.bien{color:var(--ok)}
+  .cruce .dato p{font-size:10.5px;color:var(--tinta-suave);margin-top:2px}
+  .val-acciones{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .val-acciones select{padding:8px 10px;border:1px solid var(--linea);border-radius:9px;font-family:inherit;font-size:12px;background:#fff}
+  .voucher{font-size:11.5px;color:var(--info);font-weight:600;cursor:pointer}
+
+  /* ===== Monitoreo ===== */
+  .filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .filtro{border:1.5px solid var(--linea);background:#fff;border-radius:99px;padding:6px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--tinta-suave)}
+  .filtro.activo{border-color:var(--tinta);color:var(--tinta);background:var(--fondo)}
+  .mon-item{margin-bottom:10px;border-left:4px solid transparent}
+  .mon-item.verde{border-left-color:var(--ok)}
+  .mon-item.ambar{border-left-color:var(--sol)}
+  .mon-item.rojo{border-left-color:var(--rojo)}
+  .mon-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;cursor:pointer}
+  .mon-cab .cod{font-family:'Archivo',sans-serif;font-weight:900;font-size:14px}
+  .mon-cab .det{font-size:12px;color:var(--tinta-suave);line-height:1.5}
+  .mon-cab .lado{text-align:right}
+  .sla{font-size:11.5px;font-weight:700;margin-top:4px}
+  .sla.verde{color:var(--ok)} .sla.ambar{color:var(--sol-osc)} .sla.rojo{color:var(--rojo)}
+  .bitacora{display:none;margin-top:11px;padding-top:11px;border-top:1px dashed var(--linea)}
+  .bitacora.abierta{display:block}
+  .bit-linea{display:flex;gap:10px;font-size:12px;padding:4px 0;color:var(--tinta-suave)}
+  .bit-linea .p{width:8px;height:8px;border-radius:50%;background:var(--ok);margin-top:4px;flex-shrink:0}
+  .bit-linea .p.pend{background:var(--linea)}
+  .bit-linea b{color:var(--tinta)}
+  .bit-linea .hora{margin-left:auto;font-size:11px;flex-shrink:0}
+
+  /* ===== Dinero ===== */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta-suave);text-align:left;padding:8px 10px;border-bottom:1px solid var(--linea)}
+  td{padding:10px;border-bottom:1px solid var(--linea)}
+  tr:last-child td{border:none}
+  td.der,th.der{text-align:right}
+  .concilia{display:flex;gap:12px;align-items:center;padding:13px;border-radius:12px;background:var(--ok-bg);color:var(--ok);font-size:13px;font-weight:700;margin-bottom:14px}
+
+  /* ===== Red ===== */
+  .red-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--linea);flex-wrap:wrap}
+  .red-item:last-child{border:none}
+  .red-item .ava{width:40px;height:40px;border-radius:50%;background:var(--tinta);color:var(--sol);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;font-family:'Archivo',sans-serif}
+  .red-item .info{flex:1;min-width:180px}
+  .red-item h3{font-size:13.5px;font-weight:700}
+  .red-item p{font-size:12px;color:var(--tinta-suave)}
+
+  .toast{position:fixed;bottom:22px;right:22px;background:var(--tinta);color:#fff;padding:13px 18px;border-radius:12px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(6px);z-index:50;max-width:360px}
+  .toast.visible{opacity:1;transform:none}
+  .vacio{padding:24px;text-align:center;color:var(--tinta-suave);font-size:13.5px;border:1.5px dashed var(--linea);border-radius:14px}
+
+  @media(max-width:780px){
+    .app{flex-direction:column}
+    .lateral{width:100%;flex-direction:row;align-items:center;overflow-x:auto;padding:12px;gap:6px}
+    .lateral .logo{font-size:17px;padding:0 6px}
+    .lateral .sub,.lateral .pie{display:none}
+    .nav-item{width:auto;white-space:nowrap;padding:9px 12px}
+    .principal{padding:18px 14px}
+    .cruce{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="lateral">
+    <div class="logo">S<span>O</span>CIO</div>
+    <div class="sub">Sistema de control</div>
+    <button class="nav-item activo" data-v="v-validacion" onclick="irVista('v-validacion')"><span class="punto"></span>Validación de pagos<span class="globo" id="g-val">3</span></button>
+    <button class="nav-item" data-v="v-monitoreo" onclick="irVista('v-monitoreo')"><span class="punto"></span>Monitoreo de pedidos<span class="globo" id="g-mon" style="background:var(--rojo)">1</span></button>
+    <button class="nav-item" data-v="v-dinero" onclick="irVista('v-dinero')"><span class="punto"></span>Dinero y liquidaciones</button>
+    <button class="nav-item" data-v="v-red" onclick="irVista('v-red')"><span class="punto"></span>La red<span class="globo" id="g-red" style="background:var(--info)">3</span></button>
+    <div class="pie"><b>Administración</b>Jason · Acceso total<br>Toda acción queda en bitácora</div>
+  </aside>
+
+  <main class="principal">
+
+    <!-- Métricas globales -->
+    <div class="metricas">
+      <div class="tarjeta metrica urgente"><small>Pagos por validar</small><div class="valor num" id="m-val">3</div><div class="detalle">S/ <span class="num" id="m-val-monto">1,516</span> declarados</div></div>
+      <div class="tarjeta metrica critica"><small>Despachos vencidos</small><div class="valor num" id="m-venc">1</div><div class="detalle">reclamar a la marca</div></div>
+      <div class="tarjeta metrica"><small>Entró hoy (validado)</small><div class="valor num">S/ 1,143</div><div class="detalle">6 pedidos</div></div>
+      <div class="tarjeta metrica"><small>Liquidación del jueves</small><div class="valor num">S/ 2,890</div><div class="detalle">2 marcas · lista al cuadrar</div></div>
+    </div>
+
+    <!-- ============ TABLERO 1: VALIDACIÓN ============ -->
+    <section class="vista activa" id="v-validacion">
+      <div class="cab"><h1>Cola de validación de pagos</h1>
+      <p>Pago declarado ≠ pago validado. El cruce es triple: monto del pedido + código + abono real en cuenta. Nada llega al proveedor sin tu aprobación (o la del cruce automático de QR).</p></div>
+      <div id="lista-validacion"></div>
+    </section>
+
+    <!-- ============ TABLERO 2: MONITOREO ============ -->
+    <section class="vista" id="v-monitoreo">
+      <div class="cab"><h1>Monitoreo de pedidos</h1>
+      <p>Todos los pedidos, con semáforo de plazos: verde en tiempo, ámbar por vencer, rojo vencido. Toca un pedido para ver su bitácora completa.</p></div>
+      <div class="filtros" id="filtros-mon"></div>
+      <div id="lista-monitoreo"></div>
+    </section>
+
+    <!-- ============ TABLERO 3: DINERO ============ -->
+    <section class="vista" id="v-dinero">
+      <div class="cab"><h1>Dinero y liquidaciones</h1>
+      <p>Cada sol del extracto debe tener un código de pedido. Cuando los totales cuadran, las liquidaciones del jueves salen solas.</p></div>
+      <div class="concilia">✓ Conciliación de hoy: 6 abonos en banco = 6 pedidos validados · S/ 1,143 = S/ 1,143</div>
+      <div class="tarjeta" style="padding:6px 10px">
+        <table>
+          <thead><tr><th>Marca</th><th class="der">Recaudado semana</th><th class="der">Comisión / margen SOCIO</th><th class="der">Liquidación jueves</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Lab Péptidos Perú (propia)</td><td class="der num">S/ 2,304</td><td class="der num">margen propio</td><td class="der num"><b>interno</b></td><td><span class="chip chip-gris">Cuenta propia</span></td></tr>
+            <tr><td>Café Alturas</td><td class="der num">S/ 486</td><td class="der num">S/ 24</td><td class="der num"><b>S/ 462</b></td><td><span class="chip chip-alerta">Jueves</span></td></tr>
+            <tr><td>Kaya Cosmética</td><td class="der num">S/ 214</td><td class="der num">S/ 12</td><td class="der num"><b>S/ 202</b></td><td><span class="chip chip-alerta">Jueves</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ TABLERO 4: LA RED ============ -->
+    <section class="vista" id="v-red">
+      <div class="cab"><h1>La red</h1><p>Tu rol de árbitro: quién entra, quién sube de nivel, qué se publica.</p></div>
+      <div class="seccion-titulo">Vendedores por validar identidad</div>
+      <div class="tarjeta">
+        <div class="red-item"><div class="ava">CM</div><div class="info"><h3>Carla Mendoza</h3><p>DNI adjunto · Lima · registrada hace 2 h</p></div><button class="btn btn-ok" onclick="resolver(this,'Carla validada ✓ Ya puede registrar pedidos (límite Bronce: 5/día)')">Validar</button><button class="btn btn-rojo" onclick="resolver(this,'Registro observado — se pidió nueva foto del DNI')">Observar</button></div>
+        <div class="red-item"><div class="ava">PV</div><div class="info"><h3>Pedro Vílchez</h3><p>DNI adjunto · Trujillo · registrado hace 5 h</p></div><button class="btn btn-ok" onclick="resolver(this,'Pedro validado ✓ Ya puede registrar pedidos (límite Bronce: 5/día)')">Validar</button><button class="btn btn-rojo" onclick="resolver(this,'Registro observado — se pidió nueva foto del DNI')">Observar</button></div>
+      </div>
+      <div class="seccion-titulo">Productos en revisión</div>
+      <div class="tarjeta">
+        <div class="red-item"><div class="ava" style="background:#E8F0FA;color:var(--info)">🧪</div><div class="info"><h3>KPV · Vial 10 mg — Lab Péptidos Perú</h3><p>Ficha técnica adjunta · sin promesas médicas en la descripción · precios completos</p></div><button class="btn btn-ok" onclick="resolver(this,'Producto aprobado ✓ Visible para los socios desde ahora')">Aprobar</button><button class="btn btn-rojo" onclick="resolver(this,'Producto observado — se pidió corregir la descripción')">Observar</button></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== Datos demo ===== */
+// Cola de validación: monto declarado vs esperado — el cruce triple
+let cola = [
+  {codigo:'SOC-0818-K4T9', vendedor:'Rosa M. (Plata)', marca:'Lab Péptidos', items:'GHK-Cu 50 ×2 + BPC-157 10 ×1', metodo:'Depósito BCP', esperado:593.00, declarado:593.00, banco:'Abono detectado 10:42 · S/ 593.00', voucher:'voucher_rosa_0818.jpg'},
+  {codigo:'SOC-0818-M7W2', vendedor:'Daniel Q. (Bronce)', marca:'Lab Péptidos', items:'Wolverine 20 ×1 + envío prov.', metodo:'Depósito Interbank', esperado:411.00, declarado:390.00, banco:'Abono detectado 11:15 · S/ 390.00', voucher:'IMG_20250818.jpg'},
+  {codigo:'SOC-0818-P3R8', vendedor:'Karla T. (Bronce)', marca:'Café Alturas', items:'Café 250g ×6 + envío', metodo:'QR Yape', esperado:512.00, declarado:512.00, banco:'QR detectado 11:38 · S/ 512.00 · código embebido ✓', voucher:null},
+];
+// Monitoreo con SLA
+let pedidos = [
+  {codigo:'SOC-0818-A2F6', marca:'Lab Péptidos', vendedor:'Rosa M.', items:'GLOW 50 ×1', estado:'En despacho', sla:'rojo', slaTxt:'⏰ Vencido hace 6 h (prep. declarada: 24 h)', total:431,
+   bit:[['Registrado por Rosa M.','ayer 09:12'],['Constancia subida','ayer 09:20'],['Pago validado por Admin','ayer 10:02'],['Enviado a Lab Péptidos','ayer 10:02'],['Guía registrada','— pendiente',1]]},
+  {codigo:'SOC-0817-H8N3', marca:'Café Alturas', vendedor:'Karla T.', items:'Café 1kg ×2', estado:'En despacho', sla:'ambar', slaTxt:'⚠ Vence en 3 h', total:213,
+   bit:[['Registrado por Karla T.','ayer 16:40'],['QR validado automático','ayer 16:41'],['Enviado a Café Alturas','ayer 16:41'],['Guía registrada','— pendiente',1]]},
+  {codigo:'SOC-0817-Q5T1', marca:'Lab Péptidos', vendedor:'Daniel Q.', items:'BPC-157 5 ×3', estado:'Despachado', sla:'verde', slaTxt:'✓ En plazo · Guía OLV-90311', total:487.5,
+   bit:[['Registrado por Daniel Q.','ayer 12:03'],['Constancia subida','ayer 12:10'],['Pago validado por Admin','ayer 12:35'],['Guía OLV-90311 registrada','ayer 17:20'],['Entrega confirmada','— pendiente',1]]},
+  {codigo:'SOC-0816-B9C4', marca:'Kaya Cosmética', vendedor:'Rosa M.', items:'Sérum ×4', estado:'Entregado', sla:'verde', slaTxt:'✓ Entregado 17 ago · listo para liquidar', total:120,
+   bit:[['Registrado por Rosa M.','16 ago 10:11'],['QR validado automático','16 ago 10:12'],['Guía SHL-41007 registrada','16 ago 15:30'],['Entrega confirmada','17 ago 13:05'],['Liquidación','jueves',1]]},
+  {codigo:'SOC-0816-Z2M9', marca:'Lab Péptidos', vendedor:'Pedro V.', items:'TB-500 10 ×1', estado:'Rechazado', sla:'verde', slaTxt:'✗ Constancia rechazada: monto no coincide · vendedor notificado', total:228.5,
+   bit:[['Registrado por Pedro V.','16 ago 18:22'],['Constancia subida','16 ago 18:30'],['Rechazado por Admin — monto no coincide','16 ago 19:01']]},
+];
+let filtroMon = 'Todos';
+
+/* ===== Navegación ===== */
+function irVista(id){
+  document.querySelectorAll('.vista').forEach(v=>v.classList.remove('activa'));
+  document.getElementById(id).classList.add('activa');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('activo', n.dataset.v===id));
+}
+
+/* ===== Tablero 1: Validación ===== */
+function pintarValidacion(){
+  const cont = document.getElementById('lista-validacion');
+  if(!cola.length){ cont.innerHTML = '<div class="vacio">Cola vacía — todos los pagos declarados están validados. ☀️</div>'; }
+  else cont.innerHTML = cola.map((v,i)=>{
+    const cuadra = Math.abs(v.declarado - v.esperado) < 0.01;
+    return `<div class="tarjeta val-item">
+      <div class="val-cab">
+        <div>
+          <div class="cod">${v.codigo} <span class="chip ${v.metodo.startsWith('QR')?'chip-info':'chip-sol'}">${v.metodo}</span></div>
+          <div class="quien">${v.vendedor} · ${v.marca} · ${v.items}</div>
+        </div>
+        ${v.voucher?`<span class="voucher" onclick="notificar('Abriendo ${v.voucher} (demo)')">📎 Ver constancia</span>`:'<span class="chip chip-info">Cruce automático QR</span>'}
+      </div>
+      <div class="cruce">
+        <div class="dato"><small>Monto del pedido</small><div class="v num">S/ ${v.esperado.toFixed(2)}</div><p>según código ${v.codigo}</p></div>
+        <div class="dato"><small>Monto declarado</small><div class="v num ${cuadra?'bien':'mal'}">S/ ${v.declarado.toFixed(2)}</div><p>${cuadra?'coincide ✓':'⚠ NO coincide — faltan S/ '+(v.esperado-v.declarado).toFixed(2)}</p></div>
+        <div class="dato"><small>Abono en cuenta</small><div class="v" style="font-size:12.5px">${v.banco}</div></div>
+      </div>
+      <div class="val-acciones">
+        <button class="btn btn-ok" onclick="aprobar(${i})" ${cuadra?'':'disabled style="opacity:.4;cursor:not-allowed"'}>✓ Aprobar y enviar a despacho</button>
+        <select id="motivo-${i}"><option>Monto no coincide</option><option>Abono no encontrado</option><option>Constancia ilegible</option><option>Constancia duplicada</option></select>
+        <button class="btn btn-rojo" onclick="rechazar(${i})">✗ Rechazar</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('g-val').textContent = cola.length;
+  document.getElementById('g-val').style.display = cola.length?'':'none';
+  document.getElementById('m-val').textContent = cola.length;
+  document.getElementById('m-val-monto').textContent = cola.reduce((a,v)=>a+v.declarado,0).toLocaleString('es-PE');
+}
+function ahora(){ return new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}); }
+function aprobar(i){
+  const v = cola[i];
+  pedidos.unshift({codigo:v.codigo, marca:v.marca, vendedor:v.vendedor.split(' (')[0], items:v.items, estado:'En despacho', sla:'verde',
+    slaTxt:'✓ Recién enviado a la marca · plazo corre desde ahora', total:v.esperado,
+    bit:[['Registrado por '+v.vendedor.split(' (')[0],'hoy'],[v.voucher?'Constancia subida':'QR detectado','hoy'],['Pago validado por Admin','hoy '+ahora()],['Enviado a '+v.marca,'hoy '+ahora()],['Guía registrada','— pendiente',1]]});
+  cola.splice(i,1);
+  pintarValidacion(); pintarMonitoreo();
+  notificar(`${v.codigo} aprobado ✓ ${v.marca} ya lo ve en su bandeja de despacho. Quedó en bitácora: Admin · hoy ${ahora()}`);
+}
+function rechazar(i){
+  const v = cola[i];
+  const motivo = document.getElementById('motivo-'+i).value;
+  pedidos.unshift({codigo:v.codigo, marca:v.marca, vendedor:v.vendedor.split(' (')[0], items:v.items, estado:'Rechazado', sla:'verde',
+    slaTxt:'✗ Rechazado: '+motivo.toLowerCase()+' · vendedor notificado para corregir', total:v.esperado,
+    bit:[['Registrado','hoy'],['Constancia subida','hoy'],['Rechazado por Admin — '+motivo.toLowerCase(),'hoy '+ahora()]]});
+  cola.splice(i,1);
+  pintarValidacion(); pintarMonitoreo();
+  notificar(`${v.codigo} rechazado (${motivo}). El vendedor recibió el aviso y puede subir nueva constancia.`);
+}
+
+/* ===== Tablero 2: Monitoreo ===== */
+const estadosMon = ['Todos','En despacho','Despachado','Entregado','Rechazado'];
+function pintarFiltros(){
+  document.getElementById('filtros-mon').innerHTML = estadosMon.map(e=>
+    `<button class="filtro ${filtroMon===e?'activo':''}" onclick="filtroMon='${e}';pintarFiltros();pintarMonitoreo()">${e}</button>`).join('');
+}
+function chipEstado(e){
+  return e==='En despacho' ? 'chip-sol' : e==='Despachado' ? 'chip-info' : e==='Entregado' ? 'chip-ok' : 'chip-rojo';
+}
+function pintarMonitoreo(){
+  const lista = pedidos.filter(p=>filtroMon==='Todos'||p.estado===filtroMon);
+  document.getElementById('lista-monitoreo').innerHTML = lista.map((p,i)=>`
+    <div class="tarjeta mon-item ${p.sla}">
+      <div class="mon-cab" onclick="document.getElementById('bit-${i}').classList.toggle('abierta')">
+        <div>
+          <span class="cod">${p.codigo}</span> <span class="chip ${chipEstado(p.estado)}">${p.estado}</span>
+          <div class="det">${p.marca} · vendido por ${p.vendedor} · ${p.items}</div>
+          <div class="sla ${p.sla}">${p.slaTxt}</div>
+        </div>
+        <div class="lado"><b class="num">S/ ${p.total.toFixed(2)}</b><div style="font-size:10.5px;color:var(--tinta-suave);margin-top:3px">ver bitácora ▾</div></div>
+      </div>
+      <div class="bitacora" id="bit-${i}">
+        ${p.bit.map(b=>`<div class="bit-linea"><span class="p ${b[2]?'pend':''}"></span><span><b>${b[0]}</b></span><span class="hora">${b[1]}</span></div>`).join('')}
+        ${p.sla==='rojo'?`<button class="btn btn-borde" style="margin-top:8px" onclick="event.stopPropagation();notificar('Reclamo enviado a ${p.marca}: pedido ${p.codigo} con despacho vencido. Strike registrado en su historial.')">📣 Reclamar a la marca</button>`:''}
+      </div>
+    </div>`).join('') || '<div class="vacio">Sin pedidos en este estado.</div>';
+  const vencidos = pedidos.filter(p=>p.sla==='rojo').length;
+  document.getElementById('g-mon').textContent = vencidos;
+  document.getElementById('g-mon').style.display = vencidos?'':'none';
+  document.getElementById('m-venc').textContent = vencidos;
+}
+
+/* ===== Red ===== */
+function resolver(btn, mensaje){
+  const fila = btn.closest('.red-item');
+  fila.style.opacity='.45'; fila.querySelectorAll('.btn').forEach(b=>b.remove());
+  fila.insertAdjacentHTML('beforeend','<span class="chip chip-ok">Resuelto · en bitácora</span>');
+  notificar(mensaje);
+  const g = document.getElementById('g-red'); const n = parseInt(g.textContent)-1;
+  g.textContent = n; g.style.display = n?'':'none';
+}
+
+/* ===== Toast ===== */
+let tTimer;
+function notificar(msj){
+  const t=document.getElementById('toast');
+  t.textContent=msj; t.classList.add('visible');
+  clearTimeout(tTimer); tTimer=setTimeout(()=>t.classList.remove('visible'),3400);
+}
+
+pintarValidacion(); pintarFiltros(); pintarMonitoreo();
+</script>
+</body>
+</html>

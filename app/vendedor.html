@@ -1,0 +1,3502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOCIO — Vende y gana</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14261E">
+<link rel="apple-touch-icon" href="icono-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SOCIO">
+<link rel="icon" type="image/png" href="icono-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --tinta:#14261E; --tinta-suave:#3D5248;
+    --fondo:#F2F4EF; --tarjeta:#FFFFFF; --linea:#DFE4DC;
+    --sol:#EFA51F; --sol-osc:#C9860F;
+    --chicha:#E84D8A; --chicha-bg:#FDEDF4;
+    --ok:#1E8A5A; --ok-bg:#E4F4EC;
+    --alerta:#B7791F; --alerta-bg:#FBF1DC;
+    --rojo:#C0392B; --rojo-bg:#FCE9E6;
+    --info:#2B6CB0; --info-bg:#E8F0FA;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:'Instrument Sans',system-ui,sans-serif;background:var(--tinta);color:var(--tinta);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px 12px}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+  .num{font-variant-numeric:tabular-nums}
+
+  .telefono{width:100%;max-width:400px;height:min(840px,94vh);background:var(--fondo);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+  @media (max-width:480px){
+    body{padding:0;background:var(--fondo)}
+    .telefono{max-width:100%;height:100vh;height:100dvh;border-radius:0;box-shadow:none}
+  }
+  .logo{font-family:'Archivo',sans-serif;font-weight:900;font-stretch:110%;letter-spacing:.02em}
+  .logo .o-sol{color:var(--sol)}
+
+  .pantalla{display:none;flex:1;overflow-y:auto;padding-bottom:150px}
+  .pantalla.activa{display:block;animation:aparece .18s ease-out}
+  @keyframes aparece{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .cabecera{padding:18px 18px 12px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--fondo);z-index:5;gap:8px}
+  .cabecera h1{font-family:'Archivo',sans-serif;font-weight:800;font-size:20px;font-stretch:105%}
+  .cabecera .logo{font-size:18px}
+  .contenido{padding:0 18px 18px}
+  .seccion-titulo{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tinta-suave);margin:18px 0 10px}
+
+  .tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:13px}
+  .btn{display:block;width:100%;border:none;border-radius:12px;padding:14px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;transition:transform .1s ease-out}
+  .btn:active{transform:scale(.98)}
+  .btn-sol{background:var(--sol);color:var(--tinta)}
+  .btn-sol:hover{background:var(--sol-osc)}
+  .btn-borde{background:transparent;border:1.5px solid var(--tinta);color:var(--tinta)}
+  .btn-fantasma{background:transparent;color:var(--tinta-suave);font-weight:600}
+  .campo{margin-bottom:12px}
+  .campo label{display:block;font-size:12.5px;font-weight:600;color:var(--tinta-suave);margin-bottom:5px}
+  .campo input,.campo select{width:100%;padding:12px;border:1px solid var(--linea);border-radius:10px;font-family:inherit;font-size:14.5px;background:#fff;color:var(--tinta)}
+  .campo input:focus,.campo select:focus{outline:2px solid var(--sol);outline-offset:1px;border-color:var(--sol)}
+  .campo .error{font-size:11.5px;color:var(--rojo);margin-top:4px;display:none}
+  .campo.mal input{border-color:var(--rojo)}
+  .campo.mal .error{display:block}
+  .chip{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+  .chip-ganancia{background:var(--chicha-bg);color:var(--chicha)}
+  .chip-ok{background:var(--ok-bg);color:var(--ok)}
+  .chip-alerta{background:var(--alerta-bg);color:var(--alerta)}
+  .chip-info{background:var(--info-bg);color:var(--info)}
+  .chip-stock{background:#EEF1EC;color:var(--tinta-suave)}
+
+  /* ===== Auth ===== */
+  #p-auth{background:var(--tinta);color:#F2F4EF;display:none;flex-direction:column;padding:0;overflow-y:auto}
+  #p-auth.activa{display:flex}
+  .hero-marca{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:34px 26px 22px;text-align:center}
+  .hero-marca .logo{font-size:44px;color:#F2F4EF}
+  .hero-marca p{font-size:14.5px;color:#B9C6BE;max-width:270px;line-height:1.45}
+  .hero-marca .lema{font-family:'Archivo',sans-serif;font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--sol)}
+  .panel-entrada{background:var(--fondo);color:var(--tinta);border-radius:24px 24px 0 0;padding:20px 20px 30px;flex:1}
+  .auth-tabs{display:flex;background:#E7EAE4;border-radius:11px;padding:4px;margin-bottom:16px}
+  .auth-tab{flex:1;border:none;background:none;padding:9px;border-radius:8px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--tinta-suave);cursor:pointer}
+  .auth-tab.activo{background:#fff;color:var(--tinta);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .check-linea{display:flex;gap:9px;align-items:flex-start;padding:10px 11px;border:1px solid var(--linea);border-radius:10px;margin-bottom:10px;cursor:pointer;background:#fff}
+  .check-linea input{margin-top:2px;width:15px;height:15px;accent-color:var(--ok);flex-shrink:0}
+  .check-linea span{font-size:12px;line-height:1.5;color:var(--tinta-suave)}
+  .nota-validacion{display:flex;gap:10px;background:var(--info-bg);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--info);margin:10px 0;line-height:1.5}
+
+  /* ===== Cabecera de usuario ===== */
+  .usuario-mini{display:flex;align-items:center;gap:8px}
+  .usuario-mini .ava{width:32px;height:32px;border-radius:50%;background:var(--tinta);color:var(--sol);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;font-family:'Archivo',sans-serif;flex-shrink:0}
+  .usuario-mini .datos{line-height:1.2}
+  .usuario-mini .datos b{font-size:12.5px;display:block}
+  .usuario-mini .datos small{font-size:10px;color:var(--tinta-suave)}
+  .btn-salir{border:none;background:none;color:var(--tinta-suave);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:underline}
+
+  /* ===== Portada de marcas (estilo app de comida) ===== */
+  .banner-politica{background:var(--tinta);color:#F2F4EF;border-radius:12px;padding:11px 13px;font-size:12px;line-height:1.55;display:flex;gap:9px;margin-bottom:14px}
+  .banner-politica b{color:var(--sol)}
+  .marca-card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;overflow:hidden;margin-bottom:14px;cursor:pointer;transition:transform .1s ease-out}
+  .marca-card:active{transform:scale(.985)}
+  .marca-portada{height:96px;display:flex;align-items:center;justify-content:center;font-size:38px;position:relative;background-size:cover;background-position:center;overflow:hidden}
+  .marca-logo{position:absolute;left:14px;bottom:-20px;width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Archivo',sans-serif;font-weight:900;font-size:18px;color:#fff;border:3px solid var(--tarjeta);box-shadow:0 2px 8px rgba(0,0,0,.18);overflow:hidden;background:#fff}
+  .marca-logo img{width:100%;height:100%;object-fit:contain;padding:3px}
+  .marca-cuerpo{padding:26px 14px 13px}
+  .marca-cuerpo h3{font-family:'Archivo',sans-serif;font-weight:800;font-size:16.5px;font-stretch:105%}
+  .marca-giro{margin-top:5px}
+  .marca-resena{font-size:12.5px;color:var(--tinta-suave);line-height:1.55;margin-top:7px}
+  .marca-meta{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .meta-caja{flex:1;min-width:120px;background:var(--fondo);border-radius:10px;padding:9px 11px}
+  .meta-caja small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta-suave)}
+  .meta-caja .v{font-family:'Archivo',sans-serif;font-weight:800;font-size:14.5px;margin-top:2px}
+  .meta-caja.gan{background:var(--chicha-bg)}
+  .meta-caja.gan small{color:var(--chicha)}
+  .meta-caja.gan .v{color:var(--chicha)}
+  .marca-cta{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12.5px;font-weight:700}
+  .marca-cta .ver{color:var(--sol-osc)}
+  .slot-proximo{border:1.5px dashed var(--linea);border-radius:16px;padding:22px 16px;text-align:center;color:var(--tinta-suave);font-size:12.5px;line-height:1.55}
+
+  /* ===== Eliminar ítem del carrito ===== */
+  .btn-quitar{border:none;background:none;color:var(--tinta-suave);font-size:15px;cursor:pointer;padding:5px 6px;border-radius:8px;line-height:1;flex-shrink:0}
+  .btn-quitar:hover{background:var(--rojo-bg);color:var(--rojo)}
+  .quitar-mini{border:none;background:none;color:var(--rojo);font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;padding:4px 0;text-decoration:underline}
+  .item-resumen{align-items:center}
+
+  /* ===== Datos de envío ===== */
+  .grupo-envio{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:13px;margin-bottom:12px}
+  .grupo-envio > .titulo{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta-suave);margin-bottom:11px;display:flex;align-items:center;gap:7px}
+  .modo-envio{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}
+  .modo-op{border:1.5px solid var(--linea);border-radius:12px;padding:11px 9px;text-align:center;cursor:pointer;background:#fff;font-family:inherit}
+  .modo-op .ic{font-size:20px}
+  .modo-op h3{font-size:12.5px;font-weight:700;margin-top:3px}
+  .modo-op p{font-size:10px;color:var(--tinta-suave);margin-top:2px;line-height:1.35}
+  .modo-op.activo{border-color:var(--sol);box-shadow:0 0 0 1.5px var(--sol);background:#FFFBF2}
+  .agencias{display:flex;gap:8px;margin-bottom:12px}
+  .agencia{flex:1;border:1.5px solid var(--linea);border-radius:11px;padding:10px;text-align:center;cursor:pointer;background:#fff;font-family:inherit;font-weight:700;font-size:12.5px;color:var(--tinta-suave)}
+  .agencia.activa{border-color:var(--sol);background:#FFFBF2;color:var(--tinta);box-shadow:0 0 0 1px var(--sol)}
+  .agencia small{display:block;font-weight:600;font-size:10px;color:var(--tinta-suave);margin-top:2px}
+
+  /* ===== Niveles / insignias ===== */
+  .nivel-cinta{display:flex;align-items:center;gap:11px;background:var(--tinta);color:#F2F4EF;border-radius:15px;padding:13px;margin-bottom:14px}
+  .nivel-cinta .medalla{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;background:rgba(255,255,255,.09)}
+  .nivel-cinta .info{flex:1;min-width:0}
+  .nivel-cinta .info b{font-family:'Archivo',sans-serif;font-weight:800;font-size:14.5px;display:block}
+  .nivel-cinta .info small{font-size:11px;color:#B9C6BE;display:block;margin-top:1px;line-height:1.4}
+  .barra-nivel{height:7px;border-radius:99px;background:rgba(255,255,255,.14);margin-top:7px;overflow:hidden}
+  .barra-nivel span{display:block;height:100%;background:var(--sol);border-radius:99px;transition:width .4s cubic-bezier(.22,.61,.36,1)}
+  .chip-nivel{display:inline-flex;align-items:center;gap:4px;background:#FCF0D8;color:var(--sol-osc);border-radius:99px;padding:3px 9px;font-size:11px;font-weight:800}
+
+  .escalera{display:flex;flex-direction:column;gap:8px}
+  .esc-fila{display:flex;align-items:center;gap:11px;padding:11px;border-radius:12px;border:1.5px solid var(--linea);background:#fff}
+  .esc-fila.actual{border-color:var(--sol);background:#FFFBF2;box-shadow:0 0 0 1px var(--sol)}
+  .esc-fila.lograda{opacity:.62}
+  .esc-fila .med{font-size:21px;flex-shrink:0}
+  .esc-fila .txt{flex:1;min-width:0}
+  .esc-fila .txt b{font-size:13.5px;font-family:'Archivo',sans-serif;font-weight:800}
+  .esc-fila .txt small{display:block;font-size:11px;color:var(--tinta-suave);margin-top:1px;line-height:1.4}
+  .esc-fila .gan{text-align:right;flex-shrink:0}
+  .esc-fila .gan b{font-family:'Archivo',sans-serif;font-weight:800;font-size:14px;color:var(--ok)}
+  .esc-fila .gan small{display:block;font-size:9.5px;color:var(--tinta-suave)}
+
+  .upsell-nivel{background:#FFFBF2;border:1.5px dashed var(--sol);border-radius:12px;padding:11px 12px;margin-top:11px;font-size:12px;line-height:1.55;color:var(--tinta)}
+  .upsell-nivel b{color:var(--sol-osc)}
+
+  /* ===== Modo invitado ===== */
+  .btn-invitado{width:100%;margin-top:12px;border:1.5px solid var(--linea);background:transparent;border-radius:12px;padding:13px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--tinta-suave);cursor:pointer}
+  .btn-invitado:active{transform:scale(.985)}
+  /* ===== Disponibilidad del socio ===== */
+  .btn-estado-act{border:none;border-radius:99px;padding:7px 12px;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;flex-shrink:0;white-space:nowrap}
+  .btn-estado-act.on{background:var(--ok-bg);color:var(--ok)}
+  .btn-estado-act.off{background:var(--alerta-bg);color:var(--alerta)}
+  .cinta-pausa{display:none;align-items:center;gap:10px;background:var(--alerta-bg);color:var(--alerta);border-radius:12px;padding:11px 13px;margin-bottom:14px}
+  .cinta-pausa .txt{flex:1;font-size:12px;font-weight:700;line-height:1.45}
+  .cinta-pausa .txt small{display:block;font-weight:500;font-size:11px;opacity:.85;margin-top:1px}
+  .cinta-pausa button{border:none;background:var(--alerta);color:#fff;border-radius:9px;padding:9px 12px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0}
+  .disp-caja{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:15px;margin-bottom:14px}
+  .disp-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .disp-top b{font-size:14px}
+  .disp-top small{display:block;font-size:11.5px;color:var(--tinta-suave);margin-top:2px;line-height:1.4}
+  .interruptor-disp{width:46px;height:27px;border-radius:99px;background:var(--linea);border:none;cursor:pointer;position:relative;flex-shrink:0;transition:background .15s}
+  .interruptor-disp::after{content:'';position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:transform .15s ease-out;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .interruptor-disp.on{background:var(--ok)}
+  .interruptor-disp.on::after{transform:translateX(19px)}
+  .disp-caja .seccion-titulo{margin-top:16px}
+  .ausencia-item{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--fondo);border-radius:10px;padding:9px 11px;font-size:12.5px;font-weight:600;margin-bottom:7px}
+  .ausencia-item.activa{background:var(--alerta-bg);color:var(--alerta)}
+  .ausencia-item button{border:none;background:none;color:var(--tinta-suave);font-size:14px;cursor:pointer}
+  .ausencia-form{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+  .ausencia-form input{flex:1;min-width:120px;padding:9px 10px;border:1px solid var(--linea);border-radius:9px;font-family:inherit;font-size:12.5px}
+  .ausencia-form button{border:none;background:var(--tinta);color:#fff;border-radius:9px;padding:9px 13px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0}
+  .aviso-pausa{background:var(--alerta-bg);border:1.5px dashed var(--alerta);border-radius:12px;padding:12px 13px;margin-top:14px;font-size:12.5px;color:var(--alerta);line-height:1.55}
+  .check-pausa{display:flex;gap:8px;align-items:flex-start;margin-top:9px;cursor:pointer;font-size:12px;font-weight:600}
+  .check-pausa input{margin-top:2px;width:15px;height:15px;accent-color:var(--alerta);flex-shrink:0}
+
+  .cinta-invitado{background:var(--sol);color:var(--tinta);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px;margin-bottom:14px;box-shadow:0 3px 10px rgba(239,165,31,.28)}
+  .cinta-invitado .txt{flex:1;font-size:12px;font-weight:700;line-height:1.45}
+  .cinta-invitado .txt small{display:block;font-weight:500;font-size:11px;opacity:.85;margin-top:1px}
+  .cinta-invitado button{border:none;background:var(--tinta);color:#fff;border-radius:9px;padding:9px 12px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0}
+  .precio-bloq{display:flex;align-items:center;gap:7px;background:var(--fondo);border:1.5px dashed var(--linea);border-radius:10px;padding:8px 10px;margin-top:7px;cursor:pointer}
+  .precio-bloq .ic{font-size:15px}
+  .precio-bloq .t{flex:1;font-size:11px;line-height:1.45;color:var(--tinta-suave)}
+  .precio-bloq .t b{color:var(--tinta);display:block;font-size:12px}
+  .precio-bloq .flecha{color:var(--sol-osc);font-weight:800;font-size:13px}
+  .calc-bloq{text-align:center;padding:16px 12px}
+  .calc-bloq .ic{font-size:30px}
+  .calc-bloq h4{font-family:'Archivo',sans-serif;font-weight:800;font-size:16px;margin-top:7px;color:#F2F4EF}
+  .calc-bloq p{font-size:12px;color:#B9C6BE;margin-top:5px;line-height:1.5}
+  .calc-bloq .btn-crear{width:100%;margin-top:13px;border:none;background:var(--sol);color:var(--tinta);border-radius:11px;padding:13px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer}
+  .gan-teaser{background:var(--chicha-bg);color:var(--chicha);border-radius:10px;padding:9px;font-size:12px;font-weight:800;margin-top:11px}
+
+  /* ===== Ficha de producto ===== */
+  .galeria{position:relative;background:#fff;border-radius:16px;overflow:hidden;border:1px solid var(--linea);box-shadow:0 2px 10px rgba(20,38,30,.06)}
+  .gal-pista{display:flex;transition:transform .28s cubic-bezier(.22,.61,.36,1)}
+  .gal-slide{min-width:100%;height:210px;display:flex;align-items:center;justify-content:center;font-size:64px;position:relative}
+  .gal-slide .marca-agua{position:absolute;bottom:9px;right:11px;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-suave);opacity:.55}
+  .gal-badges{position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap;max-width:82%}
+  .gal-puntos{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:5px}
+  .gal-punto{width:6px;height:6px;border-radius:50%;background:rgba(20,38,30,.22)}
+  .gal-punto.on{background:var(--sol);width:16px;border-radius:99px}
+  .gal-flecha{position:absolute;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.92);box-shadow:0 2px 8px rgba(0,0,0,.14);cursor:pointer;font-size:15px;color:var(--tinta);display:flex;align-items:center;justify-content:center}
+  .gal-flecha.izq{left:8px} .gal-flecha.der{right:8px}
+  .miniaturas{display:flex;gap:7px;margin-top:9px;overflow-x:auto;padding-bottom:2px}
+  .mini-t{width:52px;height:52px;border-radius:10px;border:1.5px solid var(--linea);background:#fff;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px}
+  .mini-t.on{border-color:var(--sol);box-shadow:0 0 0 1.5px var(--sol)}
+
+  .ficha-tit{margin-top:14px}
+  .ficha-tit h2{font-family:'Archivo',sans-serif;font-weight:900;font-size:21px;font-stretch:105%;line-height:1.15}
+  .ficha-sku{font-size:11px;color:var(--tinta-suave);font-weight:700;letter-spacing:.06em;margin-top:4px}
+
+  /* Calculadora */
+  .calc-caja{background:var(--tinta);color:#F2F4EF;border-radius:16px;padding:15px;margin-top:14px;box-shadow:0 4px 14px rgba(20,38,30,.18)}
+  .calc-caja .tit{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#B9C6BE;margin-bottom:10px}
+  .calc-fila{display:flex;justify-content:space-between;font-size:13px;padding:4px 0}
+  .calc-fila b{font-family:'Archivo',sans-serif;font-weight:800}
+  .calc-input{margin-top:11px}
+  .calc-input label{display:block;font-size:11.5px;color:#B9C6BE;font-weight:600;margin-bottom:5px}
+  .calc-campo{display:flex;align-items:center;background:#fff;border-radius:11px;overflow:hidden;border:1.5px solid transparent}
+  .calc-campo.mal{border-color:#FF8B7A}
+  .calc-campo .sol-pen{padding:0 10px;font-weight:800;color:var(--tinta-suave);font-size:14px}
+  .calc-campo input{flex:1;border:none;padding:13px 4px;font-family:'Archivo',sans-serif;font-weight:800;font-size:19px;color:var(--tinta);background:none;width:100%}
+  .calc-campo input:focus{outline:none}
+  .calc-campo .rapidos{display:flex;gap:4px;padding-right:7px}
+  .calc-campo .rapidos button{border:none;background:var(--fondo);color:var(--tinta-suave);border-radius:7px;padding:5px 7px;font-family:inherit;font-size:10.5px;font-weight:800;cursor:pointer}
+  .calc-aviso{font-size:11px;color:#FFB8A8;margin-top:6px;display:none;line-height:1.45}
+  .calc-aviso.ver{display:block}
+  .ganancia-badge{background:var(--ok);color:#fff;border-radius:13px;padding:13px;text-align:center;margin-top:12px}
+  .ganancia-badge small{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;opacity:.85}
+  .ganancia-badge .monto{font-family:'Archivo',sans-serif;font-weight:900;font-size:29px;line-height:1.1;margin-top:2px}
+  .ganancia-badge p{font-size:11px;opacity:.9;margin-top:3px;line-height:1.45}
+  .calc-politica{font-size:11px;color:#B9C6BE;margin-top:9px;line-height:1.5}
+
+  /* Botón kit */
+  .btn-kit{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;border:1.5px solid var(--tinta);background:#fff;border-radius:12px;padding:13px;font-family:inherit;font-size:14px;font-weight:800;color:var(--tinta);cursor:pointer;box-shadow:0 2px 8px rgba(20,38,30,.07)}
+  .btn-kit:active{transform:scale(.985)}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;background:#E7EAE4;border-radius:11px;padding:4px;margin-top:16px}
+  .tab-btn{flex:1;border:none;background:none;padding:9px 4px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;color:var(--tinta-suave);cursor:pointer;line-height:1.25}
+  .tab-btn.on{background:#fff;color:var(--tinta);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .tab-panel{display:none;margin-top:12px;font-size:13px;line-height:1.65;color:var(--tinta-suave)}
+  .tab-panel.on{display:block;animation:aparece .16s ease-out}
+  .tab-panel h4{font-size:12.5px;color:var(--tinta);font-weight:800;margin:11px 0 5px}
+  .tab-panel h4:first-child{margin-top:0}
+  .tab-panel ul{padding-left:17px} .tab-panel li{margin-bottom:5px}
+  .tabla-envio{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  .tabla-envio th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tinta-suave);padding:7px 6px;border-bottom:1px solid var(--linea)}
+  .tabla-envio td{padding:8px 6px;border-bottom:1px solid var(--linea);color:var(--tinta)}
+  .tabla-envio tr:last-child td{border:none}
+
+  /* Barra flotante */
+  .barra-accion{position:absolute;left:0;right:0;bottom:66px;background:#fff;border-top:1px solid var(--linea);padding:11px 14px;display:none;align-items:center;gap:11px;z-index:16;box-shadow:0 -4px 16px rgba(20,38,30,.09)}
+  .barra-accion.ver{display:flex}
+  .barra-accion .resumen{flex-shrink:0;line-height:1.3}
+  .barra-accion .resumen small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tinta-suave)}
+  .barra-accion .resumen b{font-size:13px;font-family:'Archivo',sans-serif;font-weight:800}
+  .barra-accion .resumen .gan{color:var(--ok)}
+  .barra-accion .btn-vender{flex:1;border:none;background:var(--sol);color:var(--tinta);border-radius:12px;padding:14px 10px;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(239,165,31,.35)}
+  .barra-accion .btn-vender:active{transform:scale(.985)}
+
+  /* Modal kit */
+  .modal-fondo{position:absolute;inset:0;background:rgba(20,38,30,.55);z-index:40;display:none;align-items:flex-end}
+  .modal-fondo.ver{display:flex;animation:aparece .16s ease-out}
+  .modal{background:var(--fondo);width:100%;max-height:88%;overflow-y:auto;border-radius:22px 22px 0 0;padding:18px 16px 26px;animation:sube .22s cubic-bezier(.22,.61,.36,1)}
+  .modal-cab{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:10px}
+  .modal-cab h3{font-family:'Archivo',sans-serif;font-weight:800;font-size:18px}
+  .modal-cab p{font-size:12px;color:var(--tinta-suave);margin-top:3px;line-height:1.45}
+  .modal-cab .cerrar{border:none;background:#E7EAE4;border-radius:50%;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--tinta);flex-shrink:0}
+  .kit-bloque{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:13px;margin-bottom:11px}
+  .kit-bloque .tit{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta-suave);margin-bottom:9px}
+  .kit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .kit-item{border:1px solid var(--linea);border-radius:11px;padding:11px 6px;text-align:center;background:var(--fondo);cursor:pointer;font-family:inherit}
+  .kit-item .ic{font-size:20px}
+  .kit-item span{display:block;font-size:10px;font-weight:700;color:var(--tinta-suave);margin-top:3px;line-height:1.3}
+  .copy-caja{background:var(--fondo);border-radius:11px;padding:11px;font-size:12.5px;line-height:1.6;white-space:pre-line;color:var(--tinta)}
+  .btn-copiar{width:100%;margin-top:8px;border:none;background:var(--tinta);color:#fff;border-radius:10px;padding:11px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer}
+  .btn-copiar.listo{background:var(--ok)}
+
+  /* ===== Origen (almacén / punto de venta) ===== */
+  .origen-caja{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:12px;margin-bottom:14px}
+  .origen-caja .tit{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta-suave);margin-bottom:9px}
+  .origen-ops{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .origen-op{border:1.5px solid var(--linea);border-radius:12px;padding:10px 9px;cursor:pointer;background:#fff;font-family:inherit;text-align:left}
+  .origen-op .ic{font-size:17px}
+  .origen-op h3{font-size:12.5px;font-weight:800;margin-top:2px;font-family:'Archivo',sans-serif}
+  .origen-op p{font-size:10px;color:var(--tinta-suave);margin-top:2px;line-height:1.35}
+  .origen-op.activo{border-color:var(--sol);box-shadow:0 0 0 1.5px var(--sol);background:#FFFBF2}
+  .origen-detalle{font-size:11.5px;color:var(--info);background:var(--info-bg);border-radius:9px;padding:8px 10px;margin-top:9px;line-height:1.5}
+  .marca-ubic{font-size:11.5px;color:var(--tinta-suave);margin-top:6px;display:flex;align-items:center;gap:6px;font-weight:600}
+
+  /* ===== Nota de envío ===== */
+  .nota-envio{display:flex;gap:9px;background:var(--info-bg);border-radius:10px;padding:10px 12px;font-size:11.5px;color:var(--info);line-height:1.55;margin:10px 0 12px}
+  .nota-envio b{font-weight:700}
+  .agencia.activa small{color:var(--sol-osc)}
+
+  /* ===== Catálogo real: fotos, categorías, a cotizar ===== */
+  .producto-img img, .mini img{width:100%;height:100%;object-fit:cover;border-radius:10px}
+  .mini img{border-radius:8px}
+  .gal-slide img{width:100%;height:100%;object-fit:contain;padding:14px}
+  .cat-tabs{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+  .cat-chip{flex-shrink:0;border:1.5px solid var(--linea);background:#fff;border-radius:99px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:700;color:var(--tinta-suave);cursor:pointer;white-space:nowrap}
+  .cat-chip.activa{border-color:var(--sol);background:#FFFBF2;color:var(--tinta)}
+
+  /* ===== Selector de presentación ===== */
+  .presentaciones{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+  .pres-btn{border:1.5px solid var(--linea);background:#fff;border-radius:9px;padding:5px 10px;font-family:inherit;font-size:11.5px;font-weight:700;color:var(--tinta-suave);cursor:pointer;line-height:1.3;transition:transform .1s ease-out}
+  .pres-btn:active{transform:scale(.96)}
+  .pres-btn.activa{border-color:var(--sol);background:#FFFBF2;color:var(--tinta);box-shadow:0 0 0 1px var(--sol)}
+  .pres-btn.sin-stock{opacity:.4;cursor:not-allowed;text-decoration:line-through}
+  .pres-btn small{display:block;font-weight:600;font-size:10px;color:var(--tinta-suave);margin-top:1px}
+  .pres-btn.activa small{color:var(--sol-osc)}
+  .etq-pres{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tinta-suave);margin-top:9px}
+  .producto-cuerpo{display:flex;gap:11px}
+  .producto-pie{margin-top:2px}
+  .fila-precio{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--linea)}
+
+  /* ===== Catálogo ===== */
+  .producto{display:flex;gap:11px;margin-bottom:10px}
+  .producto-img{width:56px;height:56px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:23px}
+  .producto-info{flex:1;min-width:0}
+  .producto-info h3{font-size:13.5px;font-weight:700;line-height:1.25}
+  .producto-precios{font-size:11.5px;color:var(--tinta-suave);line-height:1.55;margin-top:2px}
+  .producto-precios b{color:var(--tinta)}
+  .stepper{display:flex;align-items:center;border:1.5px solid var(--linea);border-radius:10px;overflow:hidden;align-self:center;flex-shrink:0}
+  .stepper button{width:32px;height:34px;border:none;background:#fff;font-size:17px;font-weight:700;cursor:pointer;color:var(--tinta);font-family:inherit}
+  .stepper button:active{background:var(--fondo)}
+  .stepper .cant{width:30px;text-align:center;font-family:'Archivo',sans-serif;font-weight:800;font-size:14px}
+  .stepper.con{border-color:var(--sol);box-shadow:0 0 0 1px var(--sol)}
+  .stepper.con .cant{color:var(--sol-osc)}
+  .agotado{opacity:.45}
+
+  .barra-carrito{position:absolute;left:14px;right:14px;bottom:78px;z-index:15;background:var(--tinta);color:#fff;border-radius:14px;padding:13px 16px;display:none;align-items:center;justify-content:space-between;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:sube .2s ease-out}
+  @keyframes sube{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .barra-carrito.visible{display:flex}
+  .barra-carrito .cuenta{background:var(--sol);color:var(--tinta);border-radius:8px;font-weight:800;font-size:13px;padding:4px 9px;margin-right:10px}
+  .barra-carrito .texto{flex:1;font-size:13.5px;font-weight:700}
+  .barra-carrito .texto small{display:block;font-weight:500;font-size:11px;color:#B9C6BE}
+  .barra-carrito .flecha{font-size:17px;color:var(--sol)}
+
+  /* ===== Boleta ===== */
+  .boleta{background:#fff;border:1px solid var(--linea);border-radius:4px;padding:15px;font-size:13px;position:relative}
+  .boleta::before,.boleta::after{content:'';position:absolute;left:0;right:0;height:8px;background-image:radial-gradient(circle at 6px 0px, transparent 5px, #fff 5px);background-size:12px 8px;background-repeat:repeat-x}
+  .boleta::before{top:-7px;transform:rotate(180deg)}
+  .boleta::after{bottom:-7px}
+  .boleta h4{font-family:'Archivo',sans-serif;font-weight:800;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;text-align:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--linea)}
+  .boleta .fila{display:flex;justify-content:space-between;gap:8px;padding:4px 0}
+  .boleta .fila .izq{flex:1}
+  .boleta .fila.total{border-top:1px dashed var(--linea);margin-top:6px;padding-top:9px;font-weight:700;font-size:14px}
+  .boleta .fila.ganancia{background:var(--chicha-bg);margin:6px -7px;padding:7px;border-radius:8px;font-weight:700;color:var(--chicha)}
+  .item-resumen{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--linea)}
+  .item-resumen:last-child{border:none}
+  .item-resumen .mini{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .item-resumen .inf{flex:1;min-width:0}
+  .item-resumen h3{font-size:12.5px;font-weight:700}
+  .item-resumen p{font-size:11px;color:var(--tinta-suave)}
+  .item-resumen .sub{font-weight:700;font-size:13px}
+
+  /* ===== Pago ===== */
+  .metodos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .metodo{border:1.5px solid var(--linea);border-radius:12px;padding:12px;text-align:center;cursor:pointer;background:#fff;font-family:inherit}
+  .metodo .ic{font-size:22px}
+  .metodo h3{font-size:13px;font-weight:700;margin-top:4px}
+  .metodo p{font-size:10.5px;color:var(--tinta-suave);margin-top:2px}
+  .metodo.activo{border-color:var(--sol);box-shadow:0 0 0 1.5px var(--sol);background:#FFFBF2}
+  .zona-qr{text-align:center;padding:14px}
+  .zona-qr svg{width:150px;height:150px;border:1px solid var(--linea);border-radius:12px;padding:8px;background:#fff}
+  .zona-qr p{font-size:12px;color:var(--tinta-suave);margin-top:8px;line-height:1.5}
+  .zona-qr .monto-qr{font-family:'Archivo',sans-serif;font-weight:900;font-size:22px;margin-top:6px}
+  .adjunto{border:1.5px dashed var(--linea);border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:#fff}
+  .adjunto.ok{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+  .adjunto .ic{font-size:24px}
+  .adjunto p{font-size:12.5px;color:var(--tinta-suave);margin-top:5px;line-height:1.5}
+  .adjunto.ok p{color:var(--ok);font-weight:700}
+  .paso-binance{display:flex;gap:8px;font-size:11.5px;color:var(--tinta-suave);line-height:1.5;margin-top:10px}
+  .paso-binance b{color:var(--tinta)}
+
+  /* ===== Confirmación ===== */
+  .conf-hero{text-align:center;padding:26px 18px 10px}
+  .conf-hero .check{width:58px;height:58px;border-radius:50%;background:var(--ok-bg);color:var(--ok);font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+  .conf-hero h2{font-family:'Archivo',sans-serif;font-weight:800;font-size:19px}
+  .conf-hero p{font-size:13px;color:var(--tinta-suave);margin-top:5px;line-height:1.5}
+  .codigo-caja{background:var(--tinta);color:#fff;border-radius:14px;padding:16px;text-align:center;margin-top:14px}
+  .codigo-caja small{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#B9C6BE;font-weight:700}
+  .codigo-caja .cod{font-family:'Archivo',sans-serif;font-weight:900;font-size:26px;letter-spacing:.06em;color:var(--sol);margin:6px 0}
+  .codigo-caja p{font-size:11.5px;color:#B9C6BE;line-height:1.5}
+
+  /* ===== Pedidos / vacíos ===== */
+  .pedido-item{margin-bottom:10px}
+  .pedido-item .arriba{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;gap:8px}
+  .pedido-item h3{font-size:13px;font-weight:800;font-family:'Archivo',sans-serif;letter-spacing:.03em}
+  .pedido-item .det{font-size:12px;color:var(--tinta-suave);line-height:1.5}
+  .pedido-item .abajo{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--tinta-suave);margin-top:6px}
+  .vacio{padding:30px 20px;text-align:center;border:1.5px dashed var(--linea);border-radius:14px}
+  .vacio .ic{font-size:30px}
+  .vacio h3{font-size:14.5px;font-weight:700;margin-top:8px}
+  .vacio p{font-size:12.5px;color:var(--tinta-suave);margin-top:4px;line-height:1.5}
+
+  /* ===== Tabs ===== */
+  .barra{position:absolute;bottom:0;left:0;right:0;height:66px;background:var(--tarjeta);border-top:1px solid var(--linea);display:none;z-index:10}
+  .barra.visible{display:flex}
+  .pestana{flex:1;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:inherit;font-size:10.5px;font-weight:600;color:var(--tinta-suave)}
+  .pestana svg{width:21px;height:21px;stroke:var(--tinta-suave);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .pestana.activa{color:var(--tinta)}
+  .pestana.activa svg{stroke:var(--tinta)}
+  .pestana.activa::after{content:'';width:18px;height:3px;background:var(--sol);border-radius:2px;margin-top:1px}
+
+  .toast{position:absolute;bottom:150px;left:18px;right:18px;background:var(--tinta);color:#fff;padding:12px 15px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(6px);z-index:30}
+  .toast.visible{opacity:1;transform:none}
+</style>
+</head>
+<body>
+<div class="telefono">
+
+  <!-- ============ REGISTRO / INICIO DE SESIÓN ============ -->
+  <section id="p-auth" class="pantalla activa">
+    <div class="hero-marca">
+      <div class="lema">Tú vendes. Nosotros el resto.</div>
+      <div class="logo">S<span class="o-sol">O</span>CIO</div>
+      <p>Elige productos, véndelos a tu gente y gana por cada venta. Sin jefe, sin inversión, sin tocar inventario.</p>
+    </div>
+    <div class="panel-entrada">
+      <div class="auth-tabs">
+        <button class="auth-tab activo" id="tab-reg" onclick="modoAuth('registro')">Crear mi cuenta</button>
+        <button class="auth-tab" id="tab-ing" onclick="modoAuth('ingreso')">Ya soy socio</button>
+      </div>
+
+      <!-- Formulario de registro -->
+      <div id="form-registro">
+        <div class="campo" id="c-nombre"><label>Nombres y apellidos</label>
+          <input id="r-nombre" placeholder="Como figura en tu DNI" autocomplete="name">
+          <div class="error">Escribe tu nombre completo (mínimo nombre y apellido).</div></div>
+        <div class="campo" id="c-dni"><label>DNI</label>
+          <input id="r-dni" inputmode="numeric" maxlength="8" placeholder="8 dígitos" autocomplete="off">
+          <div class="error">El DNI debe tener 8 dígitos.</div></div>
+        <div class="campo" id="c-celular"><label>Celular (será tu usuario)</label>
+          <input id="r-celular" inputmode="numeric" maxlength="9" placeholder="9XX XXX XXX" autocomplete="tel">
+          <div class="error">Ingresa un celular válido de 9 dígitos (empieza en 9).</div></div>
+        <div class="campo" id="c-ciudad"><label>Ciudad donde vendes</label>
+          <select id="r-ciudad">
+            <option value="">Elige tu ciudad…</option>
+            <option>Lima</option><option>Arequipa</option><option>Trujillo</option><option>Chiclayo</option><option>Piura</option><option>Cusco</option><option>Huancayo</option><option>Iquitos</option><option>Otra</option>
+          </select>
+          <div class="error">Elige tu ciudad.</div></div>
+        <div class="campo" id="c-clave"><label>Crea tu clave (mínimo 4 dígitos)</label>
+          <input id="r-clave" type="password" inputmode="numeric" maxlength="8" placeholder="••••" autocomplete="new-password">
+          <div class="error">La clave debe tener al menos 4 dígitos.</div></div>
+
+        <label class="check-linea"><input type="checkbox" id="r-t1"><span>Acepto los <b>términos del socio</b>: soy un vendedor independiente, responsable de mis ventas directas y de mis obligaciones ante mis clientes.</span></label>
+        <label class="check-linea"><input type="checkbox" id="r-t2"><span>Autorizo la <b>validación de mi identidad</b> con los datos ingresados, como medida de seguridad para clientes y marcas.</span></label>
+        <div class="campo" id="c-terminos"><div class="error">Debes aceptar ambas declaraciones para crear tu cuenta.</div></div>
+
+        <div class="nota-validacion">🛡️ <span>Tu cuenta se crea al instante y tu <b>identidad entra a validación (máx. 24 h)</b>. Mientras tanto ya puedes explorar el catálogo y registrar tus primeros pedidos.</span></div>
+        <button class="btn btn-sol" onclick="registrar()">Crear mi cuenta de socio</button>
+        <button class="btn-invitado" onclick="entrarInvitado()">👀 Solo mirar el catálogo por ahora</button>
+      </div>
+
+      <!-- Formulario de ingreso -->
+      <div id="form-ingreso" style="display:none">
+        <div class="campo" id="c-icel"><label>Celular</label>
+          <input id="i-celular" inputmode="numeric" maxlength="9" placeholder="9XX XXX XXX" autocomplete="tel">
+          <div class="error">Ingresa tu celular de 9 dígitos.</div></div>
+        <div class="campo" id="c-iclave"><label>Clave</label>
+          <input id="i-clave" type="password" inputmode="numeric" maxlength="8" placeholder="••••" autocomplete="current-password">
+          <div class="error" id="err-ingreso">Celular o clave incorrectos.</div></div>
+        <button class="btn btn-sol" onclick="ingresar()">Entrar</button>
+        <button class="btn-invitado" onclick="entrarInvitado()">👀 Solo mirar el catálogo por ahora</button>
+        <p style="font-size:11.5px;color:var(--tinta-suave);text-align:center;margin-top:12px">Cada cuenta guarda sus propios pedidos y ganancias en este dispositivo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MARCAS (portada estilo app de comida) ============ -->
+  <section id="p-marcas" class="pantalla">
+    <div class="cabecera">
+      <div class="usuario-mini">
+        <div class="ava" id="u-ava">S</div>
+        <div class="datos"><b id="u-nombre">Socio</b><small id="u-estado">—</small></div>
+      </div>
+      <button class="btn-estado-act on" id="btn-disp" onclick="alternarActivo()">🟢 Activo</button>
+      <button class="btn-salir" onclick="salir()">Cerrar sesión</button>
+    </div>
+    <div class="contenido">
+      <div class="cinta-pausa" id="cinta-pausa-marcas">
+        <div class="txt">Estás en pausa<small>No se lo decimos a nadie, pero recuerda activarte cuando quieras volver a tomar pedidos.</small></div>
+        <button onclick="alternarActivo()">Activarme</button>
+      </div>
+      <div class="cinta-invitado" id="cinta-marcas" style="display:none">
+        <div class="txt">Estás mirando como invitado<small>Crea tu cuenta gratis para ver a cuánto compras y cuánto ganas en cada producto.</small></div>
+        <button onclick="pedirCuenta()">Crear cuenta</button>
+      </div>
+      <div class="banner-politica">📌 <span><b>Política SOCIO:</b> te damos el precio referencial de venta de cada producto. Puedes <b>subir su valor</b> según tu estudio de mercado — pero <b>nunca vender por debajo</b> del precio de referencia.</span></div>
+      <div class="seccion-titulo">Marcas para vender</div>
+      <div id="lista-marcas"></div>
+      <div class="slot-proximo">🏪 Aquí aparecerán nuevas marcas y giros de negocio (cosmética, tecnología, alimentos…) a medida que se sumen a SOCIO.</div>
+    </div>
+  </section>
+
+  <!-- ============ CATÁLOGO ============ -->
+  <section id="p-catalogo" class="pantalla">
+    <div class="cabecera">
+      <button class="btn-fantasma btn" style="width:auto;padding:6px 8px;font-size:16px" onclick="irA('p-marcas')" aria-label="Volver a marcas">←</button>
+      <img id="cat-logo" src="" alt="" style="width:30px;height:30px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid var(--linea);padding:2px;display:none">
+      <h1 id="cat-titulo" style="flex:1;font-size:17px">Catálogo</h1>
+      <span class="chip chip-ganancia" id="cat-ganancia"></span>
+    </div>
+    <div class="contenido">
+      <div class="cinta-pausa" id="cinta-pausa-catalogo">
+        <div class="txt">Estás en pausa<small>Puedes seguir mirando, pero recuerda activarte antes de registrar un pedido.</small></div>
+        <button onclick="alternarActivo()">Activarme</button>
+      </div>
+      <div class="cinta-invitado" id="cinta-catalogo" style="display:none">
+        <div class="txt">Estás viendo precios de venta al público<small>Los precios de socio y tus ganancias se activan al crear tu cuenta.</small></div>
+        <button onclick="pedirCuenta()">Crear cuenta</button>
+      </div>
+      <div class="origen-caja">
+        <div class="tit">Ver disponibilidad desde</div>
+        <div class="origen-ops" id="origen-ops"></div>
+        <div class="origen-detalle" id="origen-detalle"></div>
+      </div>
+      <div class="cat-tabs" id="cat-tabs"></div>
+      <div id="lista-productos"></div>
+      <p style="font-size:11px;color:var(--tinta-suave);margin-top:8px;line-height:1.5">El precio de socio solo es visible dentro de la app. En productos Lab Péptidos, el sugerido es el precio de la página oficial: ganas el 10% vendiendo a ese precio; puedes fijar uno mayor según tu estudio de mercado, nunca uno menor al referencial.</p>
+    </div>
+  </section>
+
+  <!-- ============ FICHA DE PRODUCTO ============ -->
+  <section id="p-producto" class="pantalla">
+    <div class="cabecera">
+      <button class="btn-fantasma btn" style="width:auto;padding:6px 8px;font-size:16px" onclick="irA('p-catalogo')" aria-label="Volver">←</button>
+      <h1 style="flex:1;font-size:17px">Ficha del producto</h1>
+    </div>
+    <div class="contenido">
+      <div class="galeria">
+        <div class="gal-badges" id="f-badges"></div>
+        <div class="gal-pista" id="f-pista"></div>
+        <button class="gal-flecha izq" onclick="gal(-1)" aria-label="Anterior">‹</button>
+        <button class="gal-flecha der" onclick="gal(1)" aria-label="Siguiente">›</button>
+        <div class="gal-puntos" id="f-puntos"></div>
+      </div>
+      <div class="miniaturas" id="f-minis"></div>
+
+      <div class="ficha-tit">
+        <h2 id="f-nombre"></h2>
+        <div class="ficha-sku" id="f-sku"></div>
+        <div id="f-presentaciones" style="margin-top:10px"></div>
+      </div>
+
+      <!-- Calculadora -->
+      <div class="calc-caja" id="calc-invitado" style="display:none">
+        <div class="calc-bloq">
+          <div class="ic">🔒</div>
+          <h4>Tu costo socio está bloqueado</h4>
+          <p id="teaser-gan"></p>
+          <div class="gan-teaser" id="teaser-rango"></div>
+          <button class="btn-crear" onclick="pedirCuenta()">Crear mi cuenta gratis →</button>
+        </div>
+      </div>
+      <div class="calc-caja" id="calc-socio">
+        <div class="tit">Calcula tu ganancia</div>
+        <div class="calc-fila"><span>Costo socio (fijo)</span><b class="num" id="f-costo"></b></div>
+        <div class="calc-fila"><span>Precio referencial (mínimo)</span><b class="num" id="f-ref"></b></div>
+        <div class="calc-input">
+          <label>Tu precio de venta al cliente</label>
+          <div class="calc-campo" id="f-campo">
+            <span class="sol-pen">S/</span>
+            <input id="f-precio" type="number" inputmode="decimal" oninput="recalcular()">
+            <span class="rapidos">
+              <button onclick="ajustar(0)">Ref.</button>
+              <button onclick="ajustar(10)">+10%</button>
+              <button onclick="ajustar(20)">+20%</button>
+            </span>
+          </div>
+          <div class="calc-aviso" id="f-aviso"></div>
+        </div>
+        <div class="ganancia-badge">
+          <small>Tu ganancia por unidad</small>
+          <div class="monto num" id="f-ganancia">S/ 0</div>
+          <p id="f-ganancia-pct"></p>
+        </div>
+        <div id="f-upsell"></div>
+        <p class="calc-politica">Ganas al instante la diferencia entre lo que cobras a tu cliente y el costo socio. Puedes subir el precio según tu estudio de mercado, nunca bajarlo del referencial.</p>
+      </div>
+
+      <button class="btn-kit" onclick="abrirKit()">⬇ Descargar material para vender</button>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn on" data-t="1" onclick="tab(1)">Descripción</button>
+        <button class="tab-btn" data-t="2" onclick="tab(2)">Cómo venderlo</button>
+        <button class="tab-btn" data-t="3" onclick="tab(3)">Envíos</button>
+      </div>
+      <div class="tab-panel on" id="tab-1"></div>
+      <div class="tab-panel" id="tab-2"></div>
+      <div class="tab-panel" id="tab-3">
+        <h4>Desde Almacén Cusco · por agencia</h4>
+        <table class="tabla-envio">
+          <thead><tr><th>Agencia</th><th>Lima</th><th>Provincia</th><th>Plazo</th></tr></thead>
+          <tbody>
+            <tr><td><b>Olva Courier</b><br><span style="font-size:10.5px;color:var(--tinta-suave)">vía aérea, lo pagas tú</span></td><td class="num">S/ 18</td><td class="num">S/ 25</td><td>2 a 3 días</td></tr>
+            <tr><td><b>Shalom</b><br><span style="font-size:10.5px;color:var(--tinta-suave)">recojo lo paga el cliente</span></td><td>Paga cliente</td><td>Paga cliente</td><td>3 a 5 días</td></tr>
+          </tbody>
+        </table>
+        <h4>Desde Punto de venta Lima · a domicilio</h4>
+        <table class="tabla-envio">
+          <thead><tr><th>Modo</th><th>Costo</th><th>Plazo</th></tr></thead>
+          <tbody><tr><td><b>Delivery en Lima</b></td><td class="num">S/ 15</td><td>24 a 48 horas</td></tr></tbody>
+        </table>
+        <p style="font-size:11.5px;margin-top:9px">El costo del envío se suma al total que pagas a SOCIO y lo cobras a tu cliente junto con el producto.</p>
+      </div>
+    </div>
+
+    <div class="barra-accion ver" id="barra-accion">
+      <div class="resumen">
+        <small>Costo socio</small><b class="num" id="ba-costo">S/ 0</b>
+        <small style="margin-top:3px">Ganas</small><b class="num gan" id="ba-gana">S/ 0</b>
+      </div>
+      <button class="btn-vender" id="btn-vender" onclick="venderEste()">Vender este producto →</button>
+    </div>
+  </section>
+
+  <!-- ============ MODAL KIT DE MARKETING ============ -->
+  <div class="modal-fondo" id="modal-kit" onclick="if(event.target===this)cerrarKit()">
+    <div class="modal">
+      <div class="modal-cab">
+        <div><h3>Kit de marketing</h3><p id="kit-sub"></p></div>
+        <button class="cerrar" onclick="cerrarKit()" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="kit-bloque">
+        <div class="tit">📸 Fotos y videos listos</div>
+        <div class="kit-grid">
+          <button class="kit-item" onclick="descargar('Fotos HD')"><div class="ic">🖼</div><span>Fotos HD</span></button>
+          <button class="kit-item" onclick="descargar('Reels / TikTok')"><div class="ic">🎬</div><span>Reels / TikTok</span></button>
+          <button class="kit-item" onclick="descargar('Estados WhatsApp')"><div class="ic">💬</div><span>Estados WhatsApp</span></button>
+        </div>
+        <p style="font-size:11px;color:var(--tinta-suave);margin-top:9px;line-height:1.5">Material aprobado por la marca. Publícalo tal cual: no agregues promesas de salud ni cambies los textos técnicos.</p>
+      </div>
+      <div class="kit-bloque">
+        <div class="tit">✍️ Texto listo para WhatsApp</div>
+        <div class="copy-caja" id="kit-copy"></div>
+        <button class="btn-copiar" id="btn-copiar" onclick="copiarTexto()">⧉ Copiar texto</button>
+      </div>
+      <div class="kit-bloque">
+        <div class="tit">🎯 Responde objeciones</div>
+        <div id="kit-objeciones" style="font-size:12.5px;line-height:1.65;color:var(--tinta-suave)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RESUMEN ============ -->
+  <section id="p-resumen" class="pantalla">
+    <div class="cabecera"><h1>Resumen de compra</h1><button class="btn-fantasma btn" style="width:auto;padding:6px" onclick="irA('p-catalogo')">✕</button></div>
+    <div class="contenido">
+      <div class="tarjeta" id="items-resumen"></div>
+      <div class="nota-envio" id="origen-envio" style="margin-top:14px"></div>
+      <div class="nota-envio">🚚 <span><b>Envíos desde almacén (Lab Péptidos):</b> Olva Courier vía aérea — Lima <b>S/ 18</b>, provincia <b>S/ 25</b>, llega en 2 a 3 días a la agencia de recojo. Con Shalom el <b>recojo lo paga tu cliente</b> en la agencia y demora de 3 a 5 días según distancia.</span></div>
+      <div class="seccion-titulo">Datos de quien recibe</div>
+      <div class="grupo-envio">
+        <div class="titulo">👤 Destinatario</div>
+        <div class="campo" id="c-rcliente"><label>Nombre de la persona o empresa</label><input id="r-cli-nombre" placeholder="Ej. María Torres / Estética Bella Piel"><div class="error">Ingresa el nombre de quien recibe.</div></div>
+        <div class="campo" id="c-rdni"><label>DNI o RUC de quien recibe <small style="font-weight:500">· lo exige la agencia</small></label><input id="r-cli-dni" inputmode="numeric" maxlength="11" placeholder="8 dígitos (DNI) u 11 (RUC)"><div class="error">Ingresa un DNI (8 dígitos) o RUC (11 dígitos).</div></div>
+        <div class="campo" id="c-rcel"><label>Celular para el delivery</label><input id="r-cli-cel" inputmode="numeric" maxlength="9" placeholder="9XX XXX XXX"><div class="error">Ingresa un celular válido de 9 dígitos.</div></div>
+      </div>
+
+      <div class="grupo-envio">
+        <div class="titulo">📦 Modo de entrega</div>
+        <div class="modo-envio">
+          <button class="modo-op activo" id="modo-agencia" onclick="modoEnvio('agencia')"><div class="ic">🚚</div><h3>Agencia</h3><p>Recoge en el local de la agencia</p></button>
+          <button class="modo-op" id="modo-local" onclick="modoEnvio('local')"><div class="ic">🏠</div><h3>A domicilio</h3><p>Entrega en la dirección</p></button>
+        </div>
+
+        <!-- Envío por agencia -->
+        <div id="bloque-agencia">
+          <label style="display:block;font-size:12.5px;font-weight:600;color:var(--tinta-suave);margin-bottom:5px">Agencia de envío</label>
+          <div class="agencias" id="lista-agencias"></div>
+          <div class="campo" id="c-rciudad"><label>Ciudad de destino</label>
+            <select id="r-ciudad-envio" onchange="calcularEnvio()">
+              <option value="">Elige la ciudad…</option>
+              <option value="lima">Lima</option>
+              <option value="prov">Arequipa</option><option value="prov">Trujillo</option><option value="prov">Chiclayo</option>
+              <option value="prov">Piura</option><option value="prov">Cusco</option><option value="prov">Huancayo</option>
+              <option value="prov">Iquitos</option><option value="prov">Otra ciudad (provincia)</option>
+            </select><div class="error">Elige la ciudad de destino.</div></div>
+          <div class="nota-envio" id="nota-envio">📦 <span></span></div>
+          <div class="campo" id="c-ragencia"><label>Local / sucursal donde se encuentra la agencia</label><input id="r-agencia-local" placeholder="Ej. Shalom Av. Aviación 2345, San Borja"><div class="error">Indica el local de la agencia donde recogerán.</div></div>
+        </div>
+
+        <!-- Entrega a domicilio -->
+        <div id="bloque-local" style="display:none">
+          <div class="campo" id="c-rciudadloc"><label>Ciudad</label>
+            <select id="r-ciudad-local" onchange="calcularEnvio()">
+              <option value="lima">Lima</option><option value="prov">Arequipa</option><option value="prov">Trujillo</option>
+              <option value="prov">Chiclayo</option><option value="prov">Piura</option><option value="prov">Cusco</option><option value="prov">Otra ciudad (provincia)</option>
+            </select></div>
+          <div class="campo" id="c-rdir"><label>Domicilio de entrega</label><input id="r-cli-dir" placeholder="Calle / Av., número, dpto., distrito"><div class="error">Ingresa la dirección completa de entrega.</div></div>
+          <div class="campo"><label>Referencia de llegada <small style="font-weight:500">· ayuda al repartidor</small></label><input id="r-cli-ref" placeholder="Ej. frente al parque, portón verde, 2do piso"></div>
+        </div>
+      </div>
+
+      <div class="seccion-titulo">Tu boleta</div>
+      <div class="boleta" id="boleta-resumen"></div>
+      <div class="aviso-pausa" id="aviso-pausa" style="display:none">
+        ⏸️ <b>Estás en pausa (o marcaste estos días como no disponible).</b> Si registras este pedido igual, recuerda que debes estar presente para confirmar el pago y darle seguimiento al envío.
+        <label class="check-pausa"><input type="checkbox" id="chk-pausa-ok"> Entiendo y quiero continuar de todas formas</label>
+      </div>
+      <button class="btn btn-sol" style="margin-top:14px" onclick="continuarPago()">Continuar al pago</button>
+    </div>
+  </section>
+
+  <!-- ============ PAGO ============ -->
+  <section id="p-pago" class="pantalla">
+    <div class="cabecera"><h1>Pago del pedido</h1><button class="btn-fantasma btn" style="width:auto;padding:6px" onclick="irA('p-resumen')">←</button></div>
+    <div class="contenido">
+      <div class="tarjeta" style="text-align:center;margin-bottom:12px">
+        <small style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-suave)">Total a pagar a SOCIO</small>
+        <div class="num" style="font-family:'Archivo',sans-serif;font-weight:900;font-size:30px" id="pago-total">S/ 0</div>
+        <span class="chip chip-ganancia num" id="pago-ganancia"></span>
+      </div>
+      <div class="metodos">
+        <button class="metodo activo" id="m-qr" onclick="metodo('qr')"><div class="ic">🔳</div><h3>Pagar con QR</h3><p>Yape · Plin · banca móvil</p></button>
+        <button class="metodo" id="m-dep" onclick="metodo('dep')"><div class="ic">🏦</div><h3>Depósito</h3><p>Transferencia + constancia</p></button>
+      </div>
+      <div class="tarjeta zona-qr" id="zona-qr">
+        <svg viewBox="0 0 29 29" shape-rendering="crispEdges" aria-label="Código QR de pago">
+          <rect width="29" height="29" fill="#fff"/>
+          <path fill="#14261E" d="M1,1h7v7h-7z M21,1h7v7h-7z M1,21h7v7h-7z M3,3h3v3h-3z M23,3h3v3h-3z M3,23h3v3h-3z M10,1h2v2h-2z M14,1h1v3h-1z M17,2h2v1h-2z M10,4h1v4h-1z M12,4h2v1h-2z M16,4h1v2h-1z M18,5h2v2h-2z M13,6h2v2h-2z M10,9h3v1h-3z M15,9h1v2h-1z M18,9h2v1h-2z M22,9h2v2h-2z M26,9h2v1h-2z M2,10h2v2h-2z M5,10h1v1h-1z M7,11h2v1h-2z M12,11h2v2h-2z M17,11h1v3h-1z M20,11h1v1h-1z M25,11h2v2h-2z M1,13h1v2h-1z M4,13h2v1h-2z M9,13h2v1h-2z M14,14h2v2h-2z M19,13h2v2h-2z M23,14h1v2h-1z M27,13h1v3h-1z M2,16h2v1h-2z M6,15h2v2h-2z M10,16h2v2h-2z M13,17h1v2h-1z M16,16h2v1h-2z M21,16h2v2h-2z M25,17h2v1h-2z M9,19h2v2h-2z M12,20h2v1h-2z M15,19h2v2h-2z M18,19h1v2h-1z M20,20h3v1h-3z M24,19h2v2h-2z M27,20h1v3h-1z M10,22h1v3h-1z M13,22h2v2h-2z M16,23h2v2h-2z M19,22h2v1h-2z M22,23h2v2h-2z M26,24h2v2h-2z M9,26h3v1h-3z M14,25h1v3h-1z M17,26h2v1h-2z M20,26h2v2h-2z M25,27h2v1h-2z"/>
+        </svg>
+        <div class="monto-qr num" id="qr-monto">S/ 0</div>
+        <p>Escanea con Yape, Plin o tu banca móvil. El QR lleva el monto exacto y el código de tu pedido — la validación es automática al detectar el pago.</p>
+      </div>
+      <div style="display:none" id="zona-dep">
+        <div class="tarjeta" style="font-size:12.5px;line-height:1.7;margin-bottom:10px">
+          <b>Cuenta SOCIO — BCP Soles</b><br>
+          193-XXXXXXX-0-XX · CCI 002-193-XXXXXXXXXX<br>
+          Titular: SOCIO SAC
+          <button class="btn btn-borde" style="margin-top:8px;padding:9px;font-size:12.5px" onclick="notificar('Datos de cuenta copiados ✓')">⧉ Copiar datos</button>
+        </div>
+        <div class="adjunto" id="adjunto" onclick="document.getElementById('input-voucher').click()">
+          <div class="ic">📎</div>
+          <p><b>Sube la evidencia de tu depósito</b><br>Captura o foto del voucher. El sistema de control la valida contra el monto y el código del pedido.</p>
+        </div>
+        <input type="file" id="input-voucher" accept="image/*" style="display:none" onchange="voucherListo(this)">
+        <div class="paso-binance"><span>1️⃣</span><span><b>Transfiere el monto exacto.</b> Es la primera huella que valida tu pago.</span></div>
+        <div class="paso-binance"><span>2️⃣</span><span><b>Sube la constancia.</b> Pago declarado ≠ pago validado — el pedido queda "En validación".</span></div>
+        <div class="paso-binance"><span>3️⃣</span><span><b>Validación (10–30 min en horario laboral).</b> Confirmado el abono, la marca despacha.</span></div>
+      </div>
+      <button class="btn btn-sol" style="margin-top:14px" onclick="registrarPedido()">Registrar pedido</button>
+    </div>
+  </section>
+
+  <!-- ============ CONFIRMACIÓN ============ -->
+  <section id="p-confirmacion" class="pantalla">
+    <div class="conf-hero">
+      <div class="check">✓</div>
+      <h2>Pedido registrado</h2>
+      <p id="conf-sub"></p>
+    </div>
+    <div class="contenido">
+      <div class="codigo-caja">
+        <small>Código de tu pedido</small>
+        <div class="cod" id="conf-codigo"></div>
+        <p>Este código identifica tu pedido en el sistema de control SOCIO. Guárdalo para cualquier consulta.</p>
+        <button class="btn btn-borde" style="margin-top:10px;background:transparent;border-color:#3D5248;color:#F2F4EF" onclick="copiarCodigo()">⧉ Copiar código</button>
+      </div>
+      <button class="btn btn-sol" style="margin-top:14px" onclick="irA('p-pedidos')">Ver mis pedidos</button>
+      <button class="btn btn-fantasma" onclick="irA('p-catalogo')">Registrar otro pedido</button>
+    </div>
+  </section>
+
+  <!-- ============ PEDIDOS ============ -->
+  <section id="p-pedidos" class="pantalla">
+    <div class="cabecera"><h1>Mis pedidos</h1></div>
+    <div class="contenido" id="lista-pedidos"></div>
+  </section>
+
+  <!-- ============ GANANCIAS ============ -->
+  <section id="p-ganancias" class="pantalla">
+    <div class="cabecera"><h1>Ganancias</h1></div>
+    <div class="contenido">
+      <div class="disp-caja">
+        <div class="disp-top">
+          <div><b>Tu disponibilidad</b><small>Actívate o pausa cuándo tomas pedidos nuevos</small></div>
+          <button class="interruptor-disp" id="sw-activo" onclick="alternarActivo()" aria-label="Activar o pausar"></button>
+        </div>
+        <div class="seccion-titulo">Días que no vas a trabajar</div>
+        <div id="lista-ausencias"></div>
+        <div class="ausencia-form">
+          <input type="date" id="aus-desde" aria-label="Desde">
+          <input type="date" id="aus-hasta" aria-label="Hasta">
+          <button onclick="agregarAusencia()">+ Agregar</button>
+        </div>
+        <p style="font-size:11px;color:var(--tinta-suave);margin-top:9px;line-height:1.5">Márcalos cuando sepas que no vas a poder confirmar pagos ni darle seguimiento a tus pedidos — evita que un cliente compre y se quede esperando respuesta.</p>
+      </div>
+      <div id="zona-ganancias"></div>
+    </div>
+  </section>
+
+  <!-- ============ BARRA CARRITO ============ -->
+  <div class="barra-carrito" id="barra-carrito" onclick="irA('p-resumen');pintarResumen()">
+    <span class="cuenta num" id="bc-cuenta">0</span>
+    <span class="texto">Ver resumen de compra<small class="num" id="bc-detalle"></small></span>
+    <span class="flecha">→</span>
+  </div>
+
+  <!-- ============ TABS ============ -->
+  <nav class="barra" id="barra-tabs">
+    <button class="pestana activa" data-p="p-marcas" onclick="irA('p-marcas')">
+      <svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7M5 9v11h5v-6h4v6h5V9"/></svg>Marcas</button>
+    <button class="pestana" data-p="p-pedidos" onclick="irA('p-pedidos')">
+      <svg viewBox="0 0 24 24"><path d="M6 3h12l2 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7zM4 7h16M9 11a3 3 0 0 0 6 0"/></svg>Pedidos</button>
+    <button class="pestana" data-p="p-ganancias" onclick="irA('p-ganancias')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h3.75a1.75 1.75 0 0 1 0 3.5H10.75a1.75 1.75 0 0 0 0 3.5H14.5"/></svg>Ganancias</button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ================================================================
+   ALMACENAMIENTO POR USUARIO
+   Cada cuenta guarda sus propios datos en este dispositivo.
+   Si el almacenamiento no está disponible, funciona en memoria.
+================================================================ */
+const memoria = {};
+function guardar(clave, valor){
+  try{ localStorage.setItem(clave, JSON.stringify(valor)); }
+  catch(e){ memoria[clave] = JSON.stringify(valor); }
+}
+function leer(clave, defecto){
+  try{
+    const v = localStorage.getItem(clave);
+    if(v!==null) return JSON.parse(v);
+  }catch(e){
+    if(memoria[clave]!==undefined) return JSON.parse(memoria[clave]);
+  }
+  return defecto;
+}
+
+/* ===== Catálogo (datos reales de las marcas) ===== */
+/* Imágenes de marca incrustadas: funcionan aunque el HTML se abra suelto */
+const LOGO_LABPEPT = "data:image/png;base64,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";
+const PORTADA_LABPEPT = "data:image/jpeg;base64,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";
+
+const marcas = [
+  {
+    id:'lab',
+    nombre:'Lab Péptidos Perú',
+    giro:'Salud · Bienestar · Cuidado de la piel',
+    resena:'Péptidos en viales sellados con ficha técnica del proveedor: línea de piel (GHK-Cu), recuperación (BPC-157, TB-500) y combos. Despacho por agencia desde el almacén de Cusco a todo el Perú, y entrega a domicilio desde el punto de venta de Lima.',
+    emoji:'🧪', ini:'LP', color:'#14261E', portada:'linear-gradient(135deg,#DFF0E7,#F5EBDD)',
+    logoImg:LOGO_LABPEPT, portadaImg:PORTADA_LABPEPT,
+    gananciaRef:'10%'
+  }
+];
+function rangoPrecios(marcaId){
+  const ps = [];
+  productos.filter(p=>p.marca===marcaId).forEach(p=>p.variantes.forEach(v=>ps.push(v.sug)));
+  return {min: Math.min(...ps), max: Math.max(...ps)};
+}
+let marcaActual = 'lab';
+const productos = [
+ {
+  "id": 1,
+  "marca": "lab",
+  "nombre": "BPC-157",
+  "det": "Reparación de tejidos",
+  "categoria": "Recuperación",
+  "emoji": "🧪",
+  "bg": "#E4F4EC",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 175,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/bpc-157-5.webp"
+   },
+   {
+    "pres": "Vial 10 mg",
+    "sug": 300,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/bpc-157-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 2,
+  "marca": "lab",
+  "nombre": "TB-500",
+  "det": "Reparación de tejidos",
+  "categoria": "Recuperación",
+  "emoji": "🧪",
+  "bg": "#E4F4EC",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 245,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/tb-500-10.webp"
+   },
+   {
+    "pres": "Vial 20 mg",
+    "sug": 405,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/tb-500-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 3,
+  "marca": "lab",
+  "nombre": "KPV",
+  "det": "Vías inflamatorias",
+  "categoria": "Recuperación",
+  "emoji": "🧪",
+  "bg": "#E4F4EC",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 215,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/kpv-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 4,
+  "marca": "lab",
+  "nombre": "Ipamorelin",
+  "det": "Eje de hormona de crecimiento",
+  "categoria": "Crecimiento",
+  "emoji": "💉",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 215,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ipamorelin-5.webp"
+   },
+   {
+    "pres": "Vial 10 mg",
+    "sug": 370,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ipamorelin-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 5,
+  "marca": "lab",
+  "nombre": "Sermorelin",
+  "det": "Eje de hormona de crecimiento",
+  "categoria": "Crecimiento",
+  "emoji": "💉",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 215,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/sermorelin-5.webp"
+   }
+  ]
+ },
+ {
+  "id": 6,
+  "marca": "lab",
+  "nombre": "CJC-1295 sin DAC",
+  "det": "Eje de hormona de crecimiento",
+  "categoria": "Crecimiento",
+  "emoji": "💉",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 2 mg",
+    "sug": 215,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/cjc-1295-sin-dac-2.webp"
+   },
+   {
+    "pres": "Vial 5 mg",
+    "sug": 360,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/cjc-1295-sin-dac-5.webp"
+   }
+  ]
+ },
+ {
+  "id": 7,
+  "marca": "lab",
+  "nombre": "CJC-1295 con DAC",
+  "det": "Eje de crecimiento, vida media larga",
+  "categoria": "Crecimiento",
+  "emoji": "💉",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 2 mg",
+    "sug": 255,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/cjc-1295-con-dac-2.webp"
+   },
+   {
+    "pres": "Vial 5 mg",
+    "sug": 450,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/cjc-1295-con-dac-5.webp"
+   }
+  ]
+ },
+ {
+  "id": 8,
+  "marca": "lab",
+  "nombre": "AOD-9604",
+  "det": "Metabolismo de lípidos",
+  "categoria": "Metabolismo",
+  "emoji": "💉",
+  "bg": "#FDEDF4",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 330,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/aod-9604-5.webp"
+   }
+  ]
+ },
+ {
+  "id": 9,
+  "marca": "lab",
+  "nombre": "MOTS-c",
+  "det": "Metabolismo mitocondrial",
+  "categoria": "Metabolismo",
+  "emoji": "💉",
+  "bg": "#FDEDF4",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 255,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/mots-c-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 10,
+  "marca": "lab",
+  "nombre": "Tesamorelin",
+  "det": "Eje somatotropo y grasa visceral",
+  "categoria": "Metabolismo",
+  "emoji": "💉",
+  "bg": "#FDEDF4",
+  "variantes": [
+   {
+    "pres": "Vial 2 mg",
+    "sug": 215,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/tesa-2.webp"
+   },
+   {
+    "pres": "Vial 5 mg",
+    "sug": 400,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/tesa-5.webp"
+   },
+   {
+    "pres": "Vial 10 mg",
+    "sug": 580,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/tesa-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 11,
+  "marca": "lab",
+  "nombre": "N-Acetil Epitalon",
+  "det": "Telomerasa y ritmos circadianos",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 215,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/n-acetil-epitalon-10.webp"
+   },
+   {
+    "pres": "Vial 50 mg",
+    "sug": 370,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/n-acetil-epitalon-50.webp"
+   }
+  ]
+ },
+ {
+  "id": 12,
+  "marca": "lab",
+  "nombre": "FoxO4-DRI",
+  "det": "Senescencia celular",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 785,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/foxo4-dri-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 13,
+  "marca": "lab",
+  "nombre": "Pinealon",
+  "det": "Regulación cerebral",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 275,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/pinealon-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 14,
+  "marca": "lab",
+  "nombre": "Cardiogen",
+  "det": "Regulación cardíaca",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 265,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/cardiogen-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 15,
+  "marca": "lab",
+  "nombre": "Cortagen",
+  "det": "Regulación cerebral",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 265,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/cortagen-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 16,
+  "marca": "lab",
+  "nombre": "Crystagen",
+  "det": "Regulación inmune",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 265,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/crystagen-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 17,
+  "marca": "lab",
+  "nombre": "Ovagen",
+  "det": "Regulación hepática e inmune",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 245,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ovagen-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 18,
+  "marca": "lab",
+  "nombre": "Prostamax",
+  "det": "Regulación prostática",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 375,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/prostamax-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 19,
+  "marca": "lab",
+  "nombre": "Vesilute",
+  "det": "Regulación de vías urinarias",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 215,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/vesilute-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 20,
+  "marca": "lab",
+  "nombre": "Thymalin",
+  "det": "Señalización inmunológica",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 295,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/thymalin-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 21,
+  "marca": "lab",
+  "nombre": "Timosina Alpha-1",
+  "det": "Señalización inmunológica",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 235,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/timosina-alpha-1-5.webp"
+   },
+   {
+    "pres": "Vial 10 mg",
+    "sug": 400,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/timosina-alpha-1-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 22,
+  "marca": "lab",
+  "nombre": "GHK-Cu",
+  "det": "Matriz dérmica y colágeno",
+  "categoria": "Piel",
+  "emoji": "🧪",
+  "bg": "#E4F4EC",
+  "variantes": [
+   {
+    "pres": "Vial 50 mg",
+    "sug": 175,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ghk-cu-50.webp"
+   },
+   {
+    "pres": "Vial 100 mg",
+    "sug": 300,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ghk-cu-100.webp"
+   }
+  ]
+ },
+ {
+  "id": 23,
+  "marca": "lab",
+  "nombre": "SNAP-8",
+  "det": "Expresión facial",
+  "categoria": "Piel",
+  "emoji": "🧪",
+  "bg": "#E4F4EC",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 215,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/snap-8-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 24,
+  "marca": "lab",
+  "nombre": "Selank",
+  "det": "Ansiedad y BDNF",
+  "categoria": "Cognición",
+  "emoji": "🧠",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 165,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/selank-5.webp"
+   },
+   {
+    "pres": "Vial 10 mg",
+    "sug": 230,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/selank-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 25,
+  "marca": "lab",
+  "nombre": "Semax",
+  "det": "Neuroprotección y plasticidad",
+  "categoria": "Cognición",
+  "emoji": "🧠",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 175,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/semax-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 26,
+  "marca": "lab",
+  "nombre": "PT-141",
+  "det": "Receptores de melanocortina",
+  "categoria": "Vitalidad",
+  "emoji": "💉",
+  "bg": "#FDEDF4",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 255,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/pt-141-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 27,
+  "marca": "lab",
+  "nombre": "Melanotan II",
+  "det": "",
+  "categoria": "Vitalidad",
+  "emoji": "💉",
+  "bg": "#FDEDF4",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 235,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/melanotan-ii-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 28,
+  "marca": "lab",
+  "nombre": "Kisspeptina-10",
+  "det": "Eje gonadal",
+  "categoria": "Vitalidad",
+  "emoji": "💉",
+  "bg": "#FDEDF4",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 275,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/kisspeptina-10-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 29,
+  "marca": "lab",
+  "nombre": "KLOW",
+  "det": "Blend de barrera, piel y reparación",
+  "categoria": "Combos",
+  "emoji": "🧬",
+  "bg": "#DCE6E1",
+  "variantes": [
+   {
+    "pres": "Vial 80 mg",
+    "sug": 680,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/klow-blend.webp",
+    "nota": "BPC-157 10 mg + TB-500 10 mg + KPV 10 mg + GHK-Cu 50 mg"
+   }
+  ]
+ },
+ {
+  "id": 30,
+  "marca": "lab",
+  "nombre": "GLOW 30",
+  "det": "Blend de piel y reparación",
+  "categoria": "Combos",
+  "emoji": "🧬",
+  "bg": "#DCE6E1",
+  "variantes": [
+   {
+    "pres": "Vial 30 mg",
+    "sug": 340,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/glow-30-blend.webp",
+    "nota": "BPC-157 5 mg + TB-500 5 mg + GHK-Cu 20 mg"
+   }
+  ]
+ },
+ {
+  "id": 31,
+  "marca": "lab",
+  "nombre": "GLOW 50",
+  "det": "Blend de piel y reparación",
+  "categoria": "Combos",
+  "emoji": "🧬",
+  "bg": "#DCE6E1",
+  "variantes": [
+   {
+    "pres": "Vial 50 mg",
+    "sug": 470,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/glow-50-blend.webp",
+    "nota": "BPC-157 5 mg + TB-500 10 mg + GHK-Cu 35 mg"
+   }
+  ]
+ },
+ {
+  "id": 32,
+  "marca": "lab",
+  "nombre": "Wolverine",
+  "det": "Blend de reparación de tejidos",
+  "categoria": "Combos",
+  "emoji": "🧬",
+  "bg": "#DCE6E1",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 255,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/wolverine-10.webp",
+    "nota": "BPC-157 5 mg + TB-500 5 mg"
+   },
+   {
+    "pres": "Vial 20 mg",
+    "sug": 440,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/wolverine-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 33,
+  "marca": "lab",
+  "nombre": "Agua Bacteriostática",
+  "det": "Reconstitución de liofilizados",
+  "categoria": "Accesorios",
+  "emoji": "💧",
+  "bg": "#EEF1EC",
+  "variantes": [
+   {
+    "pres": "Vial 3 ml",
+    "sug": 10,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/agua-bacteriostatica-3.webp"
+   },
+   {
+    "pres": "Vial 10 ml",
+    "sug": 15,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/agua-bacteriostatica-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 34,
+  "marca": "lab",
+  "nombre": "Follistatin-315",
+  "det": "Regulación de miostatina",
+  "categoria": "Crecimiento",
+  "emoji": "💉",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 1 mg",
+    "sug": 175,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/follistatin-315-1.webp"
+   }
+  ]
+ },
+ {
+  "id": 35,
+  "marca": "lab",
+  "nombre": "GHRP-2",
+  "det": "Eje de hormona de crecimiento",
+  "categoria": "Crecimiento",
+  "emoji": "💉",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 2 mg",
+    "sug": 175,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ghrp-2-2.webp"
+   },
+   {
+    "pres": "Vial 5 mg",
+    "sug": 300,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ghrp-2-5.webp"
+   }
+  ]
+ },
+ {
+  "id": 36,
+  "marca": "lab",
+  "nombre": "GHRP-6",
+  "det": "Eje de hormona de crecimiento",
+  "categoria": "Crecimiento",
+  "emoji": "💉",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 2 mg",
+    "sug": 175,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ghrp-6-2.webp"
+   },
+   {
+    "pres": "Vial 5 mg",
+    "sug": 300,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ghrp-6-5.webp"
+   }
+  ]
+ },
+ {
+  "id": 37,
+  "marca": "lab",
+  "nombre": "Gonadorelina",
+  "det": "Eje gonadal",
+  "categoria": "Crecimiento",
+  "emoji": "💉",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 215,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/gonadorelina-5.webp"
+   }
+  ]
+ },
+ {
+  "id": 38,
+  "marca": "lab",
+  "nombre": "IGF-1 LR3",
+  "det": "",
+  "categoria": "Crecimiento",
+  "emoji": "💉",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 1 mg",
+    "sug": 435,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/igf-1-lr3-1.webp"
+   }
+  ]
+ },
+ {
+  "id": 39,
+  "marca": "lab",
+  "nombre": "DSIP",
+  "det": "Regulación del sueño",
+  "categoria": "Cognición",
+  "emoji": "🧠",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 175,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/dsip-5.webp"
+   },
+   {
+    "pres": "Vial 10 mg",
+    "sug": 300,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/dsip-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 40,
+  "marca": "lab",
+  "nombre": "Dihexa",
+  "det": "Plasticidad sináptica",
+  "categoria": "Cognición",
+  "emoji": "🧠",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 385,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/dihexa-5.webp"
+   },
+   {
+    "pres": "Vial 10 mg",
+    "sug": 700,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/dihexa-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 41,
+  "marca": "lab",
+  "nombre": "Oxitocina",
+  "det": "",
+  "categoria": "Cognición",
+  "emoji": "🧠",
+  "bg": "#E8F0FA",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 175,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/oxitocina-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 42,
+  "marca": "lab",
+  "nombre": "PEG-MGF",
+  "det": "",
+  "categoria": "Recuperación",
+  "emoji": "🧪",
+  "bg": "#E4F4EC",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 355,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/peg-mgf-5.webp"
+   }
+  ]
+ },
+ {
+  "id": 43,
+  "marca": "lab",
+  "nombre": "LL-37",
+  "det": "",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 5 mg",
+    "sug": 275,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/ll-37-5.webp"
+   }
+  ]
+ },
+ {
+  "id": 44,
+  "marca": "lab",
+  "nombre": "Humanin",
+  "det": "",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 685,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/humanin-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 45,
+  "marca": "lab",
+  "nombre": "Melanotan I",
+  "det": "",
+  "categoria": "Vitalidad",
+  "emoji": "💉",
+  "bg": "#FDEDF4",
+  "variantes": [
+   {
+    "pres": "Vial 10 mg",
+    "sug": 235,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/melanotan-1-10.webp"
+   }
+  ]
+ },
+ {
+  "id": 46,
+  "marca": "lab",
+  "nombre": "Livagen",
+  "det": "Regulación inmune",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 245,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/livagen-20.webp"
+   }
+  ]
+ },
+ {
+  "id": 47,
+  "marca": "lab",
+  "nombre": "Pancreagen",
+  "det": "",
+  "categoria": "Longevidad",
+  "emoji": "✨",
+  "bg": "#FCF0D8",
+  "variantes": [
+   {
+    "pres": "Vial 20 mg",
+    "sug": 245,
+    "stock": {
+     "cusco": null,
+     "lima": null
+    },
+    "img": "imagenes/pancreagen-20.webp"
+   }
+  ]
+ }
+];
+
+/* ===== Origen del despacho ===== */
+const ORIGENES = {
+  cusco: {id:'cusco', nombre:'Almacén Cusco', tipo:'Almacén', ciudad:'Cusco', ic:'🏭',
+          desc:'Despacho por agencia a todo el Perú', plazo:'2 a 5 días según agencia', modos:['agencia']},
+  lima:  {id:'lima',  nombre:'Punto de venta Lima', tipo:'Punto de venta', ciudad:'Lima', ic:'🏬',
+          desc:'Entrega a domicilio dentro de Lima', plazo:'24 a 48 horas en Lima', modos:['local','agencia']},
+};
+let origenSel = 'cusco';
+
+/* ===================== NIVELES (Opción A) ===================== */
+const NIVELES = [
+  {id:'bronce',   nombre:'Socio Bronce',   med:'🥉', desc:0.10, meta:0,  req:'Al crear tu cuenta'},
+  {id:'plata',    nombre:'Socio Plata',    med:'🥈', desc:0.13, meta:10, req:'10 ventas entregadas'},
+  {id:'oro',      nombre:'Socio Oro',      med:'🥇', desc:0.16, meta:25, req:'25 ventas entregadas'},
+  {id:'diamante', nombre:'Socio Diamante', med:'💎', desc:0.20, meta:50, req:'50 ventas + 3 meses activo'},
+];
+function ventasHechas(){ return usuario ? (misPedidos().length) : 0; }
+function nivelActual(){
+  const n = ventasHechas();
+  let idx = 0;
+  NIVELES.forEach((niv,i)=>{ if(n >= niv.meta) idx = i; });
+  return {...NIVELES[idx], idx};
+}
+function nivelSiguiente(){
+  const a = nivelActual();
+  return a.idx < NIVELES.length-1 ? NIVELES[a.idx+1] : null;
+}
+/* Costo socio según el nivel: precio de página menos el descuento del nivel */
+function costoSocio(v, nivelDesc){
+  const d = nivelDesc ?? nivelActual().desc;
+  return Math.round(v.sug * (1 - d) * 100) / 100;
+}
+
+/* ===== Contenido de ficha por producto ===== */
+const FICHAS = {
+ "1": {
+  "desc": "BPC-157. En investigación para: reparación de tejidos. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Reparación de tejidos",
+   "Categoría: Recuperación"
+  ],
+  "cliente": "Deportistas y personas en rehabilitación que buscan apoyo en recuperación de tejidos.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "2": {
+  "desc": "TB-500. En investigación para: reparación de tejidos. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Reparación de tejidos",
+   "Categoría: Recuperación"
+  ],
+  "cliente": "Deportistas y personas en rehabilitación que buscan apoyo en recuperación de tejidos.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "3": {
+  "desc": "KPV. En investigación para: vías inflamatorias. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Vías inflamatorias",
+   "Categoría: Recuperación"
+  ],
+  "cliente": "Deportistas y personas en rehabilitación que buscan apoyo en recuperación de tejidos.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "4": {
+  "desc": "Ipamorelin. En investigación para: eje de hormona de crecimiento. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Eje de hormona de crecimiento",
+   "Categoría: Crecimiento"
+  ],
+  "cliente": "Personas interesadas en el eje de hormona de crecimiento y composición corporal.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "5": {
+  "desc": "Sermorelin. En investigación para: eje de hormona de crecimiento. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Eje de hormona de crecimiento",
+   "Categoría: Crecimiento"
+  ],
+  "cliente": "Personas interesadas en el eje de hormona de crecimiento y composición corporal.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "6": {
+  "desc": "CJC-1295 sin DAC. En investigación para: eje de hormona de crecimiento. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Eje de hormona de crecimiento",
+   "Categoría: Crecimiento"
+  ],
+  "cliente": "Personas interesadas en el eje de hormona de crecimiento y composición corporal.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "7": {
+  "desc": "CJC-1295 con DAC. En investigación para: eje de crecimiento, vida media larga. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Eje de crecimiento, vida media larga",
+   "Categoría: Crecimiento"
+  ],
+  "cliente": "Personas interesadas en el eje de hormona de crecimiento y composición corporal.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "8": {
+  "desc": "AOD-9604. En investigación para: metabolismo de lípidos. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Metabolismo de lípidos",
+   "Categoría: Metabolismo"
+  ],
+  "cliente": "Clientes enfocados en metabolismo y control de peso.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "9": {
+  "desc": "MOTS-c. En investigación para: metabolismo mitocondrial. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Metabolismo mitocondrial",
+   "Categoría: Metabolismo"
+  ],
+  "cliente": "Clientes enfocados en metabolismo y control de peso.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "10": {
+  "desc": "Tesamorelin. En investigación para: eje somatotropo y grasa visceral. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Eje somatotropo y grasa visceral",
+   "Categoría: Metabolismo"
+  ],
+  "cliente": "Clientes enfocados en metabolismo y control de peso.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "11": {
+  "desc": "N-Acetil Epitalon. En investigación para: telomerasa y ritmos circadianos. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Telomerasa y ritmos circadianos",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "12": {
+  "desc": "FoxO4-DRI. En investigación para: senescencia celular. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Senescencia celular",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "13": {
+  "desc": "Pinealon. En investigación para: regulación cerebral. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación cerebral",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "14": {
+  "desc": "Cardiogen. En investigación para: regulación cardíaca. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación cardíaca",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "15": {
+  "desc": "Cortagen. En investigación para: regulación cerebral. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación cerebral",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "16": {
+  "desc": "Crystagen. En investigación para: regulación inmune. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación inmune",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "17": {
+  "desc": "Ovagen. En investigación para: regulación hepática e inmune. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación hepática e inmune",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "18": {
+  "desc": "Prostamax. En investigación para: regulación prostática. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación prostática",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "19": {
+  "desc": "Vesilute. En investigación para: regulación de vías urinarias. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación de vías urinarias",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "20": {
+  "desc": "Thymalin. En investigación para: señalización inmunológica. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Señalización inmunológica",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "21": {
+  "desc": "Timosina Alpha-1. En investigación para: señalización inmunológica. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Señalización inmunológica",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "22": {
+  "desc": "GHK-Cu. En investigación para: matriz dérmica y colágeno. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Matriz dérmica y colágeno",
+   "Categoría: Piel"
+  ],
+  "cliente": "Centros estéticos y clientes que buscan cuidado de la piel.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "23": {
+  "desc": "SNAP-8. En investigación para: expresión facial. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Expresión facial",
+   "Categoría: Piel"
+  ],
+  "cliente": "Centros estéticos y clientes que buscan cuidado de la piel.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "24": {
+  "desc": "Selank. En investigación para: ansiedad y bdnf. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Ansiedad y BDNF",
+   "Categoría: Cognición"
+  ],
+  "cliente": "Clientes interesados en función cognitiva y rendimiento mental.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "25": {
+  "desc": "Semax. En investigación para: neuroprotección y plasticidad. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Neuroprotección y plasticidad",
+   "Categoría: Cognición"
+  ],
+  "cliente": "Clientes interesados en función cognitiva y rendimiento mental.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "26": {
+  "desc": "PT-141. En investigación para: receptores de melanocortina. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Receptores de melanocortina",
+   "Categoría: Vitalidad"
+  ],
+  "cliente": "Clientes interesados en vitalidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "27": {
+  "desc": "Melanotan II. En investigación para: . Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: ",
+   "Categoría: Vitalidad"
+  ],
+  "cliente": "Clientes interesados en vitalidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "28": {
+  "desc": "Kisspeptina-10. En investigación para: eje gonadal. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Eje gonadal",
+   "Categoría: Vitalidad"
+  ],
+  "cliente": "Clientes interesados en vitalidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "29": {
+  "desc": "KLOW. En investigación para: blend de barrera, piel y reparación. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Blend de barrera, piel y reparación",
+   "Categoría: Combos"
+  ],
+  "cliente": "Clientes que ya preguntan por varios péptidos y prefieren un solo vial.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "30": {
+  "desc": "GLOW 30. En investigación para: blend de piel y reparación. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Blend de piel y reparación",
+   "Categoría: Combos"
+  ],
+  "cliente": "Clientes que ya preguntan por varios péptidos y prefieren un solo vial.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "31": {
+  "desc": "GLOW 50. En investigación para: blend de piel y reparación. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Blend de piel y reparación",
+   "Categoría: Combos"
+  ],
+  "cliente": "Clientes que ya preguntan por varios péptidos y prefieren un solo vial.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "32": {
+  "desc": "Wolverine. En investigación para: blend de reparación de tejidos. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Blend de reparación de tejidos",
+   "Categoría: Combos"
+  ],
+  "cliente": "Clientes que ya preguntan por varios péptidos y prefieren un solo vial.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "33": {
+  "desc": "Reconstitución de liofilizados.",
+  "detalle": [
+   "Para qué se investiga: Reconstitución de liofilizados",
+   "Categoría: Accesorios"
+  ],
+  "cliente": "Cualquier socio — es un insumo que casi todos tus clientes van a necesitar.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "34": {
+  "desc": "Follistatin-315. En investigación para: regulación de miostatina. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación de miostatina",
+   "Categoría: Crecimiento"
+  ],
+  "cliente": "Personas interesadas en el eje de hormona de crecimiento y composición corporal.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "35": {
+  "desc": "GHRP-2. En investigación para: eje de hormona de crecimiento. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Eje de hormona de crecimiento",
+   "Categoría: Crecimiento"
+  ],
+  "cliente": "Personas interesadas en el eje de hormona de crecimiento y composición corporal.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "36": {
+  "desc": "GHRP-6. En investigación para: eje de hormona de crecimiento. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Eje de hormona de crecimiento",
+   "Categoría: Crecimiento"
+  ],
+  "cliente": "Personas interesadas en el eje de hormona de crecimiento y composición corporal.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "37": {
+  "desc": "Gonadorelina. En investigación para: eje gonadal. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Eje gonadal",
+   "Categoría: Crecimiento"
+  ],
+  "cliente": "Personas interesadas en el eje de hormona de crecimiento y composición corporal.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "38": {
+  "desc": "IGF-1 LR3. En investigación para: . Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: ",
+   "Categoría: Crecimiento"
+  ],
+  "cliente": "Personas interesadas en el eje de hormona de crecimiento y composición corporal.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "39": {
+  "desc": "DSIP. En investigación para: regulación del sueño. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación del sueño",
+   "Categoría: Cognición"
+  ],
+  "cliente": "Clientes interesados en función cognitiva y rendimiento mental.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "40": {
+  "desc": "Dihexa. En investigación para: plasticidad sináptica. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Plasticidad sináptica",
+   "Categoría: Cognición"
+  ],
+  "cliente": "Clientes interesados en función cognitiva y rendimiento mental.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "41": {
+  "desc": "Oxitocina. En investigación para: . Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: ",
+   "Categoría: Cognición"
+  ],
+  "cliente": "Clientes interesados en función cognitiva y rendimiento mental.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "42": {
+  "desc": "PEG-MGF. En investigación para: . Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: ",
+   "Categoría: Recuperación"
+  ],
+  "cliente": "Deportistas y personas en rehabilitación que buscan apoyo en recuperación de tejidos.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "43": {
+  "desc": "LL-37. En investigación para: . Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: ",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "44": {
+  "desc": "Humanin. En investigación para: . Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: ",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "45": {
+  "desc": "Melanotan I. En investigación para: . Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: ",
+   "Categoría: Vitalidad"
+  ],
+  "cliente": "Clientes interesados en vitalidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "46": {
+  "desc": "Livagen. En investigación para: regulación inmune. Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: Regulación inmune",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ },
+ "47": {
+  "desc": "Pancreagen. En investigación para: . Uso exclusivo en investigación — sin aprobación sanitaria para consumo humano.",
+  "detalle": [
+   "Para qué se investiga: ",
+   "Categoría: Longevidad"
+  ],
+  "cliente": "Clientes interesados en longevidad y bienestar general.",
+  "argumentos": [
+   "Ficha técnica y foto real disponibles en el kit de marketing.",
+   "Revisa el stock antes de ofrecerlo — se actualiza en tiempo real.",
+   "Ante preguntas de dosis, frecuencia o forma de uso, deriva siempre a un asesor — nunca las respondas tú."
+  ]
+ }
+};
+const SKUS = {"1": ["bpc-157-5", "bpc-157-10"], "2": ["tb-500-10", "tb-500-20"], "3": ["kpv-10"], "4": ["ipamorelin-5", "ipamorelin-10"], "5": ["sermorelin-5"], "6": ["cjc-1295-sin-dac-2", "cjc-1295-sin-dac-5"], "7": ["cjc-1295-con-dac-2", "cjc-1295-con-dac-5"], "8": ["aod-9604-5"], "9": ["mots-c-10"], "10": ["tesamorelin-2", "tesamorelin-5", "tesamorelin-10"], "11": ["n-acetil-epitalon-10", "n-acetil-epitalon-50"], "12": ["foxo4-dri-10"], "13": ["pinealon-20"], "14": ["cardiogen-20"], "15": ["cortagen-20"], "16": ["crystagen-20"], "17": ["ovagen-20"], "18": ["prostamax-20"], "19": ["vesilute-20"], "20": ["thymalin-20"], "21": ["timosina-alpha-1-5", "timosina-alpha-1-10"], "22": ["ghk-cu-50", "ghk-cu-100"], "23": ["snap-8-10"], "24": ["selank-5", "selank-10"], "25": ["semax-10"], "26": ["pt-141-10"], "27": ["melanotan-ii-10"], "28": ["kisspeptina-10-10"], "29": ["klow-blend"], "30": ["glow-30-blend"], "31": ["glow-50-blend"], "32": ["wolverine-10", "wolverine-20"], "33": ["agua-bacteriostatica-3", "agua-bacteriostatica-10"], "34": ["follistatin-315-1"], "35": ["ghrp-2-2", "ghrp-2-5"], "36": ["ghrp-6-2", "ghrp-6-5"], "37": ["gonadorelina-5"], "38": ["igf-1-lr3-1"], "39": ["dsip-5", "dsip-10"], "40": ["dihexa-5", "dihexa-10"], "41": ["oxitocina-10"], "42": ["peg-mgf-5"], "43": ["ll-37-5"], "44": ["humanin-10"], "45": ["melanotan-1-10"], "46": ["livagen-20"], "47": ["pancreagen-20"]};
+let fichaId = 1, fichaVi = 0, gi = 0, precioVenta = 0;
+/* Precio de venta elegido por el socio, por ítem del carrito */
+let precios = {};
+function stockDe(v, origen){ return v.stock ? v.stock[origen ?? origenSel] : null; }
+
+/* Presentación elegida por producto (índice de variante) */
+let seleccion = {};
+function vSel(p){ return p.variantes[seleccion[p.id] ?? 0]; }
+function claveItem(id, vi, origen){ return id + '-' + vi + '-' + (origen ?? origenSel); }
+function buscaItem(clave){
+  const [id, vi, origen] = clave.split('-');
+  const p = productos.find(x=>x.id===Number(id));
+  return {p, v:p.variantes[Number(vi)], vi:Number(vi), origen};
+}
+
+/* ===== Estado de sesión ===== */
+/* ===== Disponibilidad del socio ===== */
+function disponibilidad(){
+  return usuario ? leer('socio_disp_'+usuario.celular, {activo:true, ausencias:[]}) : {activo:true, ausencias:[]};
+}
+function guardarDisponibilidad(d){ if(usuario) guardar('socio_disp_'+usuario.celular, d); }
+function hoyISO(){ return new Date().toISOString().slice(0,10); }
+function enAusencia(d, fecha){ return d.ausencias.some(a => fecha>=a.desde && fecha<=a.hasta); }
+function estaDisponibleHoy(){ const d = disponibilidad(); return d.activo && !enAusencia(d, hoyISO()); }
+function alternarActivo(){
+  const d = disponibilidad();
+  d.activo = !d.activo;
+  guardarDisponibilidad(d);
+  pintarEstadoDisp();
+  notificar(d.activo ? '🟢 Ya estás activo — puedes seguir tomando pedidos' : '⏸️ Quedaste en pausa. Actívate cuando quieras volver a vender');
+}
+function agregarAusencia(){
+  const desde = document.getElementById('aus-desde').value;
+  const hasta = document.getElementById('aus-hasta').value;
+  if(!desde || !hasta){ notificar('Elige la fecha de inicio y de fin'); return; }
+  if(hasta < desde){ notificar('La fecha final no puede ser antes que la inicial'); return; }
+  const d = disponibilidad();
+  d.ausencias.push({desde, hasta});
+  d.ausencias.sort((a,b)=>a.desde.localeCompare(b.desde));
+  guardarDisponibilidad(d);
+  document.getElementById('aus-desde').value=''; document.getElementById('aus-hasta').value='';
+  pintarEstadoDisp();
+  notificar('Días guardados — tus pedidos no se retrasarán por sorpresa');
+}
+function quitarAusencia(i){
+  const d = disponibilidad();
+  d.ausencias.splice(i,1);
+  guardarDisponibilidad(d);
+  pintarEstadoDisp();
+}
+function fechaLegible(iso){
+  const [y,m,dd] = iso.split('-');
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${dd} ${meses[Number(m)-1]}`;
+}
+function pintarEstadoDisp(){
+  const d = disponibilidad();
+  const disp = estaDisponibleHoy();
+  const btn = document.getElementById('btn-disp');
+  if(btn){ btn.className = 'btn-estado-act ' + (disp?'on':'off'); btn.textContent = disp ? '🟢 Activo' : '⏸️ En pausa'; }
+  document.querySelectorAll('.cinta-pausa').forEach(function(c){ c.style.display = disp ? 'none' : 'flex'; });
+  const sw = document.getElementById('sw-activo');
+  if(sw) sw.classList.toggle('on', d.activo);
+  const listaA = document.getElementById('lista-ausencias');
+  if(listaA){
+    listaA.innerHTML = d.ausencias.length ? d.ausencias.map(function(a,i){
+      const activa = hoyISO()>=a.desde && hoyISO()<=a.hasta;
+      return `<div class="ausencia-item ${activa?'activa':''}"><span>${fechaLegible(a.desde)} – ${fechaLegible(a.hasta)}${activa?' · en curso':''}</span><button onclick="quitarAusencia(${i})" aria-label="Quitar">🗑</button></div>`;
+    }).join('') : '<p style="font-size:12px;color:var(--tinta-suave)">No tienes días marcados. Si vas a salir de viaje o no podrás atender pedidos, márcalos aquí.</p>';
+  }
+  const av = document.getElementById('aviso-pausa');
+  if(av) av.style.display = disp ? 'none' : 'block';
+}
+
+let usuario = null;      // usuario con sesión activa
+let carrito = {};
+let ultimoMetodo = 'qr';
+let voucherAdjunto = false;
+
+/* ===== Autenticación ===== */
+function modoAuth(m){
+  document.getElementById('tab-reg').classList.toggle('activo', m==='registro');
+  document.getElementById('tab-ing').classList.toggle('activo', m==='ingreso');
+  document.getElementById('form-registro').style.display = m==='registro'?'block':'none';
+  document.getElementById('form-ingreso').style.display = m==='ingreso'?'block':'none';
+}
+function marcar(id, mal){ document.getElementById(id).classList.toggle('mal', mal); return !mal; }
+function registrar(){
+  const nombre = document.getElementById('r-nombre').value.trim();
+  const dni = document.getElementById('r-dni').value.trim();
+  const cel = document.getElementById('r-celular').value.trim();
+  const ciudad = document.getElementById('r-ciudad').value;
+  const clave = document.getElementById('r-clave').value;
+  const t = document.getElementById('r-t1').checked && document.getElementById('r-t2').checked;
+
+  let ok = true;
+  ok = marcar('c-nombre', nombre.split(/\s+/).length < 2) && ok;
+  ok = marcar('c-dni', !/^\d{8}$/.test(dni)) && ok;
+  ok = marcar('c-celular', !/^9\d{8}$/.test(cel)) && ok;
+  ok = marcar('c-ciudad', !ciudad) && ok;
+  ok = marcar('c-clave', clave.length < 4) && ok;
+  ok = marcar('c-terminos', !t) && ok;
+  if(!ok){ notificar('Revisa los campos marcados'); return; }
+
+  const usuarios = leer('socio_usuarios', {});
+  if(usuarios[cel]){ marcar('c-celular', true); document.querySelector('#c-celular .error').textContent = 'Este celular ya tiene una cuenta. Usa "Ya soy socio".'; notificar('Este celular ya está registrado'); return; }
+
+  usuarios[cel] = { nombre, dni, celular:cel, ciudad, clave, creado:new Date().toISOString(), validado:false };
+  guardar('socio_usuarios', usuarios);
+  guardar('socio_sesion', cel);
+  abrirSesion(usuarios[cel]);
+  notificar('¡Cuenta creada! Tu identidad está en validación ☀️');
+}
+function ingresar(){
+  const cel = document.getElementById('i-celular').value.trim();
+  const clave = document.getElementById('i-clave').value;
+  const usuarios = leer('socio_usuarios', {});
+  const u = usuarios[cel];
+  if(!u || u.clave !== clave){
+    marcar('c-iclave', true);
+    notificar('Celular o clave incorrectos');
+    return;
+  }
+  marcar('c-iclave', false);
+  guardar('socio_sesion', cel);
+  abrirSesion(u);
+}
+/* ===================== MODO INVITADO ===================== */
+let invitado = false;
+function entrarInvitado(){
+  invitado = true; usuario = null; carrito = {}; precios = {};
+  document.getElementById('u-ava').textContent = '👀';
+  document.getElementById('u-nombre').textContent = 'Invitado';
+  document.getElementById('u-estado').textContent = 'Explorando el catálogo';
+  document.getElementById('barra-tabs').classList.add('visible');
+  pintarMarcas(); pintarOrigenes(); pintarCatalogo(); pintarAgencias(); sincronizarEnvio(); actualizarBarra();
+  aplicarModo();
+  irA('p-marcas');
+  notificar('Mira el catálogo libremente. Crea tu cuenta cuando quieras vender ☀️');
+}
+function aplicarModo(){
+  const cm = document.getElementById('cinta-marcas');
+  const cc = document.getElementById('cinta-catalogo');
+  if(cm) cm.style.display = invitado ? 'flex' : 'none';
+  if(cc) cc.style.display = invitado ? 'flex' : 'none';
+  const salir = document.querySelector('.btn-salir');
+  if(salir) salir.textContent = invitado ? 'Crear cuenta' : 'Cerrar sesión';
+}
+function pedirCuenta(){
+  notificar('Crea tu cuenta en 1 minuto y desbloquea precios y ganancias');
+  document.getElementById('barra-tabs').classList.remove('visible');
+  document.getElementById('barra-carrito').classList.remove('visible');
+  modoAuth('registro');
+  irA('p-auth');
+}
+
+function abrirSesion(u){
+  invitado = false;
+  usuario = u;
+  carrito = {};
+  const iniciales = u.nombre.split(/\s+/).map(p=>p[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('u-ava').textContent = iniciales;
+  document.getElementById('u-nombre').textContent = u.nombre.split(' ')[0] + ' · ' + u.ciudad;
+  const niv = nivelActual();
+  document.getElementById('u-estado').innerHTML = `${niv.med} ${niv.nombre} · ${u.validado ? '✓ validado' : 'en validación'}`;
+  document.getElementById('barra-tabs').classList.add('visible');
+  pintarMarcas(); pintarOrigenes(); pintarCatalogo(); pintarAgencias(); sincronizarEnvio(); actualizarBarra();
+  aplicarModo();
+  pintarEstadoDisp();
+  irA('p-marcas');
+}
+function salir(){
+  if(invitado){ pedirCuenta(); return; }
+  guardar('socio_sesion', null);
+  usuario = null; carrito = {};
+  document.getElementById('barra-tabs').classList.remove('visible');
+  document.getElementById('barra-carrito').classList.remove('visible');
+  modoAuth('ingreso');
+  irA('p-auth');
+}
+
+/* ===== Pedidos del usuario (cada cuenta, los suyos) ===== */
+function misPedidos(){ return usuario ? leer('socio_pedidos_'+usuario.celular, []) : []; }
+function guardarPedidos(lista){ if(usuario) guardar('socio_pedidos_'+usuario.celular, lista); }
+
+/* ===== Navegación ===== */
+function irA(id){
+  document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa'));
+  document.getElementById(id).classList.add('activa');
+  const tabRef = id==='p-catalogo' ? 'p-marcas' : id;
+  document.querySelectorAll('.pestana').forEach(t=>t.classList.toggle('activa', t.dataset.p===tabRef));
+  document.getElementById('barra-carrito').classList.toggle('visible', id==='p-catalogo' && totalItems()>0);
+  const ba = document.getElementById('barra-accion');
+  if(ba) ba.classList.toggle('ver', id==='p-producto');
+  if(id==='p-pedidos') pintarPedidos();
+  if(id==='p-ganancias'){ pintarGanancias(); pintarEstadoDisp(); }
+  if(id==='p-resumen') pintarEstadoDisp();
+}
+
+/* ===== Carrito ===== */
+function totalItems(){ return Object.values(carrito).reduce((a,b)=>a+b,0); }
+function totales(){
+  let pagar=0, venta=0;
+  for(const [clave,c] of Object.entries(carrito)){
+    const {v} = buscaItem(clave);
+    const pv = precios[clave] ?? v.sug;
+    pagar += costoSocio(v)*c; venta += pv*c;
+  }
+  const envio = costoEnvio();
+  return {pagar, venta, gana: venta-pagar, envio, conEnvio: pagar+envio, cobra: venta+envio};
+}
+function cambiar(clave, d){
+  if(invitado){ pedirCuenta(); return; }
+
+  const {p, v} = buscaItem(clave);
+  if(v.sug==null){ notificar('Este producto todavía no tiene precio asignado por el proveedor'); return; }
+  const actual = carrito[clave]||0;
+  let nuevo = Math.max(0, actual+d);
+  const {origen} = buscaItem(clave);
+  const s = stockDe(v, origen);
+  if(s!==null && s!==undefined && nuevo>s){
+    notificar(`Solo hay ${s} de ${p.nombre} ${v.pres} en ${ORIGENES[origen].ciudad}`);
+    nuevo = s;
+  }
+  if(nuevo===0) delete carrito[clave]; else carrito[clave]=nuevo;
+  pintarCatalogo(); actualizarBarra();
+}
+function pintarOrigenes(){
+  const cont = document.getElementById('origen-ops');
+  if(!cont) return;
+  cont.innerHTML = Object.values(ORIGENES).map(o=>{
+    const dispo = productos.filter(p=>p.marca===marcaActual)
+      .reduce((a,p)=>a + p.variantes.filter(v=>{const s=stockDe(v,o.id); return s===null || s>0;}).length, 0);
+    return `<button class="origen-op ${origenSel===o.id?'activo':''}" onclick="elegirOrigen('${o.id}')">
+      <div class="ic">${o.ic}</div><h3>${o.nombre}</h3><p>${dispo} presentaciones disponibles</p></button>`;
+  }).join('');
+  const o = ORIGENES[origenSel];
+  document.getElementById('origen-detalle').innerHTML =
+    `${o.ic} <b>${o.tipo} ${o.ciudad}:</b> ${o.desc} · <b>${o.plazo}</b>`;
+}
+function elegirOrigen(id){
+  const hay = Object.keys(carrito).some(c=>buscaItem(c).origen !== id);
+  if(hay){
+    notificar('Tu pedido ya tiene productos de otro origen. Termínalo o vacíalo para cambiar.');
+    return;
+  }
+  origenSel = id;
+  pintarOrigenes(); pintarCatalogo(); sincronizarEnvio();
+}
+/* ===================== FICHA DE PRODUCTO ===================== */
+function prodF(){ return productos.find(p=>p.id===fichaId); }
+function varF(){ return prodF().variantes[fichaVi]; }
+function abrirFicha(id, vi){
+  fichaId = id; fichaVi = vi ?? (seleccion[id] ?? 0); gi = 0;
+  const clave = claveItem(fichaId, fichaVi);
+  precioVenta = precios[clave] ?? varF().sug;
+  pintarFicha(); irA('p-producto');
+}
+function pintarFicha(){
+  const p = prodF(), v = varF(), f = FICHAS[p.id];
+  // galería: una sola foto real por presentación — sin flechas ni puntos
+  const gal = v.img ? [v.img] : [];
+  document.getElementById('f-pista').innerHTML = gal.length
+    ? gal.map(g=>`<div class="gal-slide" style="background:${p.bg}"><img src="${g}" alt="${p.nombre}"><span class="marca-agua">Lab Péptidos Perú</span></div>`).join('')
+    : `<div class="gal-slide" style="background:${p.bg}">${p.emoji}<span class="marca-agua">Lab Péptidos Perú</span></div>`;
+  document.getElementById('f-minis').innerHTML = '';
+  document.querySelectorAll('.gal-flecha, #f-puntos').forEach(function(e){ e.style.display = gal.length>1 ? '' : 'none'; });
+  gi = 0; moverGal();
+  // badges
+  const s = stockDe(v);
+  const badge = s===null ? `<span class="chip chip-stock">Disponible en ${ORIGENES[origenSel].ciudad}</span>`
+    : s===0 ? `<span class="chip chip-alerta">Sin stock en ${ORIGENES[origenSel].ciudad}</span>`
+    : `<span class="chip ${s<=10?'chip-alerta':'chip-ok'} num">Stock en ${ORIGENES[origenSel].tipo.toLowerCase()} ${ORIGENES[origenSel].ciudad}: ${s} unidades</span>`;
+  document.getElementById('f-badges').innerHTML = badge + ` <span class="chip chip-info">${p.det}</span>`;
+  // título
+  document.getElementById('f-nombre').textContent = p.nombre + ' · ' + v.pres;
+  document.getElementById('f-sku').textContent = 'SKU ' + (SKUS[p.id]?.[fichaVi] || '—') + ' · Lab Péptidos Perú';
+  // presentaciones
+  document.getElementById('f-presentaciones').innerHTML = p.variantes.length>1
+    ? `<div class="etq-pres">Presentación</div><div class="presentaciones">${p.variantes.map((vv,i)=>
+        `<button class="pres-btn ${i===fichaVi?'activa':''} ${stockDe(vv)===0?'sin-stock':''}" ${stockDe(vv)===0?'disabled':''}
+          onclick="cambiarPresFicha(${i})">${vv.pres}<small>S/ ${vv.sug}</small></button>`).join('')}</div>` : '';
+  const btnV = document.getElementById('btn-vender');
+  const baRes = document.querySelector('#barra-accion .resumen');
+  const kit = document.querySelector('.btn-kit');
+  if(kit) kit.style.display = 'block';
+  // calculadora (bloqueada para invitados)
+  document.getElementById('calc-invitado').style.display = invitado ? 'block' : 'none';
+  document.getElementById('calc-socio').style.display = invitado ? 'none' : 'block';
+  if(invitado){
+    document.getElementById('teaser-gan').textContent =
+      `Los socios compran a precio de distribuidor y se quedan con la diferencia en cada venta. Crear tu cuenta es gratis y toma 1 minuto.`;
+    document.getElementById('teaser-rango').textContent =
+      `☀️ Crea tu cuenta y verás tu costo y tu ganancia exacta en este producto`;
+    if(btnV){ btnV.textContent = 'Crear cuenta para vender →'; btnV.onclick = venderEste; }
+    if(baRes){ baRes.style.display = 'none'; baRes.innerHTML = ''; }
+    if(kit) kit.textContent = '🔒 Material de venta — solo para socios';
+    return;
+  }
+  if(btnV){ btnV.textContent = 'Vender este producto →'; btnV.onclick = venderEste; }
+  if(baRes){
+    baRes.style.display = 'block';
+    if(!document.getElementById('ba-costo').id || baRes.innerHTML===''){
+      baRes.innerHTML = `<small>Costo socio</small><b class="num" id="ba-costo">S/ 0</b><small style="margin-top:3px">Ganas</small><b class="num gan" id="ba-gana">S/ 0</b>`;
+    }
+  }
+  if(kit) kit.textContent = '⬇ Descargar material para vender';
+  document.getElementById('f-costo').textContent = 'S/ ' + costoSocio(v).toFixed(2);
+  document.getElementById('f-ref').textContent = 'S/ ' + v.sug.toFixed(2);
+  document.getElementById('f-precio').value = precioVenta;
+  recalcular();
+  // upsell de nivel
+  const up = document.getElementById('f-upsell');
+  const sig = nivelSiguiente();
+  if(up){
+    if(sig){
+      const ganHoy = v.sug - costoSocio(v);
+      const ganSig = v.sug - costoSocio(v, sig.desc);
+      const faltan = sig.meta - ventasHechas();
+      up.innerHTML = `<div class="upsell-nivel">${sig.med} Con <b>${sig.nombre}</b> ganarías <b>S/ ${ganSig.toFixed(2)}</b> en este producto, en vez de S/ ${ganHoy.toFixed(2)}. Te faltan <b>${faltan} venta${faltan===1?'':'s'}</b>.</div>`;
+    } else {
+      up.innerHTML = `<div class="upsell-nivel">💎 Estás en el nivel máximo: ganas el ${Math.round(nivelActual().desc*100)}% en todo el catálogo.</div>`;
+    }
+  }
+  // tabs
+  document.getElementById('tab-1').innerHTML =
+    `<p>${f.desc}</p><h4>Detalles</h4><ul>${f.detalle.map(d=>`<li>${d}</li>`).join('')}</ul>`;
+  document.getElementById('tab-2').innerHTML =
+    `<h4>Tu cliente ideal</h4><p>${f.cliente}</p><h4>Argumentos que funcionan</h4><ul>${f.argumentos.map(a=>`<li>${a}</li>`).join('')}</ul>`;
+}
+
+function cambiarPresFicha(i){
+  fichaVi = i;
+  const clave = claveItem(fichaId, fichaVi);
+  precioVenta = precios[clave] ?? varF().sug;
+  seleccion[fichaId] = i;
+  pintarFicha();
+}
+function gal(x, absoluto){
+  const v = varF();
+  const n = v && v.img ? 1 : 0;
+  if(n===0) return;
+  gi = absoluto ? x : (gi + x + n) % n;
+  moverGal();
+}
+function moverGal(){
+  const pista = document.getElementById('f-pista');
+  if(pista) pista.style.transform = `translateX(-${gi*100}%)`;
+  const v = varF();
+  const n = v && v.img ? 1 : 0;
+  const pts = document.getElementById('f-puntos');
+  if(pts) pts.innerHTML = Array.from({length:n},(_,i)=>`<span class="gal-punto ${i===gi?'on':''}"></span>`).join('');
+  document.querySelectorAll('#f-minis .mini-t').forEach((b,i)=>b.classList.toggle('on', i===gi));
+}
+function ajustar(pct){
+  const v = varF();
+  precioVenta = Math.round(v.sug * (1 + pct/100) * 100) / 100;
+  document.getElementById('f-precio').value = precioVenta;
+  recalcular();
+}
+function recalcular(){
+  const v = varF();
+  const val = parseFloat(document.getElementById('f-precio').value);
+  const campo = document.getElementById('f-campo');
+  const aviso = document.getElementById('f-aviso');
+  let usable = isNaN(val) ? v.sug : val;
+  const bajo = !isNaN(val) && val < v.sug;
+  campo.classList.toggle('mal', bajo);
+  aviso.classList.toggle('ver', bajo);
+  if(bajo) aviso.textContent = `El mínimo permitido es el precio referencial: S/ ${v.sug.toFixed(2)}. Puedes subirlo, nunca bajarlo.`;
+  if(bajo) usable = v.sug;
+  precioVenta = usable;
+  const gan = usable - costoSocio(v);
+  const pct = usable>0 ? Math.round(gan/usable*100) : 0;
+  document.getElementById('f-ganancia').textContent = 'S/ ' + gan.toFixed(2);
+  document.getElementById('f-ganancia-pct').textContent = `${pct}% de tu precio de venta · por cada unidad que vendas`;
+  document.getElementById('ba-costo').textContent = 'S/ ' + costoSocio(v).toFixed(2);
+  document.getElementById('ba-gana').textContent = 'S/ ' + gan.toFixed(2);
+}
+function venderEste(){
+  if(invitado){ pedirCuenta(); return; }
+
+  const v = varF();
+  if(stockDe(v)===0){ notificar(`Sin stock en ${ORIGENES[origenSel].ciudad}. Prueba el otro origen.`); return; }
+  const clave = claveItem(fichaId, fichaVi);
+  precios[clave] = precioVenta;
+  if(!carrito[clave]) cambiar(clave, 1); else { pintarCatalogo(); actualizarBarra(); }
+  pintarResumen(); irA('p-resumen');
+}
+
+/* ===== Tabs ===== */
+function tab(n){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('on', b.dataset.t==String(n)));
+  [1,2,3].forEach(i=>document.getElementById('tab-'+i).classList.toggle('on', i===n));
+}
+
+/* ===== Kit de marketing ===== */
+function textoKit(){
+  const p = prodF(), v = varF();
+  return `Hola 👋 Te comparto info de *${p.nombre} ${v.pres}* de Lab Péptidos Perú 🧪\n\n`+
+    `✅ Vial sellado con lote y ficha técnica\n`+
+    `✅ Conservación refrigerada 2–8 °C\n`+
+    `✅ Envío con guía y seguimiento a todo el Perú\n\n`+
+    `💵 Precio: S/ ${precioVenta.toFixed(2)}\n`+
+    `📦 Llega en ${ORIGENES[origenSel].plazo}\n\n`+
+    `¿Te reservo el tuyo? Quedan pocas unidades 🙌`;
+}
+function abrirKit(){
+  if(invitado){ pedirCuenta(); return; }
+
+  const p = prodF(), v = varF(), f = FICHAS[p.id];
+  document.getElementById('kit-sub').textContent = `${p.nombre} ${v.pres} · material aprobado por la marca`;
+  document.getElementById('kit-copy').textContent = textoKit().replace(/\*/g,'');
+  document.getElementById('kit-objeciones').innerHTML =
+    `<b>"¿Es original?"</b> → Vial sellado, con lote y ficha técnica del proveedor; te envío la foto del lote.<br><br>`+
+    `<b>"Está caro"</b> → Compara el costo por mg: la presentación grande sale más conveniente.<br><br>`+
+    `<b>"¿Cuánto demora?"</b> → ${ORIGENES[origenSel].plazo}, con guía de seguimiento.<br><br>`+
+    `<b>"¿Sirve para [dolencia]?"</b> → No hacemos afirmaciones de salud. Comparte la ficha técnica y recomienda consultar a un profesional.`;
+  const b = document.getElementById('btn-copiar');
+  b.classList.remove('listo'); b.textContent = '⧉ Copiar texto';
+  document.getElementById('modal-kit').classList.add('ver');
+}
+function cerrarKit(){ document.getElementById('modal-kit').classList.remove('ver'); }
+function copiarTexto(){
+  const t = document.getElementById('kit-copy').textContent;
+  try{ navigator.clipboard.writeText(t); }catch(e){}
+  const b = document.getElementById('btn-copiar');
+  b.classList.add('listo'); b.textContent = '✓ Copiado — pégalo en WhatsApp';
+}
+function descargar(que){ notificar(`${que}: la marca subirá este material desde su panel`); }
+
+function elegirPres(id, vi){
+  seleccion[id] = vi;
+  pintarCatalogo();
+}
+function quitar(clave){
+  const {p, v} = buscaItem(clave);
+  delete carrito[clave];
+  pintarCatalogo(); actualizarBarra();
+  notificar(`${p.nombre} ${v.pres} quitado del pedido`);
+  if(document.getElementById('p-resumen').classList.contains('activa')){
+    if(totalItems()===0){ irA('p-catalogo'); } else { pintarResumen(); }
+  }
+}
+
+/* ===== Envío ===== */
+/* Tarifas de envío desde almacén — solo aplican a Lab Péptidos Perú */
+const AGENCIAS = [
+  {id:'olva', nombre:'Olva Courier', nota:'Vía aérea · lo pagas tú',
+   pagaSocio:true, lima:18, provincia:25, plazo:'2 a 3 días hábiles a la agencia de recojo'},
+  {id:'shalom', nombre:'Shalom', nota:'Recojo lo paga el cliente',
+   pagaSocio:false, lima:0, provincia:0, plazo:'3 a 5 días según distancia'},
+];
+const ENTREGA_LIMA = 15;   // delivery a domicilio en Lima (por confirmar)
+let agenciaSel = 'olva';
+let modo = 'agencia';
+function pintarAgencias(){
+  document.getElementById('lista-agencias').innerHTML = AGENCIAS.map(a=>{
+    const detalle = a.pagaSocio ? `Lima S/ ${a.lima} · Prov. S/ ${a.provincia}` : a.nota;
+    return `<button class="agencia ${agenciaSel===a.id?'activa':''}" onclick="elegirAgencia('${a.id}')">${a.nombre}<small>${detalle}</small></button>`;
+  }).join('');
+}
+function elegirAgencia(id){ agenciaSel = id; pintarAgencias(); calcularEnvio(); }
+function sincronizarEnvio(){
+  const o = ORIGENES[origenSel];
+  const opLocal = document.getElementById('modo-local');
+  if(!opLocal) return;
+  const permiteLocal = o.modos.includes('local');
+  opLocal.style.opacity = permiteLocal ? '1' : '.4';
+  opLocal.style.pointerEvents = permiteLocal ? 'auto' : 'none';
+  opLocal.querySelector('p').textContent = permiteLocal
+    ? `Entrega en ${o.ciudad} · ${o.plazo}`
+    : `No disponible desde ${o.nombre}`;
+  if(!permiteLocal && modo==='local') modoEnvio('agencia');
+  const banner = document.getElementById('origen-envio');
+  if(banner) banner.innerHTML = `${o.ic} <span>Este pedido sale de <b>${o.nombre}</b> · ${o.desc} · <b>${o.plazo}</b></span>`;
+}
+function modoEnvio(m){
+  if(m==='local' && !ORIGENES[origenSel].modos.includes('local')){
+    notificar(`Los productos de ${ORIGENES[origenSel].nombre} se despachan por agencia`);
+    return;
+  }
+  modo = m;
+  document.getElementById('modo-agencia').classList.toggle('activo', m==='agencia');
+  document.getElementById('modo-local').classList.toggle('activo', m==='local');
+  document.getElementById('bloque-agencia').style.display = m==='agencia'?'block':'none';
+  document.getElementById('bloque-local').style.display = m==='local'?'block':'none';
+  calcularEnvio();
+}
+function selCiudad(){
+  return modo==='agencia' ? document.getElementById('r-ciudad-envio') : document.getElementById('r-ciudad-local');
+}
+function zonaEnvio(){ return selCiudad().value; }   // '', 'lima' o 'prov'
+function agenciaActual(){ return AGENCIAS.find(a=>a.id===agenciaSel); }
+function costoEnvio(){
+  const z = zonaEnvio();
+  if(!z) return 0;
+  if(modo==='local') return z==='lima' ? ENTREGA_LIMA : 25;   // delivery desde el punto de venta de Lima
+  const a = agenciaActual();
+  if(!a.pagaSocio) return 0;                            // Shalom: lo paga el cliente al recoger
+  return z==='lima' ? a.lima : a.provincia;
+}
+function ciudadEnvio(){
+  const sel = modo==='agencia' ? document.getElementById('r-ciudad-envio') : document.getElementById('r-ciudad-local');
+  return sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+}
+function calcularEnvio(){ pintarNotaEnvio(); pintarBoleta(); }
+function pintarNotaEnvio(){
+  const caja = document.getElementById('nota-envio');
+  if(!caja) return;
+  const z = zonaEnvio();
+  if(modo!=='agencia' || !z){ caja.style.display = 'none'; return; }
+  caja.style.display = 'flex';
+  const a = agenciaActual();
+  const zonaTxt = z==='lima' ? 'Lima' : 'provincia';
+  caja.querySelector('span').innerHTML = a.pagaSocio
+    ? `<b>${a.nombre} · ${zonaTxt}:</b> S/ ${z==='lima'?a.lima:a.provincia} vía aérea, se suma a tu pedido. Llega en ${a.plazo}.`
+    : `<b>${a.nombre} · ${zonaTxt}:</b> el envío <b>lo paga tu cliente al recoger</b> en la agencia — no se suma a tu pedido. Llega en ${a.plazo}. Avísale para que lo tenga previsto.`;
+}
+function actualizarBarra(){
+  const t = totales(); const n = totalItems();
+  document.getElementById('bc-cuenta').textContent = n;
+  document.getElementById('bc-detalle').textContent = `Pagas S/ ${t.pagar.toFixed(2)} · ganas S/ ${t.gana.toFixed(2)}`;
+  document.getElementById('barra-carrito').classList.toggle('visible', n>0 && document.getElementById('p-catalogo').classList.contains('activa'));
+}
+
+/* ===== Catálogo ===== */
+function pintarMarcas(){
+  document.getElementById('lista-marcas').innerHTML = marcas.map(m=>{
+    const r = rangoPrecios(m.id);
+    return `<div class="marca-card" onclick="abrirMarca('${m.id}')">
+      <div class="marca-portada" style="${m.portadaImg?`background-image:url('${m.portadaImg}')`:`background:${m.portada}`}">${m.portadaImg?'':m.emoji}<div class="marca-logo" style="${m.logoImg?'':`background:${m.color}`}">${m.logoImg?`<img src="${m.logoImg}" alt="${m.nombre}">`:m.ini}</div></div>
+      <div class="marca-cuerpo">
+        <h3>${m.nombre}</h3>
+        <div class="marca-giro"><span class="chip chip-info">${m.giro}</span></div>
+        <div class="marca-ubic">📍 Almacén ${ORIGENES.cusco.ciudad} · Entregas a domicilio en ${ORIGENES.lima.ciudad}</div>
+        <p class="marca-resena">${m.resena}</p>
+        <div class="marca-meta">
+          <div class="meta-caja"><small>Precios de venta</small><div class="v num">S/ ${r.min} – ${r.max}</div></div>
+          ${invitado
+            ? `<div class="meta-caja"><small>Tu ganancia</small><div class="v" style="font-size:12.5px">🔒 Crea tu cuenta</div></div>`
+            : `<div class="meta-caja gan"><small>Ganancia referencial</small><div class="v num">${m.gananciaRef} por venta</div></div>`}
+        </div>
+        <div class="marca-cta"><span>${productos.filter(p=>p.marca===m.id).length} productos · ${productos.filter(p=>p.marca===m.id).reduce((a,p)=>a+p.variantes.length,0)} presentaciones</span><span class="ver">Ver catálogo →</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+let categoriaSel = 'todas';
+function abrirMarca(id){
+  marcaActual = id;
+  categoriaSel = 'todas';
+  const m = marcas.find(x=>x.id===id);
+  document.getElementById('cat-titulo').textContent = m.nombre;
+  const cl = document.getElementById('cat-logo');
+  if(m.logoImg){ cl.src = m.logoImg; cl.alt = m.nombre; cl.style.display = 'block'; } else { cl.style.display = 'none'; }
+  document.getElementById('cat-ganancia').textContent = invitado ? '🔒 Ganancias para socios' : 'Ganas ' + m.gananciaRef;
+  pintarOrigenes(); pintarCatalogo();
+  irA('p-catalogo');
+}
+function chipStock(v, origen){
+  const s = stockDe(v, origen);
+  const donde = ORIGENES[origen ?? origenSel].ciudad;
+  if(s===null || s===undefined) return `<span class="chip chip-stock">Disponible en ${donde}</span>`;
+  if(s===0) return `<span class="chip chip-alerta">Sin stock en ${donde}</span>`;
+  if(s<=10) return `<span class="chip chip-alerta num">¡Quedan ${s} en ${donde}!</span>`;
+  return `<span class="chip chip-stock num">${s} en ${donde}</span>`;
+}
+function categoriasDeMarca(){
+  const set = new Set(productos.filter(p=>p.marca===marcaActual).map(p=>p.categoria).filter(Boolean));
+  return Array.from(set);
+}
+function pintarCatTabs(){
+  const cont = document.getElementById('cat-tabs');
+  if(!cont) return;
+  const cats = categoriasDeMarca();
+  if(cats.length<2){ cont.innerHTML=''; return; }
+  cont.innerHTML = ['todas', ...cats].map(c=>
+    `<button class="cat-chip ${categoriaSel===c?'activa':''}" onclick="elegirCategoria('${c}')">${c==='todas'?'Todas':c}</button>`).join('');
+}
+function elegirCategoria(c){ categoriaSel = c; pintarCatTabs(); pintarCatalogo(); }
+function pintarCatalogo(){
+  pintarCatTabs();
+  const lista = productos.filter(p=>p.marca===marcaActual && (categoriaSel==='todas' || p.categoria===categoriaSel));
+  document.getElementById('lista-productos').innerHTML = lista.map(p=>{
+    const vi = seleccion[p.id] ?? 0;
+    const v = p.variantes[vi];
+    const clave = claveItem(p.id, vi);
+    const c = carrito[clave]||0;
+    const agotado = stockDe(v)===0;
+    const enCarrito = p.variantes
+      .map((vv,i)=>({vv, i, n: carrito[claveItem(p.id,i)]||0}))
+      .filter(x=>x.n>0 && x.i!==vi);
+    const multi = p.variantes.length > 1;
+    return `<div class="tarjeta producto-tarjeta">
+      <div class="producto-cuerpo" onclick="abrirFicha(${p.id},${vi})" style="cursor:pointer">
+        <div class="producto-img" style="background:${p.bg}">${v.img?`<img src="${v.img}" alt="${p.nombre}" loading="lazy">`:p.emoji}</div>
+        <div class="producto-info">
+          <h3>${p.nombre}</h3>
+          <div class="producto-precios">${p.det}${v.nota?'<br>'+v.nota:''}</div>
+          ${multi?`<div class="etq-pres">Elige la presentación</div>
+          <div class="presentaciones">
+            ${p.variantes.map((vv,i)=>`<button class="pres-btn ${i===vi?'activa':''} ${stockDe(vv)===0?'sin-stock':''}"
+              ${stockDe(vv)===0?'disabled':''} onclick="elegirPres(${p.id},${i})">${vv.pres}<small>S/ ${vv.sug}</small></button>`).join('')}
+          </div>`:`<div class="producto-precios" style="margin-top:4px"><b>${v.pres}</b></div>`}
+        </div>
+      </div>
+      <div class="fila-precio">
+        <div class="producto-precios" style="margin:0">
+          ${invitado
+            ? `Precio de venta al público: <b class="num">S/ ${v.sug}</b><br>${chipStock(v)}
+               <br><span style="font-size:10.5px">🚚 ${ORIGENES[origenSel].plazo}</span>
+               <div class="precio-bloq" onclick="pedirCuenta()"><span class="ic">🔒</span><span class="t"><b>Tu costo socio y tu ganancia</b>Crea tu cuenta gratis para verlos</span><span class="flecha">→</span></div>`
+            : `Precio socio: <b class="num">S/ ${costoSocio(v).toFixed(2)}</b> · Página: <b class="num">S/ ${v.sug}</b><br>
+               <span class="chip chip-ganancia num">Ganas S/ ${(v.sug-costoSocio(v)).toFixed(2)}/u</span> ${chipStock(v)}
+               <br><span style="font-size:10.5px">🚚 ${ORIGENES[origenSel].plazo}</span>`}
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button class="btn-quitar" title="Ver ficha" aria-label="Ver ficha" onclick="abrirFicha(${p.id},${vi})">ℹ️</button>
+          ${invitado?`<button class="btn-quitar" title="Crear cuenta para vender" onclick="pedirCuenta()">🔒</button>`:''}
+          ${c>0?`<button class="btn-quitar" title="Quitar del carrito" aria-label="Quitar del carrito" onclick="quitar('${clave}')">🗑</button>`:''}
+          ${invitado?'':`<div class="stepper ${c>0?'con':''}">
+            <button onclick="cambiar('${clave}',-1)" aria-label="Menos" ${agotado?'disabled':''}>−</button>
+            <span class="cant num">${c}</span>
+            <button onclick="cambiar('${clave}',1)" aria-label="Más" ${agotado?'disabled':''}>+</button>
+          </div>`}
+        </div>
+      </div>
+      ${enCarrito.length?`<div class="producto-pie" style="font-size:11px;color:var(--tinta-suave);margin-top:8px">🛒 También en tu carrito: ${enCarrito.map(x=>`<b>${x.vv.pres} ×${x.n}</b> <button class="quitar-mini" onclick="quitar('${claveItem(p.id,x.i)}')">quitar</button>`).join(' · ')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* ===== Resumen ===== */
+function pintarResumen(){
+  const cont = document.getElementById('items-resumen');
+  const entradas = Object.entries(carrito);
+  cont.innerHTML = entradas.map(([clave,c])=>{
+    const {p, v} = buscaItem(clave);
+    return `<div class="item-resumen">
+      <div class="mini" style="background:${p.bg}">${v.img?`<img src="${v.img}" alt="${p.nombre}">`:p.emoji}</div>
+      <div class="inf"><h3>${p.nombre} · ${v.pres}</h3><p class="num">Costo S/ ${costoSocio(v).toFixed(2)} · vendes a S/ ${(precios[clave] ?? v.sug).toFixed(2)} × ${c}</p></div>
+      <div class="stepper" style="transform:scale(.9)">
+        <button onclick="cambiar('${clave}',-1);pintarResumen()">−</button>
+        <span class="cant num">${c}</span>
+        <button onclick="cambiar('${clave}',1);pintarResumen()">+</button>
+      </div>
+      <span class="sub num">S/ ${(costoSocio(v)*c).toFixed(2)}</span>
+      <button class="btn-quitar" title="Eliminar del pedido" aria-label="Eliminar del pedido" onclick="quitar('${clave}');pintarResumen()">🗑</button>
+    </div>`;
+  }).join('') || '<p style="font-size:13px;color:var(--tinta-suave);text-align:center;padding:10px">Tu carrito está vacío</p>';
+  pintarBoleta();
+}
+function filaEnvioTxt(){
+  const z = zonaEnvio();
+  if(!z) return 'Envío · elige la ciudad';
+  if(modo==='local') return `Envío a domicilio · ${ciudadEnvio()}`;
+  const a = agenciaActual();
+  return a.pagaSocio
+    ? `Envío · ${a.nombre} aéreo, ${ciudadEnvio()}`
+    : `Envío · ${a.nombre}, ${ciudadEnvio()} (paga el cliente al recoger)`;
+}
+function pintarBoleta(){
+  const t = totales();
+  document.getElementById('boleta-resumen').innerHTML = `
+    <h4>Resumen del pedido</h4>
+    <div class="fila"><span class="izq">Cobras a tu cliente (precio página × cantidades)</span><b class="num">S/ ${t.venta.toFixed(2)}</b></div>
+    <div class="fila"><span class="izq">${filaEnvioTxt()}</span><span class="num">${t.envio?'S/ '+t.envio.toFixed(2):(zonaEnvio()?'Lo paga el cliente':'—')}</span></div>
+    <div class="fila total"><span>Total que cobras</span><span class="num">S/ ${t.cobra.toFixed(2)}</span></div>
+    <div class="fila ganancia"><span>☀️ Tu ganancia (10% del total de venta)</span><span class="num">S/ ${t.gana.toFixed(2)}</span></div>
+    <div class="fila"><span class="izq">Pagas a SOCIO (precio socio + envío)</span><b class="num">S/ ${t.conEnvio.toFixed(2)}</b></div>`;
+}
+function continuarPago(){
+  if(invitado){ pedirCuenta(); return; }
+
+  if(totalItems()===0){ notificar('Agrega productos primero'); irA('p-catalogo'); return; }
+  const dni = document.getElementById('r-cli-dni').value.trim();
+  const cel = document.getElementById('r-cli-cel').value.trim();
+  let ok = true;
+  ok = marcar('c-rcliente', !document.getElementById('r-cli-nombre').value.trim()) && ok;
+  ok = marcar('c-rdni', !(/^\d{8}$/.test(dni) || /^\d{11}$/.test(dni))) && ok;
+  ok = marcar('c-rcel', !/^9\d{8}$/.test(cel)) && ok;
+  if(modo==='agencia'){
+    ok = marcar('c-rciudad', !document.getElementById('r-ciudad-envio').value) && ok;
+    ok = marcar('c-ragencia', !document.getElementById('r-agencia-local').value.trim()) && ok;
+  }else{
+    ok = marcar('c-rdir', !document.getElementById('r-cli-dir').value.trim()) && ok;
+  }
+  if(!ok){ notificar('Completa los datos de envío marcados'); return; }
+  if(!estaDisponibleHoy() && !document.getElementById('chk-pausa-ok').checked){
+    notificar('Estás en pausa — marca la casilla para continuar igual, o actívate primero');
+    return;
+  }
+  irA('p-pago'); pintarPago();
+}
+
+/* ===== Pago ===== */
+function pintarPago(){
+  const t = totales();
+  document.getElementById('pago-total').textContent = 'S/ ' + t.conEnvio.toFixed(2);
+  document.getElementById('qr-monto').textContent = 'S/ ' + t.conEnvio.toFixed(2);
+  document.getElementById('pago-ganancia').textContent = `Tu ganancia ya está contigo: S/ ${t.gana.toFixed(2)}`;
+  metodo(ultimoMetodo);
+}
+function metodo(m){
+  ultimoMetodo = m;
+  document.getElementById('m-qr').classList.toggle('activo', m==='qr');
+  document.getElementById('m-dep').classList.toggle('activo', m==='dep');
+  document.getElementById('zona-qr').style.display = m==='qr'?'block':'none';
+  document.getElementById('zona-dep').style.display = m==='dep'?'block':'none';
+}
+function voucherListo(input){
+  if(!input.files || !input.files.length) return;
+  voucherAdjunto = true;
+  const a = document.getElementById('adjunto');
+  a.classList.add('ok');
+  a.querySelector('p').innerHTML = 'Constancia adjuntada — ' + input.files[0].name + '<br>Se validará contra el monto y el código del pedido.';
+  a.querySelector('.ic').textContent = '✅';
+}
+function generarCodigo(){
+  const f = new Date();
+  const mmdd = String(f.getMonth()+1).padStart(2,'0') + String(f.getDate()).padStart(2,'0');
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let suf=''; for(let i=0;i<4;i++) suf += chars[Math.floor(Math.random()*chars.length)];
+  return `SOC-${mmdd}-${suf}`;
+}
+function registrarPedido(){
+  if(totalItems()===0){ notificar('Tu carrito está vacío'); irA('p-catalogo'); return; }
+  if(ultimoMetodo==='dep' && !voucherAdjunto){ notificar('Sube la evidencia de tu depósito para registrar el pedido'); return; }
+  const t = totales();
+  const codigo = generarCodigo();
+  const cliente = document.getElementById('r-cli-nombre').value.trim();
+  const ciudad = ciudadEnvio();
+  const ag = agenciaActual();
+  const entrega = modo==='agencia'
+    ? `Sale de ${ORIGENES[origenSel].nombre} · ${ag.nombre} · ${document.getElementById('r-agencia-local').value.trim()} · ${ag.plazo}${ag.pagaSocio?'':' · recojo lo paga el cliente'}`
+    : `Sale de ${ORIGENES[origenSel].nombre} · Domicilio: ${document.getElementById('r-cli-dir').value.trim()}${document.getElementById('r-cli-ref').value.trim()?' (Ref: '+document.getElementById('r-cli-ref').value.trim()+')':''}`;
+  const items = Object.entries(carrito).map(([clave,c])=>{
+    const {p, v} = buscaItem(clave); return `${p.nombre} ${v.pres} ×${c}`;
+  }).join(' + ');
+
+  const lista = misPedidos();
+  lista.unshift({
+    codigo, items, cliente:`${cliente} · ${ciudad}`, entrega,
+    dni: document.getElementById('r-cli-dni').value.trim(),
+    celular: document.getElementById('r-cli-cel').value.trim(),
+    fecha: new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'short'}),
+    estado: ultimoMetodo==='qr' ? 'Validando pago QR' : 'Constancia en validación',
+    chip:'chip-alerta',
+    metodo: ultimoMetodo,
+    total: t.conEnvio, ganancia: t.gana
+  });
+  guardarPedidos(lista);
+
+  // ¿subió de nivel con este pedido?
+  const nivPrevio = nivelActual();
+  guardarPedidos(lista);
+  const nivNuevo = nivelActual();
+  if(nivNuevo.idx > nivPrevio.idx){
+    setTimeout(()=>notificar(`${nivNuevo.med} ¡Subiste a ${nivNuevo.nombre}! Ahora ganas ${Math.round(nivNuevo.desc*100)}% en todo el catálogo`), 900);
+  }
+  document.getElementById('conf-codigo').textContent = codigo;
+  document.getElementById('conf-sub').textContent = ultimoMetodo==='qr'
+    ? 'Detectaremos tu pago QR y el pedido pasará a despacho automáticamente.'
+    : 'Tu constancia entró al sistema de control. Validado el abono, la marca despacha.';
+
+  carrito = {}; precios = {}; voucherAdjunto = false;
+  const a = document.getElementById('adjunto');
+  a.classList.remove('ok'); a.querySelector('.ic').textContent = '📎';
+  a.querySelector('p').innerHTML = '<b>Sube la evidencia de tu depósito</b><br>Captura o foto del voucher. El sistema de control la valida contra el monto y el código del pedido.';
+  document.getElementById('input-voucher').value = '';
+  ['r-cli-nombre','r-cli-dni','r-cli-cel','r-cli-dir','r-cli-ref','r-agencia-local'].forEach(id=>{const e=document.getElementById(id); if(e) e.value='';});
+  const nv = nivelActual();
+  if(usuario) document.getElementById('u-estado').innerHTML = `${nv.med} ${nv.nombre} · ${usuario.validado ? '✓ validado' : 'en validación'}`;
+  pintarCatalogo(); actualizarBarra();
+  irA('p-confirmacion');
+}
+function copiarCodigo(){
+  const cod = document.getElementById('conf-codigo').textContent;
+  try{ navigator.clipboard.writeText(cod); }catch(e){}
+  notificar('Código copiado: ' + cod);
+}
+
+/* ===== Pedidos ===== */
+function pintarPedidos(){
+  const lista = misPedidos();
+  document.getElementById('lista-pedidos').innerHTML = lista.length ? lista.map(p=>`
+    <div class="tarjeta pedido-item">
+      <div class="arriba"><div><h3>${p.codigo}</h3><div class="det">${p.items}<br>${p.cliente} · ${p.fecha}${p.entrega?'<br>📦 '+p.entrega:''}</div></div><span class="chip ${p.chip}">${p.estado}</span></div>
+      <div class="abajo"><span>Verificable en el sistema de control con tu código</span><b class="num">S/ ${p.total.toFixed(2)}</b></div>
+    </div>`).join('')
+  : `<div class="vacio">
+      <div class="ic">🧾</div>
+      <h3>Aún no tienes pedidos</h3>
+      <p>Cuando cierres tu primera venta, regístrala desde el catálogo y aparecerá aquí con su código de seguimiento.</p>
+      <button class="btn btn-sol" style="margin-top:12px" onclick="irA('p-catalogo')">Ir al catálogo</button>
+    </div>`;
+}
+
+/* ===== Ganancias ===== */
+function bloqueNivel(){
+  const a = nivelActual(), s = nivelSiguiente(), n = ventasHechas();
+  const faltan = s ? s.meta - n : 0;
+  const pct = s ? Math.min(100, Math.round((n - a.meta) / (s.meta - a.meta) * 100)) : 100;
+  return `<div class="nivel-cinta">
+    <div class="medalla">${a.med}</div>
+    <div class="info">
+      <b>${a.nombre} · ${Math.round(a.desc*100)}% de ganancia</b>
+      ${s ? `<small>Te faltan <b>${faltan} venta${faltan===1?'':'s'}</b> para ${s.nombre} y ganar ${Math.round(s.desc*100)}%</small>
+             <div class="barra-nivel"><span style="width:${pct}%"></span></div>`
+          : `<small>Nivel máximo alcanzado ☀️ Gracias por ser parte de la red</small>`}
+    </div>
+  </div>`;
+}
+function escalera(){
+  const a = nivelActual();
+  const ejemplo = productos[0].variantes[0];   // GHK-Cu 50 mg como referencia
+  return `<div class="escalera">${NIVELES.map((niv,i)=>{
+    const gana = ejemplo.sug - costoSocio(ejemplo, niv.desc);
+    const clase = i===a.idx ? 'actual' : (i<a.idx ? 'lograda' : '');
+    return `<div class="esc-fila ${clase}">
+      <span class="med">${niv.med}</span>
+      <span class="txt"><b>${niv.nombre} · ${Math.round(niv.desc*100)}%</b><small>${niv.req}${i===a.idx?' · tu nivel actual':''}</small></span>
+      <span class="gan"><b class="num">S/ ${gana.toFixed(2)}</b><small>en ${productos[0].nombre} ${ejemplo.pres}</small></span>
+    </div>`;
+  }).join('')}</div>
+  <p style="font-size:11px;color:var(--tinta-suave);margin-top:9px;line-height:1.5">Tu nivel se revisa cada trimestre según tus ventas entregadas. Si bajas el ritmo, desciendes un solo escalón — nunca dos de golpe.</p>`;
+}
+function pintarGanancias(){
+  const lista = misPedidos();
+  const total = lista.reduce((a,p)=>a+p.ganancia,0);
+  const zona = document.getElementById('zona-ganancias');
+  if(!lista.length){
+    zona.innerHTML = bloqueNivel() + `<div class="vacio">
+      <div class="ic">☀️</div>
+      <h3>Tu primera venta aparecerá aquí</h3>
+      <p>Cada pedido que registres suma tu ganancia del 10%, que cobras tú directamente en la venta. Este panel lleva tu cuenta.</p>
+      <button class="btn btn-sol" style="margin-top:12px" onclick="irA('p-catalogo')">Empezar a vender</button>
+    </div>
+    <div class="seccion-titulo">Tus niveles de socio</div>` + escalera();
+    return;
+  }
+  zona.innerHTML = bloqueNivel() + `
+    <div class="tarjeta" style="background:var(--chicha-bg);border-color:#F6C8DC;text-align:center;padding:18px">
+      <div class="num" style="font-family:'Archivo',sans-serif;font-weight:900;font-size:34px;color:var(--chicha)">S/ ${total.toFixed(2)}</div>
+      <p style="font-size:12.5px;color:var(--tinta-suave);margin-top:4px">ganados en ${lista.length} pedido${lista.length>1?'s':''} · cobrados por ti en cada venta directa</p>
+    </div>
+    <div class="seccion-titulo">Detalle por pedido</div>
+    <div class="tarjeta">
+      ${lista.map(p=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--linea);font-size:13px"><span>${p.codigo} · ${p.items}</span><span class="num" style="color:var(--chicha);font-weight:700;white-space:nowrap">+ S/ ${p.ganancia.toFixed(2)}</span></div>`).join('').replace(/border-bottom:1px solid var\(--linea\);font-size:13px"><span>(?=[^<]*<\/span><span[^>]*>[^<]*<\/span><\/div>$)/, 'font-size:13px"><span>')}
+    </div>
+    <div class="seccion-titulo">Tus niveles de socio</div>` + escalera();
+}
+
+/* ===== Toast ===== */
+let tTimer;
+function notificar(msj){
+  const t = document.getElementById('toast');
+  t.textContent = msj; t.classList.add('visible');
+  clearTimeout(tTimer); tTimer = setTimeout(()=>t.classList.remove('visible'), 2600);
+}
+
+/* ===== Arranque: si hay sesión guardada en este dispositivo, entra directo ===== */
+(function(){
+  const cel = leer('socio_sesion', null);
+  if(cel){
+    const usuarios = leer('socio_usuarios', {});
+    if(usuarios[cel]){ abrirSesion(usuarios[cel]); return; }
+  }
+  irA('p-auth');
+})();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>

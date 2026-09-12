@@ -1,0 +1,3 @@
+# El seed se genera con extraer-catalogo.py; no se versiona porque lleva
+# precios (provisionales o reales) y el uuid de la cuenta de la marca.
+seed-lab-peptidos.sql
