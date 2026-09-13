@@ -124,8 +124,11 @@ propio pago, regalarse dinero, borrar la bitácora, ascenderse de nivel.
 
 ## Tres cosas que conviene decidir antes de poner dinero real
 
-No las cambié porque el pedido era implementar el diseño tal cual, y son decisiones
-de producto, no erratas. Pero las tres son verificables hoy con
+> **Ya resueltas por la 2ª migración.** Esta sección se queda como registro de
+> qué estaba abierto y por qué; las tres brechas que describe están cerradas.
+
+No las cambié en su momento porque el pedido era implementar el diseño tal cual,
+y son decisiones de producto, no erratas. Pero las tres son verificables hoy con
 `04-cobertura-rls-faltante.sql`, y las tres importan:
 
 **1. Seis de las diez tablas quedan sin reglas de permisos.** El documento define RLS
@@ -151,6 +154,47 @@ no sirve como defensa ante un reclamo, que es justamente para lo que existe.
 
 Las tres se arreglan con una segunda migración corta. Dime si quieres que la prepare
 y te explico cada política en términos de quién puede ver qué.
+
+---
+
+## La cuarta migración: estructura fiscal
+
+`20260913180000_estructura_fiscal.sql` implementa la sección 4 del informe del
+contador (resumida en `docs/15-estructura-fiscal.md`), que es de cumplimiento
+obligatorio, no una mejora opcional:
+
+| Lo que pide el contador | Cómo queda en la base |
+|---|---|
+| **A** · Segmentar los campos financieros por rol | se retira el permiso de leer `precio_mayorista`, `comision_socio_app`, `precio_socio`, `ganancia_socio` y `precio_unit_mayorista` sobre las tablas, y cada rol lee por su vista: `pedidos_socio`, `pedidos_marca`, `pedidos_admin`, `pedido_items_socio`, `pedido_items_marca` |
+| **B** · Que el vendedor gestione sus comprobantes | `usuarios_socios` gana `ruc`, `razon_social`, `direccion_fiscal`, `emite_comprobante`; `pedidos` gana los cuatro campos del comprobante; se registra con `registrar_comprobante()` |
+| **C** · Máquina de estados con despacho bloqueado | nuevo estado `validado`; el trigger `trg_pedido_transicion` prohíbe cualquier salto y exige guía + courier + tracking para pasar a `en_camino`; `trg_pago_registrado` mueve el pedido solo cuando el vendedor declara el pago |
+| **D** · Reporte contable exportable | la vista `reporte_contable`, visible solo para SOCIO, con la comisión desglosada en neto e IGV |
+
+Además cierra dos agujeros que la revisión dejó a la vista y que venían de las
+migraciones anteriores:
+
+- **la marca podía reescribir los importes de un pedido cerrado** — tenía
+  `update` sobre todas las columnas, no solo sobre estado y guía. Podía subirse
+  el `precio_mayorista` después de la venta y cobrar de más;
+- **la marca podía marcar un pedido como entregado sin haberlo despachado**, y
+  con eso subirle el nivel al socio sin que hubiera salido nada del almacén.
+
+Un cambio de comportamiento que hay que tener presente: **`validar_pago()` ahora
+deja el pedido en `validado`, no en `pagado`.** «Pagado» pasó a significar «el
+vendedor declaró el pago»; el permiso para despachar es `validado`. Cualquier
+código que compare contra `'pagado'` para decidir si se puede despachar hay que
+cambiarlo.
+
+Se verifica igual que las demás:
+
+```bash
+./supabase/verificacion/ejecutar-local.sh
+```
+
+que ahora corre también `08-estructura-fiscal.sql`: 30 comprobaciones de las
+cuatro secciones, incluidos los intentos de leer el importe ajeno, de reescribir
+los precios de un pedido cerrado y de saltarse la máquina de estados por los
+cinco atajos posibles.
 
 ---
 

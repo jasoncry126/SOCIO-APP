@@ -40,7 +40,7 @@ values ('55555555-5555-5555-5555-555555555555','88888888-8888-8888-8888-88888888
 \echo '### I · ¿puede borrar la bitácora?           (debe: fallar)'
 delete from bitacora;
 
-\echo '### J · ¿puede subirse de nivel a mano?      (debe: cambia su fila, no la ajena)'
+\echo '### J · ¿puede subirse de nivel a mano?      (debe: fallar)'
 update usuarios_socios set nivel='diamante', ventas_entregadas=999;
 select nombre, nivel from usuarios_socios where id='22222222-2222-2222-2222-222222222222';
 

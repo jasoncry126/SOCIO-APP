@@ -6,7 +6,8 @@ set -euo pipefail
 AQUI="$(cd "$(dirname "$0")" && pwd)"
 MIGS=("$AQUI/../migrations/20260912000000_modelo_de_datos_inicial.sql"
       "$AQUI/../migrations/20260912100000_permisos_para_operar.sql"
-      "$AQUI/../migrations/20260913120000_administradores.sql")
+      "$AQUI/../migrations/20260913120000_administradores.sql"
+      "$AQUI/../migrations/20260913180000_estructura_fiscal.sql")
 PGBIN="$(ls -d /usr/lib/postgresql/*/bin | tail -1)"
 W="$(mktemp -d)"
 PUERTO=5599
@@ -43,7 +44,10 @@ psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[1]}"
 echo "### Aplicando la 3ª migración (administradores)"
 psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[2]}"
 
-for f in 01-inspeccionar-esquema 05-circuito-de-venta 06-ataques 07-administrador; do
+echo "### Aplicando la 4ª migración (estructura fiscal)"
+psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[3]}"
+
+for f in 01-inspeccionar-esquema 05-circuito-de-venta 06-ataques 07-administrador 08-estructura-fiscal; do
   echo; echo "################ $f ################"
   ejecutar "$AQUI/$f.sql"
 done
