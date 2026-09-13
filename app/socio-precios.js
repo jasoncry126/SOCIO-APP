@@ -33,15 +33,24 @@
     { id: "diamante", nombre: "Diamante", med: "💎", comision: 0.20, meta: 50, req: "50 ventas + 3 meses activo" }
   ];
 
-  /* Lo que SOCIO se reserva como mínimo, en porcentaje de la venta. Es lo que
-     sostiene la plataforma: validar el pago, coordinar el despacho, responder.  */
-  var COMISION_MINIMA_SOCIO = 0.05;
+  /* IGV peruano. La comisión de SOCIO se factura CON IGV, así que del importe
+     que cobra la plataforma hay una parte que nunca fue suya: es del Estado. */
+  var IGV = 0.18;
 
-  /* El margen mínimo que una marca debe dejar para poder publicar.
-     No es un número al azar: es lo que debe alcanzar para pagarle al mejor
-     socio su 20% y que a SOCIO le quede su 5%. Por debajo de esto la promesa
-     al socio no se podría cumplir. */
-  var MARGEN_MINIMO = NIVELES[NIVELES.length - 1].comision + COMISION_MINIMA_SOCIO;   // 0.25
+  /* Lo que a SOCIO le tiene que quedar LIMPIO, ya sin IGV, en porcentaje de la
+     venta. Es lo que sostiene la plataforma: validar el pago, coordinar el
+     despacho, responder ante un reclamo. */
+  var COMISION_NETA_MINIMA = 0.05;
+
+  /* Lo que hay que cobrar para que quede ese 5% limpio. Cobrar 5% pelado sería
+     quedarse con 4.24% y regalarle el resto al IGV: por eso se cobra 5.9%. */
+  var COMISION_MINIMA_SOCIO = Math.round(COMISION_NETA_MINIMA * (1 + IGV) * 10000) / 10000;  // 0.059
+
+  /* El margen mínimo que una marca debe dejar para poder publicar. No es un
+     número al azar: es el 20% que se le prometió al mejor socio, más lo que
+     SOCIO necesita cobrar para que le quede su 5% después del IGV. */
+  var MARGEN_MINIMO = Math.round(
+    (NIVELES[NIVELES.length - 1].comision + COMISION_MINIMA_SOCIO) * 10000) / 10000;      // 0.259
 
   function redondear(n) { return Math.round(n * 100) / 100; }
 
@@ -66,12 +75,17 @@
     var margen = redondear(pub - may);
     var pct = margen / pub;
 
+    // Los precios sugeridos se redondean HACIA el lado que cumple: el mayorista
+    // hacia abajo y el precio de página hacia arriba. Redondeando al más
+    // cercano, el propio número que sugiere el mensaje se quedaba a centésimas
+    // del mínimo y volvía a ser rechazado — el proveedor hacía justo lo que se
+    // le pedía y el sistema le decía otra vez que no.
     var salida = {
       margen: margen,
-      porcentaje: Math.round(pct * 1000) / 10,          // 20.0
-      minimo: Math.round(MARGEN_MINIMO * 1000) / 10,    // 25.0
-      mayoristaSugerido: redondear(pub * (1 - MARGEN_MINIMO)),
-      publicoSugerido: redondear(may / (1 - MARGEN_MINIMO))
+      porcentaje: Math.round(pct * 1000) / 10,
+      minimo: Math.round(MARGEN_MINIMO * 1000) / 10,
+      mayoristaSugerido: Math.floor(pub * (1 - MARGEN_MINIMO) * 100) / 100,
+      publicoSugerido: Math.ceil(may / (1 - MARGEN_MINIMO) * 100) / 100
     };
 
     if (margen <= 0) {
@@ -83,7 +97,9 @@
       return salida;
     }
 
-    if (pct < MARGEN_MINIMO) {
+    // Un céntimo de tolerancia: sin esto, un margen que es exactamente el
+    // mínimo puede caer del lado equivocado por el redondeo a céntimos.
+    if (pct < MARGEN_MINIMO - 0.0001) {
       salida.ok = false;
       salida.codigo = "margen_bajo";
       salida.mensaje = "Margen insuficiente: S/ " + margen.toFixed(2) + " (" + salida.porcentaje +
@@ -141,7 +157,9 @@
       comisionReal: pub > 0 ? Math.round(ganaSocio / pub * 1000) / 10 : 0,
 
       recibeMarca: may,              // íntegro, en todos los niveles
-      quedaSocioApp: quedaSocioApp,  // la comisión de la plataforma
+      quedaSocioApp: quedaSocioApp,  // la comisión de la plataforma, con IGV dentro
+      igvComision: redondear(quedaSocioApp * IGV / (1 + IGV)),          // no es de SOCIO
+      comisionNeta: redondear(quedaSocioApp / (1 + IGV)),               // lo que sí queda
 
       publicable: evaluacion.ok,
       comisionRecortada: recortada,
@@ -165,6 +183,8 @@
     NIVELES: NIVELES,
     MARGEN_MINIMO: MARGEN_MINIMO,
     COMISION_MINIMA_SOCIO: COMISION_MINIMA_SOCIO,
+    COMISION_NETA_MINIMA: COMISION_NETA_MINIMA,
+    IGV: IGV,
     evaluarMargen: evaluarMargen,
     calcular: calcular,
     tabla: tabla,

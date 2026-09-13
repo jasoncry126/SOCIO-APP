@@ -39,7 +39,7 @@ comprobar("y ese producto no es publicable", elCaso.publicable === false);
 /* ------------------------------------------------------------------ */
 /* Las cuentas cuadran: nada se pierde ni se inventa                   */
 /* ------------------------------------------------------------------ */
-[[120, 175], [131.25, 175], [80, 115], [140, 186.67]].forEach(function (par) {
+[[120, 175], [129.68, 175], [80, 115], [140, 188.93]].forEach(function (par) {
   P.tabla(par[0], par[1]).forEach(function (r) {
     comprobar("marca + SOCIO + socio = precio de página (" + par[0] + "→" + par[1] + ", " + r.nivel.id + ")",
       Math.abs((r.recibeMarca + r.quedaSocioApp + r.ganaSocio) - r.precioPublico) < 0.02,
@@ -72,16 +72,33 @@ comprobar("el mínimo cubre al mejor socio más lo de SOCIO",
   Math.abs(P.MARGEN_MINIMO - (0.20 + P.COMISION_MINIMA_SOCIO)) < 1e-9,
   "es " + P.MARGEN_MINIMO);
 
-var justo = P.evaluarMargen(131.25, 175);       // exactamente 25%
+/* El IGV: cobrar 5% pelado dejaría 4.24% limpio. */
+comprobar("lo que cobra SOCIO incluye el IGV",
+  Math.abs(P.COMISION_MINIMA_SOCIO - P.COMISION_NETA_MINIMA * 1.18) < 1e-9,
+  "cobra " + P.COMISION_MINIMA_SOCIO);
+comprobar("y así le queda el 5% limpio",
+  Math.abs(P.COMISION_MINIMA_SOCIO / 1.18 - 0.05) < 1e-9);
+
+var peor = P.calcular(175 * (1 - P.MARGEN_MINIMO), 175, "diamante");
+comprobar("en el peor caso, a SOCIO le queda su 5% neto",
+  peor.comisionNeta >= Math.round(175 * 0.05 * 100) / 100 - 0.02,
+  "le quedaron " + peor.comisionNeta + " de " + peor.quedaSocioApp + " cobrados");
+comprobar("y el IGV desglosado cuadra",
+  Math.abs((peor.comisionNeta + peor.igvComision) - peor.quedaSocioApp) < 0.02,
+  peor.comisionNeta + " + " + peor.igvComision + " ≠ " + peor.quedaSocioApp);
+
+var justo = P.evaluarMargen(175 * (1 - P.MARGEN_MINIMO), 175);   // exactamente el mínimo
 comprobar("justo en el mínimo se publica", justo.ok === true, JSON.stringify(justo.mensaje));
 
 var bajo = P.evaluarMargen(140, 175);           // 20%
 comprobar("por debajo del mínimo se rechaza", bajo.ok === false);
 comprobar("y dice el código correcto", bajo.codigo === "margen_bajo", bajo.codigo);
 comprobar("explica que ningún socio lo elegiría", /ningún socio/.test(bajo.mensaje));
-comprobar("propone bajar el mayorista", Math.abs(bajo.mayoristaSugerido - 131.25) < 0.01,
+comprobar("propone bajar el mayorista",
+  Math.abs(bajo.mayoristaSugerido - 175 * (1 - P.MARGEN_MINIMO)) < 0.01,
   "sugirió " + bajo.mayoristaSugerido);
-comprobar("propone subir el precio de página", Math.abs(bajo.publicoSugerido - 186.67) < 0.01,
+comprobar("propone subir el precio de página",
+  Math.abs(bajo.publicoSugerido - 140 / (1 - P.MARGEN_MINIMO)) < 0.01,
   "sugirió " + bajo.publicoSugerido);
 comprobar("las dos salidas dan exactamente el mínimo",
   P.evaluarMargen(bajo.mayoristaSugerido, 175).ok === true &&
