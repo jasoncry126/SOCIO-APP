@@ -17,6 +17,6 @@
    =========================================================================== */
 
 window.SOCIO_CONFIG = {
-  URL:  "",   // ← pega aquí tu Project URL
-  ANON: ""    // ← pega aquí tu clave anon public
+  URL:  "https://oxlqiiumtsyzrhygsrzt.supabase.co",
+  ANON: ""    // ← pega aquí tu clave anon public (Settings → API → "anon public")
 };
