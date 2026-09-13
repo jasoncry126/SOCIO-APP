@@ -299,6 +299,36 @@
     });
   }
 
+  /* Las horas de corte se eligen en un desplegable que dice "2:00 p. m.",
+     porque es como se escribe la hora en español. La base guarda horas de
+     verdad y no entiende ese texto: el "p." lo toma por una zona horaria y
+     rechaza el producto entero. Aquí se traduce a 24 horas.
+
+     "Sin corte" y "No aplica" no son horas: significan que no hay corte, y
+     eso en la base es un vacío. */
+  function aHora(v) {
+    var s = String(v == null ? "" : v).trim();
+    if (!s) return null;
+
+    var suelto = s.toLowerCase().replace(/\./g, "").replace(/\s+/g, " ");
+    if (suelto === "sin corte" || suelto === "no aplica" || suelto === "ninguno") return null;
+
+    // "2:00 p m", "11:30 a m", "2 pm", "14:00"
+    var m = suelto.match(/^(\d{1,2})(?::(\d{2}))?\s*(a m|p m|am|pm)?$/);
+    if (!m) return null;
+
+    var h = parseInt(m[1], 10);
+    var min = m[2] ? parseInt(m[2], 10) : 0;
+    var suf = m[3] ? m[3].replace(/\s/g, "") : null;
+
+    if (h > 23 || min > 59) return null;
+    if (suf === "pm" && h < 12) h += 12;
+    if (suf === "am" && h === 12) h = 0;      // 12 de la noche
+    if (!suf && h > 23) return null;
+
+    return (h < 10 ? "0" : "") + h + ":" + (min < 10 ? "0" : "") + min + ":00";
+  }
+
   async function crearProducto(marcaId, p) {
     var sb = exigirCliente();
     var ins = await sb.from("productos").insert({
@@ -310,8 +340,8 @@
       recomendaciones: p.reco || null,
       tiempo_prep: p.prep || null,
       cobertura: p.cobertura || null,
-      corte_nacional: p.corteNac || null,
-      corte_local: (p.corteLoc && p.corteLoc !== "No aplica") ? p.corteLoc : null,
+      corte_nacional: aHora(p.corteNac),
+      corte_local: aHora(p.corteLoc),
       dias_despacho: p.dias || null,
       estado: "revision",
       activo: false
@@ -361,6 +391,7 @@
     cargarCatalogo: cargarCatalogo,
     importarCatalogo: importarCatalogo,
     aFormatoPanel: aFormatoPanel,
+    aHora: aHora,
     crearProducto: crearProducto,
     guardarStock: guardarStock,
     alternarActivo: alternarActivo

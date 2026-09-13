@@ -3,6 +3,11 @@
 
 var C = require("../socio-catalogo.js");
 
+// socio-datos.js se cuelga de window; en node le damos uno de mentira.
+global.window = global.window || {};
+require("../socio-datos.js");
+var D = global.window.SocioDatos;
+
 var pasadas = 0, fallidas = [];
 
 function comprobar(nombre, condicion, detalle) {
@@ -14,6 +19,29 @@ function cabecera(extra) {
   return "producto,presentacion,categoria,contexto,imagen,precio_publico,precio_mayorista" +
          (extra || "") + "\n";
 }
+
+/* ------------------------------------------------------------------ */
+/* Horas de corte: el desplegable dice "2:00 p. m." y la base quiere      */
+/* una hora de 24 h. Sin convertir, Postgres toma el "p." por una zona    */
+/* horaria y rechaza el producto entero.                                  */
+/* ------------------------------------------------------------------ */
+comprobar("mediodía", D.aHora("12:00 p. m.") === "12:00:00");
+comprobar("2 de la tarde", D.aHora("2:00 p. m.") === "14:00:00");
+comprobar("4 de la tarde", D.aHora("4:00 p. m.") === "16:00:00");
+comprobar("5 de la tarde", D.aHora("5:00 p. m.") === "17:00:00");
+comprobar("6 de la tarde", D.aHora("6:00 p. m.") === "18:00:00");
+comprobar("11 de la mañana", D.aHora("11:00 a. m.") === "11:00:00");
+comprobar("1 de la tarde", D.aHora("1:00 p. m.") === "13:00:00");
+comprobar("3 de la tarde", D.aHora("3:00 p. m.") === "15:00:00");
+comprobar("medianoche no es mediodía", D.aHora("12:00 a. m.") === "00:00:00");
+comprobar("con minutos", D.aHora("9:30 a. m.") === "09:30:00");
+comprobar("ya en 24 h pasa igual", D.aHora("14:00") === "14:00:00");
+comprobar('"Sin corte" es vacío', D.aHora("Sin corte") === null);
+comprobar('"No aplica" es vacío', D.aHora("No aplica") === null);
+comprobar("vacío es vacío", D.aHora("") === null);
+comprobar("nulo es vacío", D.aHora(null) === null);
+comprobar("texto cualquiera es vacío", D.aHora("cuando pueda") === null);
+comprobar("hora imposible es vacío", D.aHora("99:99") === null);
 
 /* ------------------------------------------------------------------ */
 /* Números                                                             */
