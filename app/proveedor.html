@@ -89,6 +89,7 @@
   .campo.mal .err{display:block}
   .dos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .pista{font-size:11.5px;color:#7C8B82;margin-top:4px;line-height:1.45}
+  .niv-fila.escalas{display:block;font-size:11.5px;line-height:1.5;color:#8FA398;padding-top:6px}
   .borrador-bar{display:flex;gap:12px;align-items:center;justify-content:space-between;
                 flex-wrap:wrap;background:#EAF6F0;border-left:3px solid #1E8A63;
                 border-radius:10px;padding:11px 14px;font-size:12.5px;line-height:1.5;
@@ -97,6 +98,15 @@
   .importar{border:1px dashed var(--linea,#D8E0DA);border-radius:12px;padding:16px;margin-bottom:14px}
   .importar h3{margin:0 0 4px;font-size:15px}
   .importar .fila-arch{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .atajos{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:12px 0}
+  .atajo{display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;
+         padding:11px 13px;border:1px solid var(--linea,#D8E0DA);border-radius:10px;
+         background:#fff;cursor:pointer;font-family:inherit}
+  .atajo b{font-size:13.5px}
+  .atajo span{font-size:11.5px;color:#7C8B82}
+  .atajo.on{border-color:var(--sol);background:#FFF9EC}
+  #pegado-catalogo{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+                   padding:10px;border:1px solid var(--linea,#D8E0DA);border-radius:10px;resize:vertical}
   .informe{margin-top:14px;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5}
   .informe.bien{background:#EAF6F0;border-left:3px solid #1E8A63}
   .informe.mal{background:#FBECE8;border-left:3px solid #B4432C}
@@ -173,7 +183,7 @@
   .margen-chip{display:inline-block;background:var(--ok-bg);color:var(--ok);border-radius:8px;padding:3px 9px;font-size:11px;font-weight:800;margin-top:4px}
   .margen-chip.flojo{background:var(--alerta-bg);color:var(--alerta)}
   .margen-chip.malo{background:var(--rojo-bg);color:var(--rojo)}
-  .reparto{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}
+  .reparto{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:7px}
   .reparto div{background:rgba(255,255,255,.07);border-radius:8px;padding:7px 6px;text-align:center}
   .reparto small{display:block;font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:#8FA398;font-weight:700}
   .reparto b{font-family:'Archivo',sans-serif;font-weight:800;font-size:12.5px;display:block;margin-top:2px}
@@ -380,11 +390,31 @@
           (y opcionalmente <b>stock_almacen</b> y <b>stock_punto</b>).</p>
         <p class="pista">Se revisa todo antes de guardar nada: si una fila tiene un problema,
           te decimos cuál y en qué fila, y no se sube nada hasta que lo corrijas.</p>
-        <div class="fila-arch">
-          <input type="file" id="archivo-catalogo" accept=".csv,text/csv,text/plain"
-                 onchange="leerArchivoCatalogo(this)">
-          <button class="btn btn-borde" style="padding:7px 13px;font-size:12.5px"
-                  onclick="descargarPlantilla()">Descargar plantilla</button>
+        <div class="atajos">
+          <button class="atajo" onclick="modoCarga('archivo')" id="at-archivo">
+            <b>📄 Subir un archivo</b><span>Tu catálogo en Excel o CSV</span></button>
+          <button class="atajo" onclick="modoCarga('pegar')" id="at-pegar">
+            <b>📋 Pegar desde Excel</b><span>Copia las celdas y pégalas aquí</span></button>
+        </div>
+
+        <div id="carga-archivo">
+          <div class="fila-arch">
+            <input type="file" id="archivo-catalogo" accept=".csv,.txt,.tsv,text/csv,text/plain"
+                   onchange="leerArchivoCatalogo(this)">
+            <button class="btn btn-borde" style="padding:7px 13px;font-size:12.5px"
+                    onclick="descargarPlantilla()">Descargar plantilla</button>
+          </div>
+          <p class="pista">Sirve tal cual como lo guarde tu Excel: reconoce solo si las
+            columnas van separadas por comas o por punto y coma, y si los precios usan
+            coma o punto decimal.</p>
+        </div>
+
+        <div id="carga-pegar" style="display:none">
+          <p class="pista">En tu Excel selecciona las celdas <b>incluyendo la fila de
+            títulos</b>, cópialas (Ctrl+C) y pégalas aquí abajo (Ctrl+V). No hace falta
+            guardar ni subir ningún archivo.</p>
+          <textarea id="pegado-catalogo" rows="7" placeholder="Pega aquí las celdas copiadas de tu Excel…"
+                    oninput="leerPegado()"></textarea>
         </div>
         <div id="informe-importacion"></div>
       </div>
@@ -507,7 +537,7 @@
               <div class="previa-info"><h4 id="pv-nombre">Nuevo producto</h4><p id="pv-detalle">Tu marca · categoría</p></div>
             </div>
             <div class="niveles-caja">
-              <div class="tit">Precio del socio según su nivel</div>
+              <div class="tit">Tu precio y el margen de la red</div>
               <div id="pv-niveles"></div>
               <div class="aviso-margen" id="pv-aviso" style="display:none"></div>
               <p style="font-size:10.5px;color:#8FA398;margin-top:9px;line-height:1.5">Tú cobras tu precio mayorista íntegro en cada venta. Lo que se reparte entre el socio y SOCIO es el margen hasta el precio de página — tu precio nunca se toca.</p>
@@ -1001,15 +1031,20 @@ function previa(){
         let clase = 'ok', txt = 'Margen S/ '+m.toFixed(2)+' ('+pctM+'%)';
         if(m <= 0){ clase='malo'; txt = '⚠️ El precio de página debe ser mayor que tu mayorista'; }
         else if(m < pisoSocio(vr.sug)*2){ clase='flojo'; txt = 'Margen ajustado: S/ '+m.toFixed(2)+' ('+pctM+'%)'; }
-        const filas = m>0 ? NIVELES.map(function(n){
-          const r = repartir(vr.may, vr.sug, n.parte);
-          return '<div class="niv-fila"><span>'+n.med+' '+n.nombre+'</span><span>socio gana <b class="num g">S/ '+r.socio.toFixed(2)+'</b> · SOCIO <b class="num">S/ '+r.plataforma.toFixed(2)+'</b></span></div>';
-        }).join('') : '';
-        const r0 = m>0 ? repartir(vr.may, vr.sug, NIVELES[0].parte) : null;
-        const cajas = r0 ? '<div class="reparto">'+
-            '<div class="prov"><small>Tú cobras</small><b class="num">S/ '+vr.may.toFixed(2)+'</b></div>'+
-            '<div class="socio"><small>Socio Bronce</small><b class="num">S/ '+r0.socio.toFixed(2)+'</b></div>'+
-            '<div><small>SOCIO</small><b class="num">S/ '+r0.plataforma.toFixed(2)+'</b></div></div>' : '';
+        // Al proveedor NO se le detalla cuánto gana el socio ni cuánto SOCIO.
+        // Su negocio es su precio mayorista, que cobra íntegro en cada venta.
+        // Ver quién se queda con qué parte del margen no le aporta nada para
+        // fijar precios y sí da pie a reclamos sobre la comisión de la
+        // plataforma. Se le muestra el margen total, que es lo que necesita
+        // para saber si su producto será atractivo para la red.
+        const filas = m>0
+          ? '<div class="niv-fila escalas"><span>Se reparte entre el socio y SOCIO según el nivel del socio' +
+            ' — ' + NIVELES.map(function(n){ return n.med + ' ' + n.nombre; }).join(' · ') +
+            '. Cuanto más vende un socio, mayor su parte.</span></div>'
+          : '';
+        const cajas = m>0 ? '<div class="reparto">'+
+            '<div class="prov"><small>Tú cobras, íntegro</small><b class="num">S/ '+vr.may.toFixed(2)+'</b></div>'+
+            '<div class="socio"><small>Margen para la red</small><b class="num">S/ '+m.toFixed(2)+'</b></div></div>' : '';
         return '<div class="niv-prod"><div class="nombre">'+(vr.pres||'Presentación sin nombre')+' · página S/ '+vr.sug.toFixed(2)+'</div>'+
           '<span class="margen-chip '+clase+'">'+txt+'</span>'+cajas+filas+'</div>';
       }).join('')
@@ -1023,7 +1058,7 @@ function previa(){
       av.innerHTML = '⚠️ <b>Revisa tus precios:</b> en '+malas.length+' presentación'+(malas.length>1?'es':'')+' el precio de página no supera tu mayorista. Sin margen no hay nada que repartir y el producto no se puede publicar.';
     } else if(flojas.length){
       av.style.display='block';
-      av.innerHTML = '💡 <b>Margen ajustado:</b> en '+flojas.length+' presentación'+(flojas.length>1?'es':'')+' un socio nuevo ganaría menos de S/ 5 por unidad. Puedes publicarlo igual, pero pocos socios elegirán venderlo frente a productos con mejor margen.';
+      av.innerHTML = '💡 <b>Margen ajustado:</b> en '+flojas.length+' presentación'+(flojas.length>1?'es':'')+' el margen es muy bajo para la red. Puedes publicarlo igual, pero pocos socios elegirán venderlo frente a productos con mejor margen. Si quieres que se venda más, sube el precio de página o baja tu mayorista.';
     } else av.style.display='none';
   }
 }
@@ -1118,6 +1153,62 @@ function listaCorta(items, tope){
   return h;
 }
 
+function modoCarga(cual){
+  const arch = document.getElementById('carga-archivo');
+  const peg  = document.getElementById('carga-pegar');
+  if(arch) arch.style.display = cual === 'archivo' ? '' : 'none';
+  if(peg)  peg.style.display  = cual === 'pegar'   ? '' : 'none';
+  const a = document.getElementById('at-archivo'), b = document.getElementById('at-pegar');
+  if(a) a.classList.toggle('on', cual === 'archivo');
+  if(b) b.classList.toggle('on', cual === 'pegar');
+  if(cual === 'pegar'){ const c = document.getElementById('pegado-catalogo'); if(c) c.focus(); }
+}
+
+/* Pegar desde Excel: el portapapeles trae las celdas separadas por tabuladores,
+   así que se analiza igual que un archivo. Es el atajo más corto que hay —
+   ni guardar, ni buscar la carpeta, ni subir. */
+let tempPegado;
+function leerPegado(){
+  clearTimeout(tempPegado);
+  tempPegado = setTimeout(function(){
+    const texto = (document.getElementById('pegado-catalogo').value || '').trim();
+    if(!texto){ importPendiente = null; document.getElementById('informe-importacion').innerHTML = ''; return; }
+    mostrarAnalisis(window.SocioCatalogo.analizar(texto));
+  }, 400);
+}
+
+/* Informe común al archivo y al pegado. */
+function mostrarAnalisis(r){
+  const caja = document.getElementById('informe-importacion');
+  importPendiente = null;
+
+  if(!r.ok){
+    caja.innerHTML = '<div class="informe mal">' +
+      '<h4>' + r.errores.length + (r.errores.length===1?' fila tiene':' filas tienen') + ' un problema — no se subió nada</h4>' +
+      listaCorta(r.errores) +
+      '<p class="mas">Corrige esas filas y vuelve a intentarlo. Nada se pierde.</p>' +
+      '</div>';
+    return;
+  }
+
+  importPendiente = r;
+  let h = '<div class="informe bien">' +
+    '<h4>Listo para subir: ' + r.resumen.productos + ' productos · ' +
+    r.resumen.presentaciones + ' presentaciones</h4>';
+  if(r.avisos.length){
+    h += '<p><b>' + r.avisos.length + (r.avisos.length===1?' aviso':' avisos') +
+         '</b> (no impiden subir):</p>' + listaCorta(r.avisos, 6);
+  }
+  h += '<p class="mas">Los productos nuevos entran <b>en revisión</b>, igual que ' +
+       'cuando los cargas uno por uno. Los que ya tengas con el mismo nombre se actualizan.</p>' +
+       '<div class="fila-arch">' +
+       '<button class="btn btn-sol" onclick="confirmarImportacion()">Subir ' +
+       r.resumen.productos + ' productos</button>' +
+       '<button class="btn btn-fantasma" onclick="cancelarImportacion()">Cancelar</button>' +
+       '</div><div id="avance-importacion"></div></div>';
+  caja.innerHTML = h;
+}
+
 function leerArchivoCatalogo(input){
   const caja = document.getElementById('informe-importacion');
   importPendiente = null;
@@ -1130,33 +1221,7 @@ function leerArchivoCatalogo(input){
       '<p>Vuelve a exportarlo como CSV e inténtalo otra vez.</p></div>';
   };
   lector.onload = function(){
-    const r = window.SocioCatalogo.analizar(String(lector.result || ''));
-
-    if(!r.ok){
-      caja.innerHTML = '<div class="informe mal">' +
-        '<h4>' + r.errores.length + (r.errores.length===1?' fila tiene':' filas tienen') + ' un problema — no se subió nada</h4>' +
-        listaCorta(r.errores) +
-        '<p class="mas">Corrige esas filas en tu hoja de cálculo y vuelve a subir el archivo.</p>' +
-        '</div>';
-      return;
-    }
-
-    importPendiente = r;
-    let h = '<div class="informe bien">' +
-      '<h4>Listo para subir: ' + r.resumen.productos + ' productos · ' +
-      r.resumen.presentaciones + ' presentaciones</h4>';
-    if(r.avisos.length){
-      h += '<p><b>' + r.avisos.length + (r.avisos.length===1?' aviso':' avisos') +
-           '</b> (no impiden subir):</p>' + listaCorta(r.avisos, 6);
-    }
-    h += '<p class="mas">Los productos nuevos entran <b>en revisión</b>, igual que ' +
-         'cuando los cargas uno por uno. Los que ya tengas con el mismo nombre se actualizan.</p>' +
-         '<div class="fila-arch">' +
-         '<button class="btn btn-sol" onclick="confirmarImportacion()">Subir ' +
-         r.resumen.productos + ' productos</button>' +
-         '<button class="btn btn-fantasma" onclick="cancelarImportacion()">Cancelar</button>' +
-         '</div><div id="avance-importacion"></div></div>';
-    caja.innerHTML = h;
+    mostrarAnalisis(window.SocioCatalogo.analizar(String(lector.result || '')));
   };
   lector.readAsText(archivo, 'utf-8');
 }
@@ -1191,6 +1256,8 @@ function cancelarImportacion(){
   document.getElementById('informe-importacion').innerHTML = '';
   const f = document.getElementById('archivo-catalogo');
   if(f) f.value = '';
+  const g = document.getElementById('pegado-catalogo');
+  if(g) g.value = '';
 }
 
 function confirmarImportacion(){

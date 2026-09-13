@@ -48,6 +48,38 @@ comprobar("comillas escapadas", conComilla[1][0] === 'dice "hola" ahi', JSON.str
 comprobar("quita el BOM de Excel", C.leerCSV("﻿a,b\n")[0][0] === "a");
 
 /* ------------------------------------------------------------------ */
+/* Separadores: Excel en español usa ; y el portapapeles usa tabulador */
+/* ------------------------------------------------------------------ */
+comprobar("detecta la coma", C.detectarSeparador("a,b,c\n1,2,3") === ",");
+comprobar("detecta el punto y coma (Excel en español)", C.detectarSeparador("a;b;c\n1;2;3") === ";");
+comprobar("detecta el tabulador (pegado desde Excel)", C.detectarSeparador("a\tb\tc\n1\t2\t3") === "\t");
+comprobar("no confunde comas dentro de comillas",
+  C.detectarSeparador('a;"uno, dos, tres";c\n') === ";",
+  "detectó " + JSON.stringify(C.detectarSeparador('a;"uno, dos, tres";c\n')));
+comprobar("una sola columna cae a coma", C.detectarSeparador("producto\nBPC") === ",");
+
+var pyc = C.analizar(
+  "producto;presentacion;categoria;contexto;imagen;precio_publico;precio_mayorista\n" +
+  "BPC-157;Vial 5 mg;Recuperación;Pentadecapéptido;bpc.webp;175;122,50\n");
+comprobar("archivo con punto y coma se acepta", pyc.ok === true, JSON.stringify(pyc.errores));
+comprobar("y lee bien el precio con coma decimal",
+  pyc.productos[0].presentaciones[0].precio_mayorista === 122.5);
+
+var tabs = C.analizar(
+  "producto\tpresentacion\tcategoria\tcontexto\timagen\tprecio_publico\tprecio_mayorista\n" +
+  "BPC-157\tVial 5 mg\tRecuperación\tPentadecapéptido\tbpc.webp\t175\t122.50\n" +
+  "TB-500\tVial 10 mg\tRecuperación\tFragmento\ttb.webp\t245\t171.50\n");
+comprobar("pegado desde Excel (tabuladores) se acepta", tabs.ok === true, JSON.stringify(tabs.errores));
+comprobar("y agrupa bien", tabs.resumen.productos === 2 && tabs.resumen.presentaciones === 2);
+
+var pycTexto = C.analizar(
+  'producto;presentacion;categoria;contexto;imagen;precio_publico;precio_mayorista\n' +
+  '"KPV";"Vial 10 mg";"Rec";"Tripéptido, con coma dentro";"k.webp";"215";"150"\n');
+comprobar("punto y coma + texto con comas dentro",
+  pycTexto.ok && pycTexto.productos[0].descripcion === "Tripéptido, con coma dentro",
+  JSON.stringify(pycTexto.errores));
+
+/* ------------------------------------------------------------------ */
 /* Casos correctos                                                     */
 /* ------------------------------------------------------------------ */
 var bueno = C.analizar(cabecera() +

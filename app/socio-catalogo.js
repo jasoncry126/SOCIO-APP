@@ -25,12 +25,41 @@
   var OBLIGATORIAS = ["producto", "presentacion", "precio_publico", "precio_mayorista"];
 
   /* ---------------------------------------------------------------------
-     Lector de CSV
-     Hecho a mano y no con split(',') porque el contexto de un producto lleva
-     comas y a veces saltos de línea, y vienen entre comillas.
+     Lector de tablas de texto
+     Hecho a mano y no con split() porque el contexto de un producto lleva
+     comas, comillas y a veces saltos de línea.
+
+     El separador se detecta solo, porque no siempre es la coma:
+       ·  ;   Excel en español (y en Perú) guarda así los CSV. Es lo normal,
+              no una rareza: sin esto, casi ningún archivo real entraría.
+       · tab  lo que va al portapapeles al copiar celdas desde Excel.
+       ·  ,   el CSV clásico.
      --------------------------------------------------------------------- */
-  function leerCSV(texto) {
+
+  /* Cuenta separadores en la primera línea, ignorando lo que va entrecomillado. */
+  function detectarSeparador(texto) {
+    var linea = "", enComillas = false;
+    for (var i = 0; i < texto.length; i++) {
+      var c = texto[i];
+      if (c === '"') { enComillas = !enComillas; linea += c; continue; }
+      if (c === "\n" && !enComillas) break;
+      linea += c;
+    }
+    var cuenta = { "\t": 0, ";": 0, ",": 0 };
+    enComillas = false;
+    for (var j = 0; j < linea.length; j++) {
+      var d = linea[j];
+      if (d === '"') { enComillas = !enComillas; continue; }
+      if (!enComillas && cuenta[d] !== undefined) cuenta[d]++;
+    }
+    if (cuenta["\t"] > 0 && cuenta["\t"] >= cuenta[";"] && cuenta["\t"] >= cuenta[","]) return "\t";
+    if (cuenta[";"] > cuenta[","]) return ";";
+    return ",";
+  }
+
+  function leerCSV(texto, separador) {
     if (texto.charCodeAt(0) === 0xFEFF) texto = texto.slice(1); // BOM de Excel
+    var sep = separador || detectarSeparador(texto);
     var filas = [], campo = "", fila = [], enComillas = false, i = 0;
 
     while (i < texto.length) {
@@ -43,7 +72,7 @@
         campo += c; i++; continue;
       }
       if (c === '"') { enComillas = true; i++; continue; }
-      if (c === ",") { fila.push(campo); campo = ""; i++; continue; }
+      if (c === sep) { fila.push(campo); campo = ""; i++; continue; }
       if (c === "\r") { i++; continue; }
       if (c === "\n") { fila.push(campo); filas.push(fila); fila = []; campo = ""; i++; continue; }
       campo += c; i++;
@@ -227,6 +256,7 @@
   var api = {
     COLUMNAS: COLUMNAS,
     leerCSV: leerCSV,
+    detectarSeparador: detectarSeparador,
     aNumero: aNumero,
     analizar: analizar
   };
