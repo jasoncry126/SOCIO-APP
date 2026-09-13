@@ -18,5 +18,5 @@
 
 window.SOCIO_CONFIG = {
   URL:  "https://oxlqiiumtsyzrhygsrzt.supabase.co",
-  ANON: ""    // ← pega aquí tu clave anon public (Settings → API → "anon public")
+  ANON: "sb_publishable_LxZpyrjPROBfrpgDnEpF6g_pBSKlfpF"
 };

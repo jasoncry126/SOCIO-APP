@@ -259,7 +259,7 @@
     .dos{grid-template-columns:1fr}
   }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 <script src="socio-config.js"></script>
 <script src="socio-catalogo.js"></script>
 <script src="socio-datos.js"></script>
@@ -275,6 +275,7 @@
       <p>Tu producto, vendido por una red de socios independientes. Tú solo despachas pedidos ya pagados.</p>
     </div>
     <div class="auth-panel">
+      <div id="aviso-conexion-auth"></div>
       <div class="auth-tabs">
         <button class="auth-tab on" id="t-reg" onclick="modoAuth('reg')">Registrar mi marca</button>
         <button class="auth-tab" id="t-ing" onclick="modoAuth('ing')">Ya tengo cuenta</button>
@@ -529,7 +530,13 @@
    Si socio-config.js tiene la conexión, todo va a Supabase y el catálogo se
    comparte con el panel del vendedor y con el de SOCIO. Si no, el panel sigue
    funcionando solo en este navegador, como antes, para poder probarlo suelto. */
-const CONECTADO = !!(window.SocioDatos && window.SocioDatos.configurado());
+const HAY_CONFIG = !!(window.SocioDatos && window.SocioDatos.configurado());
+const HAY_LIBRERIA = !!(window.supabase && window.supabase.createClient);
+const CONECTADO = HAY_CONFIG && HAY_LIBRERIA;
+// Configurado pero sin librería (se cayó el CDN, o no hay internet) es un caso
+// aparte: NO se puede caer al modo local, porque la marca creería que guardó
+// en la base cuando en realidad se quedó en su navegador.
+const CONEXION_ROTA = HAY_CONFIG && !HAY_LIBRERIA;
 let CATALOGO = [];            // caché del catálogo cuando hay base
 let importPendiente = null;   // resultado del archivo leído, a la espera de confirmar
 const mem = {};
@@ -613,6 +620,7 @@ function registrarMarca(){
   ok = marcarC('c-clave', clave.length<4) && ok;
   ok = marcarC('c-terms', !t) && ok;
   if(!ok){ aviso('Revisa los campos marcados'); return; }
+  if(CONEXION_ROTA){ aviso('No hay conexión con la base. Recarga la página.'); return; }
   if(CONECTADO){
     aviso('Creando tu cuenta…');
     window.SocioDatos.registrarMarca({nombre, ruc, giro, almacen, punto, celular:cel, clave})
@@ -640,6 +648,7 @@ function deLaBase(m){
 }
 function ingresarMarca(){
   const cel=val('i-cel').trim(), clave=val('i-clave');
+  if(CONEXION_ROTA){ aviso('No hay conexión con la base. Recarga la página.'); return; }
   if(CONECTADO){
     window.SocioDatos.ingresarMarca(cel, clave)
       .then(function(m){
@@ -1028,6 +1037,10 @@ function cancelarImportacion(){
 
 function confirmarImportacion(){
   if(!importPendiente) return;
+  if(CONEXION_ROTA){
+    aviso('No hay conexión con la base. Recarga la página antes de subir nada.');
+    return;
+  }
   if(!CONECTADO){
     aviso('Falta conectar la base: abre socio-config.js y pega tu Project URL y tu clave anon.');
     return;
@@ -1064,14 +1077,40 @@ function confirmarImportacion(){
   });
 }
 
+/* El mismo aviso en la pantalla de acceso: si la conexión está rota no se puede
+   entrar, así que el mensaje tiene que verse antes de intentarlo. */
+function pintarAvisoConexionAuth(){
+  const caja = document.getElementById('aviso-conexion-auth');
+  if(!caja) return;
+  if(CONEXION_ROTA){
+    caja.innerHTML = '<div class="informe mal" style="margin:0 0 14px">' +
+      '<h4>Sin conexión con la base</h4>' +
+      '<p>No cargó la librería de Supabase. Revisa tu internet y <b>recarga la página</b>.</p></div>';
+  } else if(!HAY_CONFIG){
+    caja.innerHTML = '<div class="sin-conexion" style="margin-bottom:14px">' +
+      '<b>Modo de prueba.</b> Sin base de datos: tu cuenta y tu catálogo se quedan ' +
+      'en este navegador.</div>';
+  } else {
+    caja.innerHTML = '';
+  }
+}
+
 function pintarAvisoConexion(){
   const caja = document.getElementById('aviso-conexion');
   if(!caja) return;
-  caja.innerHTML = CONECTADO ? '' :
-    '<div class="sin-conexion"><b>Modo de prueba, sin base de datos.</b> ' +
+  if(CONECTADO){ caja.innerHTML = ''; return; }
+  if(CONEXION_ROTA){
+    caja.innerHTML = '<div class="informe mal" style="margin:0 0 14px">' +
+      '<h4>No se pudo cargar la conexión con la base</h4>' +
+      '<p>La app está configurada, pero no cargó la librería de Supabase — ' +
+      'suele ser falta de internet. <b>Recarga la página.</b></p>' +
+      '<p class="mas">No cargues nada mientras tanto: no se guardaría.</p></div>';
+    return;
+  }
+  caja.innerHTML = '<div class="sin-conexion"><b>Modo de prueba, sin base de datos.</b> ' +
     'Lo que cargues aquí se queda en este navegador y los socios no lo verán. ' +
     'Para conectarlo, abre <b>socio-config.js</b> y pega el Project URL y la clave ' +
-    'anon de tu proyecto Supabase.</div>';
+    'publishable de tu proyecto Supabase.</div>';
 }
 
 /* ================= Pedidos ================= */
@@ -1250,6 +1289,17 @@ function aviso(m){
 
 /* ================= Arranque ================= */
 (function(){
+  pintarAvisoConexionAuth();
+
+  if(CONECTADO){
+    // Si la marca ya tenía sesión abierta en Supabase, entra directo.
+    window.SocioDatos.marcaActual()
+      .then(function(m){ if(m) abrir(deLaBase(m)); else modoAuth('reg'); })
+      .catch(function(e){ aviso(e.message); modoAuth('reg'); });
+    return;
+  }
+  if(CONEXION_ROTA){ modoAuth('ing'); return; }
+
   const cel = leer('prov_sesion', null);
   if(cel){
     const m = leer('prov_marcas', {})[cel];
