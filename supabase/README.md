@@ -162,3 +162,42 @@ en `marcas`. Al crear cada socio y cada marca hay que insertar la fila con el `i
 Supabase Auth le asignó a esa cuenta, no con uno nuevo. Si se deja que
 `gen_random_uuid()` genere el `id`, las políticas no encontrarán coincidencia y el
 usuario no verá ni su propio perfil.
+
+---
+
+## Conectar los paneles a la base
+
+1. Abre `app/socio-config.js` y pega el **Project URL** y la clave **anon public**
+   de tu proyecto (Settings → API). Las dos son públicas por diseño: viajan
+   dentro de la página. La clave `service_role` y la contraseña de la base
+   **nunca** van ahí.
+2. En Supabase, **Authentication → Sign In / Providers**, desactiva
+   **«Confirm email»**. El panel registra a marcas y socios con celular y clave;
+   si Supabase exige confirmar un correo, la cuenta queda sin sesión y la base
+   rechaza el alta de su ficha.
+
+Mientras `socio-config.js` esté vacío, los paneles siguen funcionando como antes
+— cada uno guardando en su propio navegador — y muestran un aviso de que están
+en modo de prueba. Así se pueden abrir sin configurar nada.
+
+### Carga masiva del catálogo
+
+El panel de la marca (`app/proveedor.html` → **Mi catálogo**) acepta un CSV con
+una fila por presentación. Hay un botón para descargar la plantilla.
+
+Se valida todo antes de guardar nada, con las mismas reglas del asistente de
+carga uno-por-uno: sin precio no se publica (docs/10), el precio de página tiene
+que superar al mayorista (docs/07 y el `check` de la base), y no puede haber
+presentaciones repetidas. Si algo falla, dice qué fila y por qué, y no sube nada.
+
+Lo que entra queda **en revisión**, igual que en el asistente: subir 60 productos
+de golpe no es una puerta trasera para autopublicarse. Volver a subir el mismo
+archivo actualiza los productos que ya existan en vez de duplicarlos, y nunca
+borra una presentación (podría estar referenciada por un pedido).
+
+La lógica de lectura y validación vive en `app/socio-catalogo.js`, aparte del
+panel y sin dependencias, y tiene pruebas:
+
+```bash
+node app/pruebas/probar-catalogo.js
+```

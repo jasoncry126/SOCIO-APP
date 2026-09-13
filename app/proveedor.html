@@ -89,6 +89,18 @@
   .campo.mal .err{display:block}
   .dos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .pista{font-size:11.5px;color:#7C8B82;margin-top:4px;line-height:1.45}
+  .importar{border:1px dashed var(--linea,#D8E0DA);border-radius:12px;padding:16px;margin-bottom:14px}
+  .importar h3{margin:0 0 4px;font-size:15px}
+  .importar .fila-arch{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .informe{margin-top:14px;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5}
+  .informe.bien{background:#EAF6F0;border-left:3px solid #1E8A63}
+  .informe.mal{background:#FBECE8;border-left:3px solid #B4432C}
+  .informe h4{margin:0 0 8px;font-size:13.5px}
+  .informe ul{margin:6px 0 0;padding-left:18px}
+  .informe li{margin-bottom:3px}
+  .informe .mas{color:#7C8B82;font-style:italic}
+  .sin-conexion{background:#FFF6E5;border-left:3px solid #E0A33C;padding:11px 14px;
+                border-radius:10px;font-size:12.5px;line-height:1.5;margin-bottom:14px}
   .seccion-titulo{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tinta-suave);margin:20px 0 10px}
 
   .metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:20px}
@@ -247,6 +259,10 @@
     .dos{grid-template-columns:1fr}
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="socio-config.js"></script>
+<script src="socio-catalogo.js"></script>
+<script src="socio-datos.js"></script>
 </head>
 <body>
 
@@ -347,6 +363,25 @@
     <section class="vista" id="v-catalogo">
       <div class="cab"><h1>Mi catálogo</h1>
         <p>Tú defines el <b>precio de página</b> (el que ve el público). SOCIO calcula el precio de cada socio según su nivel — tú recibes tu precio de proveedor íntegro en cada venta.</p></div>
+      <div id="aviso-conexion"></div>
+
+      <div class="importar">
+        <h3>Cargar tu catálogo desde un archivo</h3>
+        <p class="pista">Si tienes muchos productos, súbelos de una vez en lugar de uno por uno.
+          El archivo es un CSV con una fila por presentación y estas columnas:
+          <b>producto, presentacion, categoria, contexto, imagen, precio_publico, precio_mayorista</b>
+          (y opcionalmente <b>stock_almacen</b> y <b>stock_punto</b>).</p>
+        <p class="pista">Se revisa todo antes de guardar nada: si una fila tiene un problema,
+          te decimos cuál y en qué fila, y no se sube nada hasta que lo corrijas.</p>
+        <div class="fila-arch">
+          <input type="file" id="archivo-catalogo" accept=".csv,text/csv,text/plain"
+                 onchange="leerArchivoCatalogo(this)">
+          <button class="btn btn-borde" style="padding:7px 13px;font-size:12.5px"
+                  onclick="descargarPlantilla()">Descargar plantilla</button>
+        </div>
+        <div id="informe-importacion"></div>
+      </div>
+
       <div id="lista-catalogo"></div>
     </section>
 
@@ -490,7 +525,13 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ================= Almacenamiento ================= */
+/* ================= Almacenamiento =================
+   Si socio-config.js tiene la conexión, todo va a Supabase y el catálogo se
+   comparte con el panel del vendedor y con el de SOCIO. Si no, el panel sigue
+   funcionando solo en este navegador, como antes, para poder probarlo suelto. */
+const CONECTADO = !!(window.SocioDatos && window.SocioDatos.configurado());
+let CATALOGO = [];            // caché del catálogo cuando hay base
+let importPendiente = null;   // resultado del archivo leído, a la espera de confirmar
 const mem = {};
 function guardar(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ mem[k]=JSON.stringify(v); } }
 function leer(k,d){ try{ const x=localStorage.getItem(k); if(x!==null) return JSON.parse(x); }catch(e){ if(mem[k]!==undefined) return JSON.parse(mem[k]); } return d; }
@@ -572,6 +613,16 @@ function registrarMarca(){
   ok = marcarC('c-clave', clave.length<4) && ok;
   ok = marcarC('c-terms', !t) && ok;
   if(!ok){ aviso('Revisa los campos marcados'); return; }
+  if(CONECTADO){
+    aviso('Creando tu cuenta…');
+    window.SocioDatos.registrarMarca({nombre, ruc, giro, almacen, punto, celular:cel, clave})
+      .then(function(m){
+        abrir(deLaBase(m));
+        aviso('¡Marca registrada! Carga tu catálogo para que la red lo venda ☀️');
+      })
+      .catch(function(e){ aviso(e.message); });
+    return;
+  }
   const marcas = leer('prov_marcas', {});
   if(marcas[cel]){ marcarC('c-cel', true); aviso('Ese celular ya tiene una cuenta de marca'); return; }
   marcas[cel] = {nombre, ruc, giro, almacen, punto, cel, clave, creado:new Date().toISOString()};
@@ -580,8 +631,25 @@ function registrarMarca(){
   abrir(marcas[cel]);
   aviso('¡Marca registrada! Carga tu primer producto para que la red lo venda ☀️');
 }
+
+/* La base guarda ciudad_almacen/ciudad_punto; el panel espera almacen/punto. */
+function deLaBase(m){
+  return {id:m.id, nombre:m.nombre, ruc:m.ruc, giro:m.giro,
+          almacen:m.ciudad_almacen, punto:m.ciudad_punto || '',
+          cel:m.celular, creado:m.creado_en};
+}
 function ingresarMarca(){
   const cel=val('i-cel').trim(), clave=val('i-clave');
+  if(CONECTADO){
+    window.SocioDatos.ingresarMarca(cel, clave)
+      .then(function(m){
+        if(!m) throw new Error('Entraste, pero no encuentro la ficha de tu marca.');
+        marcarC('c-iclave', false);
+        abrir(deLaBase(m));
+      })
+      .catch(function(e){ marcarC('c-iclave', true); aviso(e.message); });
+    return;
+  }
   const m = leer('prov_marcas', {})[cel];
   if(!m || m.clave!==clave){ marcarC('c-iclave', true); aviso('Celular o clave incorrectos'); return; }
   marcarC('c-iclave', false);
@@ -596,19 +664,36 @@ function abrir(m){
   document.getElementById('pie-marca').textContent = m.nombre;
   document.getElementById('pie-ubic').textContent = 'Almacén ' + m.almacen + (m.punto ? ' · Entregas ' + m.punto : '');
   if(!borrador.length) agregarVariante(); else pintarVariantes();
-  pintarTodo();
+  if(CONECTADO){
+    refrescarCatalogo()
+      .then(pintarTodo)
+      .catch(function(e){ aviso(e.message); pintarTodo(); });
+  } else {
+    pintarTodo();
+  }
   ir('v-inicio');
 }
 function salir(){
-  guardar('prov_sesion', null); marca=null;
+  if(CONECTADO) window.SocioDatos.salir();
+  guardar('prov_sesion', null); marca=null; CATALOGO=[];
   document.getElementById('app').classList.remove('ver');
   document.getElementById('auth').classList.remove('oculto');
   modoAuth('ing');
 }
 
 /* ================= Datos ================= */
-function cat(){ return marca ? leer('prov_cat_'+marca.cel, []) : []; }
-function guardarCat(c){ if(marca) guardar('prov_cat_'+marca.cel, c); }
+function cat(){
+  if(CONECTADO) return CATALOGO;
+  return marca ? leer('prov_cat_'+marca.cel, []) : [];
+}
+function guardarCat(c){
+  if(CONECTADO){ CATALOGO = c; return; }   // en modo base cada cambio se guarda solo
+  if(marca) guardar('prov_cat_'+marca.cel, c);
+}
+async function refrescarCatalogo(){
+  if(!CONECTADO || !marca) return;
+  CATALOGO = window.SocioDatos.aFormatoPanel(await window.SocioDatos.cargarCatalogo(marca.id));
+}
 function peds(){ return marca ? leer('prov_ped_'+marca.cel, []) : []; }
 function guardarPeds(p){ if(marca) guardar('prov_ped_'+marca.cel, p); }
 
@@ -641,6 +726,7 @@ function pintarMetricas(){
 
 /* ================= Catálogo ================= */
 function pintarCatalogo(){
+  pintarAvisoConexion();
   const c = cat();
   const cont = document.getElementById('lista-catalogo');
   if(!c.length){
@@ -674,14 +760,38 @@ function pintarCatalogo(){
   }).join('');
 }
 function setStock(i,j,campo,v){
-  const c = cat(); c[i].variantes[j][campo] = Math.max(0, parseInt(v)||0);
+  const c = cat(); const n = Math.max(0, parseInt(v)||0);
+  const antes = c[i].variantes[j][campo];
+  c[i].variantes[j][campo] = n;
+  if(CONECTADO){
+    const columna = campo==='stockA' ? 'stock_almacen' : 'stock_punto';
+    window.SocioDatos.guardarStock(c[i].variantes[j]._id, columna, n)
+      .then(function(){ aviso('Stock actualizado — los socios ya ven la cantidad nueva'); })
+      .catch(function(e){
+        c[i].variantes[j][campo] = antes;   // deshacer si la base no lo aceptó
+        pintarCatalogo(); aviso(e.message);
+      });
+    pintarCatalogo(); pintarMetricas();
+    return;
+  }
   guardarCat(c); pintarCatalogo(); pintarMetricas();
   aviso('Stock actualizado — los socios ya ven la cantidad nueva');
 }
 function alternar(i){
   const c = cat(); if(c[i].estado==='revision') return;
-  c[i].activo = !c[i].activo; guardarCat(c); pintarCatalogo(); pintarMetricas();
-  aviso(c[i].activo ? '"'+c[i].nombre+'" visible para los socios' : '"'+c[i].nombre+'" pausado');
+  const nuevo = !c[i].activo;
+  c[i].activo = nuevo;
+  if(CONECTADO){
+    window.SocioDatos.alternarActivo(c[i]._id, nuevo)
+      .then(function(){
+        aviso(nuevo ? '"'+c[i].nombre+'" visible para los socios' : '"'+c[i].nombre+'" pausado');
+      })
+      .catch(function(e){ c[i].activo = !nuevo; pintarCatalogo(); aviso(e.message); });
+    pintarCatalogo(); pintarMetricas();
+    return;
+  }
+  guardarCat(c); pintarCatalogo(); pintarMetricas();
+  aviso(nuevo ? '"'+c[i].nombre+'" visible para los socios' : '"'+c[i].nombre+'" pausado');
 }
 
 /* ================= Asistente ================= */
@@ -801,21 +911,167 @@ function enviarRevision(){
     aviso('El precio de página debe ser mayor que tu mayorista en todas las presentaciones');
     return;
   }
-  const c = cat();
-  c.unshift({
+  const nuevoProd = {
     nombre: val('n-nombre').trim(), cat: val('n-cat').trim(), emoji: val('n-emoji')||'📦',
     desc: val('n-desc').trim(), prep: val('n-prep'), cobertura: val('n-cob'),
     corteNac: val('n-corte-nac'), corteLoc: val('n-corte-loc'), dias: val('n-dias'),
     reco: val('n-reco').trim(),
     variantes: vars, estado:'revision', activo:false,
     kit:{fotos:false, videos:false, textos:false}, creado:new Date().toISOString()
-  });
-  guardarCat(c);
+  };
+  if(CONECTADO){
+    window.SocioDatos.crearProducto(marca.id, nuevoProd)
+      .then(refrescarCatalogo)
+      .then(function(){ pintarTodo(); aviso('Producto enviado a revisión ✓ SOCIO responde en 24–48 h'); })
+      .catch(function(e){ aviso(e.message); });
+  } else {
+    const c = cat(); c.unshift(nuevoProd); guardarCat(c);
+  }
   ['n-nombre','n-cat','n-desc','n-reco'].forEach(function(id){ const e=document.getElementById(id); if(e) e.value=''; });
   ['n-d1','n-d2','n-d3','n-d4'].forEach(function(id){ document.getElementById(id).checked=false; });
   borrador = [{pres:'', may:'', sug:'', stockA:0, stockB:0}];
   pintarVariantes(); paso(1); ir('v-catalogo');
   aviso('Producto enviado a revisión ✓ SOCIO responde en 24–48 h');
+}
+
+/* ================= Carga masiva del catálogo ================= */
+
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+}
+
+function listaCorta(items, tope){
+  const t = tope || 12;
+  let h = '<ul>' + items.slice(0,t).map(function(x){
+    return '<li>Fila ' + x.fila + ' — ' + esc(x.motivo) + '</li>';
+  }).join('') + '</ul>';
+  if(items.length > t) h += '<p class="mas">…y ' + (items.length - t) + ' más.</p>';
+  return h;
+}
+
+function leerArchivoCatalogo(input){
+  const caja = document.getElementById('informe-importacion');
+  importPendiente = null;
+  if(!input.files || !input.files.length){ caja.innerHTML = ''; return; }
+
+  const archivo = input.files[0];
+  const lector = new FileReader();
+  lector.onerror = function(){
+    caja.innerHTML = '<div class="informe mal"><h4>No pude leer el archivo</h4>' +
+      '<p>Vuelve a exportarlo como CSV e inténtalo otra vez.</p></div>';
+  };
+  lector.onload = function(){
+    const r = window.SocioCatalogo.analizar(String(lector.result || ''));
+
+    if(!r.ok){
+      caja.innerHTML = '<div class="informe mal">' +
+        '<h4>' + r.errores.length + (r.errores.length===1?' fila tiene':' filas tienen') + ' un problema — no se subió nada</h4>' +
+        listaCorta(r.errores) +
+        '<p class="mas">Corrige esas filas en tu hoja de cálculo y vuelve a subir el archivo.</p>' +
+        '</div>';
+      return;
+    }
+
+    importPendiente = r;
+    let h = '<div class="informe bien">' +
+      '<h4>Listo para subir: ' + r.resumen.productos + ' productos · ' +
+      r.resumen.presentaciones + ' presentaciones</h4>';
+    if(r.avisos.length){
+      h += '<p><b>' + r.avisos.length + (r.avisos.length===1?' aviso':' avisos') +
+           '</b> (no impiden subir):</p>' + listaCorta(r.avisos, 6);
+    }
+    h += '<p class="mas">Los productos nuevos entran <b>en revisión</b>, igual que ' +
+         'cuando los cargas uno por uno. Los que ya tengas con el mismo nombre se actualizan.</p>' +
+         '<div class="fila-arch">' +
+         '<button class="btn btn-sol" onclick="confirmarImportacion()">Subir ' +
+         r.resumen.productos + ' productos</button>' +
+         '<button class="btn btn-fantasma" onclick="cancelarImportacion()">Cancelar</button>' +
+         '</div><div id="avance-importacion"></div></div>';
+    caja.innerHTML = h;
+  };
+  lector.readAsText(archivo, 'utf-8');
+}
+
+/* Plantilla de ejemplo: dos productos, uno con dos presentaciones, para que se
+   vea cómo se agrupan las filas de un mismo producto. */
+function descargarPlantilla(){
+  const filas = [
+    ['producto','presentacion','categoria','contexto','imagen','precio_publico','precio_mayorista','stock_almacen','stock_punto'],
+    ['BPC-157','Vial 5 mg','Recuperación','Descripción del producto, tal como quieres que la lea el socio.','bpc-157-5.webp','175','122.50','20','5'],
+    ['BPC-157','Vial 10 mg','Recuperación','Descripción del producto, tal como quieres que la lea el socio.','bpc-157-10.webp','300','210','12','0'],
+    ['GHK-Cu','Vial 50 mg','Piel','Otro producto: cada presentación va en su propia fila.','ghk-cu-50.webp','175','120','8','2']
+  ];
+  const csv = filas.map(function(f){
+    return f.map(function(c){
+      return /[",\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c;
+    }).join(',');
+  }).join('\n') + '\n';
+
+  // El BOM hace que Excel abra bien las tildes.
+  const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'plantilla-catalogo-socio.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  aviso('Plantilla descargada — ábrela en Excel, complétala y súbela aquí');
+}
+
+function cancelarImportacion(){
+  importPendiente = null;
+  document.getElementById('informe-importacion').innerHTML = '';
+  const f = document.getElementById('archivo-catalogo');
+  if(f) f.value = '';
+}
+
+function confirmarImportacion(){
+  if(!importPendiente) return;
+  if(!CONECTADO){
+    aviso('Falta conectar la base: abre socio-config.js y pega tu Project URL y tu clave anon.');
+    return;
+  }
+  const r = importPendiente;
+  const avance = document.getElementById('avance-importacion');
+  const boton = document.querySelector('#informe-importacion .btn-sol');
+  if(boton){ boton.disabled = true; boton.textContent = 'Subiendo…'; }
+
+  window.SocioDatos.importarCatalogo(marca.id, r.productos, function(hechos, total, nombre){
+    if(avance) avance.innerHTML = '<p class="mas">' + hechos + ' de ' + total + ' — ' + esc(nombre) + '</p>';
+  })
+  .then(function(c){
+    return refrescarCatalogo().then(function(){
+      pintarTodo();
+      const partes = [];
+      if(c.productosNuevos) partes.push(c.productosNuevos + ' productos nuevos');
+      if(c.productosActualizados) partes.push(c.productosActualizados + ' actualizados');
+      if(c.presentacionesNuevas) partes.push(c.presentacionesNuevas + ' presentaciones nuevas');
+      if(c.presentacionesActualizadas) partes.push(c.presentacionesActualizadas + ' presentaciones actualizadas');
+      document.getElementById('informe-importacion').innerHTML =
+        '<div class="informe bien"><h4>Catálogo subido ✓</h4><p>' + partes.join(' · ') + '.</p>' +
+        '<p class="mas">Lo nuevo queda en revisión hasta que SOCIO lo apruebe.</p></div>';
+      cancelarImportacion();
+      aviso('Catálogo subido ✓');
+    });
+  })
+  .catch(function(e){
+    document.getElementById('informe-importacion').innerHTML =
+      '<div class="informe mal"><h4>Se interrumpió la subida</h4><p>' + esc(e.message) + '</p>' +
+      '<p class="mas">Lo que alcanzó a subirse quedó guardado. Corrige el problema y vuelve a ' +
+      'subir el mismo archivo: los productos repetidos se actualizan, no se duplican.</p></div>';
+    refrescarCatalogo().then(pintarTodo).catch(function(){});
+  });
+}
+
+function pintarAvisoConexion(){
+  const caja = document.getElementById('aviso-conexion');
+  if(!caja) return;
+  caja.innerHTML = CONECTADO ? '' :
+    '<div class="sin-conexion"><b>Modo de prueba, sin base de datos.</b> ' +
+    'Lo que cargues aquí se queda en este navegador y los socios no lo verán. ' +
+    'Para conectarlo, abre <b>socio-config.js</b> y pega el Project URL y la clave ' +
+    'anon de tu proyecto Supabase.</div>';
 }
 
 /* ================= Pedidos ================= */
