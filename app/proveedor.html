@@ -399,14 +399,15 @@
 
         <div id="carga-archivo">
           <div class="fila-arch">
-            <input type="file" id="archivo-catalogo" accept=".csv,.txt,.tsv,text/csv,text/plain"
+            <input type="file" id="archivo-catalogo"
+                   accept=".xlsx,.xlsm,.xls,.csv,.txt,.tsv,text/csv,text/plain"
                    onchange="leerArchivoCatalogo(this)">
             <button class="btn btn-borde" style="padding:7px 13px;font-size:12.5px"
-                    onclick="descargarPlantilla()">Descargar plantilla</button>
+                    onclick="descargarPlantillaExcel()">Descargar plantilla Excel</button>
           </div>
-          <p class="pista">Sirve tal cual como lo guarde tu Excel: reconoce solo si las
-            columnas van separadas por comas o por punto y coma, y si los precios usan
-            coma o punto decimal.</p>
+          <p class="pista">Acepta <b>Excel (.xlsx)</b> y también CSV. Da igual cómo lo guarde
+            tu Excel: reconoce solo si las columnas van separadas por comas o por punto y
+            coma, y si los precios usan coma o punto decimal.</p>
         </div>
 
         <div id="carga-pegar" style="display:none">
@@ -1215,15 +1216,125 @@ function leerArchivoCatalogo(input){
   if(!input.files || !input.files.length){ caja.innerHTML = ''; return; }
 
   const archivo = input.files[0];
+  const esExcel = /\.(xlsx|xlsm|xls)$/i.test(archivo.name);
   const lector = new FileReader();
+
   lector.onerror = function(){
     caja.innerHTML = '<div class="informe mal"><h4>No pude leer el archivo</h4>' +
-      '<p>Vuelve a exportarlo como CSV e inténtalo otra vez.</p></div>';
+      '<p>Puede estar dañado o abierto en Excel. Ciérralo e inténtalo otra vez.</p></div>';
   };
+
+  if(esExcel){
+    aviso('Leyendo tu Excel…');
+    lector.onload = function(){
+      cargarXLSX().then(function(XLSX){
+        const libro = XLSX.read(new Uint8Array(lector.result), {type:'array'});
+        // La plantilla trae la guía primero; el catálogo es la hoja que tenga
+        // las columnas que esperamos, no simplemente la primera.
+        let hoja = null;
+        for(const nombre of libro.SheetNames){
+          const csv = XLSX.utils.sheet_to_csv(libro.Sheets[nombre]);
+          if(/(^|,|;)\s*producto\s*(,|;)/i.test(csv.split('\n')[0] || '')){ hoja = csv; break; }
+        }
+        if(hoja === null) hoja = XLSX.utils.sheet_to_csv(libro.Sheets[libro.SheetNames[0]]);
+        mostrarAnalisis(window.SocioCatalogo.analizar(hoja));
+      }).catch(function(e){
+        caja.innerHTML = '<div class="informe mal"><h4>No pude abrir el Excel</h4>' +
+          '<p>' + esc(e.message) + '</p>' +
+          '<p class="mas">Como alternativa, guarda tu hoja como CSV y súbela, o usa «Pegar desde Excel».</p></div>';
+      });
+    };
+    lector.readAsArrayBuffer(archivo);
+    return;
+  }
+
   lector.onload = function(){
     mostrarAnalisis(window.SocioCatalogo.analizar(String(lector.result || '')));
   };
   lector.readAsText(archivo, 'utf-8');
+}
+
+/* ---- Excel de verdad ----------------------------------------------------
+   La librería que lee y escribe .xlsx pesa bastante, así que se descarga solo
+   cuando hace falta: al pedir la plantilla o al subir un Excel. Quien nunca
+   toque Excel no la carga nunca. */
+let promesaXLSX = null;
+function cargarXLSX(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(promesaXLSX) return promesaXLSX;
+  promesaXLSX = new Promise(function(res, rej){
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload  = function(){ window.XLSX ? res(window.XLSX) : rej(new Error('No cargó el lector de Excel.')); };
+    s.onerror = function(){ promesaXLSX = null; rej(new Error('No se pudo descargar el lector de Excel. Revisa tu internet.')); };
+    document.head.appendChild(s);
+  });
+  return promesaXLSX;
+}
+
+const GUIA_COLUMNAS = [
+  ['Columna', '¿Es obligatoria?', 'Qué va aquí'],
+  ['producto', 'Sí',
+   'El nombre del producto. Repite el MISMO nombre en cada fila de sus presentaciones: así sabemos que son el mismo producto.'],
+  ['presentacion', 'Sí',
+   'La medida o el tamaño: "Vial 5 mg", "Talla M", "Pack x3". Cada presentación va en su propia fila, con su propio precio.'],
+  ['categoria', 'No',
+   'Para agrupar en el catálogo: "Piel", "Recuperación", "Accesorios". Usa las mismas palabras en todo tu catálogo.'],
+  ['contexto', 'No',
+   'La descripción que leerá el socio para vender. Puede ser larga y llevar comas. Mientras más clara, menos preguntas y menos devoluciones.'],
+  ['imagen', 'No',
+   'El nombre del archivo de la foto, por ejemplo "bpc-157-5.webp". Por ahora es solo referencia; las fotos se suben aparte.'],
+  ['precio_publico', 'Sí',
+   'El precio de página: lo que paga el cliente final. Sin precio no se puede publicar.'],
+  ['precio_mayorista', 'Sí',
+   'TU precio: lo que cobras tú por cada unidad, íntegro. Tiene que ser MENOR que el precio de página.'],
+  ['stock_almacen', 'No',
+   'Unidades disponibles en tu almacén. Si lo dejas vacío, se toma 0.'],
+  ['stock_punto', 'No',
+   'Unidades en tu punto de venta con entrega a domicilio. Si lo dejas vacío, se toma 0.'],
+  ['', '', ''],
+  ['REGLAS', '', ''],
+  ['1', '',
+   'El precio de página siempre mayor que tu mayorista. La diferencia es el margen que se reparte en la red; si no hay margen, no se puede publicar.'],
+  ['2', '',
+   'Sin precio no se publica. En SOCIO no existe "a cotizar": el socio nunca negocia precio contigo.'],
+  ['3', '',
+   'No repitas la misma combinación de producto + presentación: se rechaza el archivo.'],
+  ['4', '',
+   'Puedes escribir los precios con coma o con punto: 122,50 y 122.50 valen igual.'],
+  ['5', '',
+   'Borra las filas de ejemplo de la hoja "Catálogo" antes de subirlo.']
+];
+
+const EJEMPLOS = [
+  ['BPC-157', 'Vial 5 mg', 'Recuperación',
+   'Pentadecapéptido derivado de una proteína gástrica, estudiado por su papel en la reparación de tejidos.',
+   'bpc-157-5.webp', 175, 122.50, 20, 5],
+  ['BPC-157', 'Vial 10 mg', 'Recuperación',
+   'Pentadecapéptido derivado de una proteína gástrica, estudiado por su papel en la reparación de tejidos.',
+   'bpc-157-10.webp', 300, 210, 12, 0],
+  ['GHK-Cu', 'Vial 50 mg', 'Piel',
+   'Péptido de cobre. Fíjate que este es OTRO producto: por eso cambia el nombre en la primera columna.',
+   'ghk-cu-50.webp', 175, 120, 8, 2]
+];
+
+function descargarPlantillaExcel(){
+  aviso('Preparando tu plantilla…');
+  cargarXLSX().then(function(XLSX){
+    const enc = [window.SocioCatalogo.COLUMNAS];
+    const ws = XLSX.utils.aoa_to_sheet(enc.concat(EJEMPLOS));
+    ws['!cols'] = [{wch:24},{wch:18},{wch:18},{wch:72},{wch:22},{wch:16},{wch:18},{wch:15},{wch:14}];
+    ws['!freeze'] = { xSplit:'0', ySplit:'1', topLeftCell:'A2', activePane:'bottomLeft', state:'frozen' };
+
+    const guia = XLSX.utils.aoa_to_sheet(GUIA_COLUMNAS);
+    guia['!cols'] = [{wch:20},{wch:16},{wch:95}];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, guia, 'Cómo llenarlo');
+    XLSX.utils.book_append_sheet(wb, ws, 'Catálogo');
+    XLSX.writeFile(wb, 'plantilla-catalogo-socio.xlsx');
+    aviso('Plantilla descargada — ábrela en Excel, empieza por la hoja "Cómo llenarlo"');
+  }).catch(function(e){ aviso(e.message); });
 }
 
 /* Plantilla de ejemplo: dos productos, uno con dos presentaciones, para que se
