@@ -89,6 +89,11 @@
   .campo.mal .err{display:block}
   .dos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .pista{font-size:11.5px;color:#7C8B82;margin-top:4px;line-height:1.45}
+  .borrador-bar{display:flex;gap:12px;align-items:center;justify-content:space-between;
+                flex-wrap:wrap;background:#EAF6F0;border-left:3px solid #1E8A63;
+                border-radius:10px;padding:11px 14px;font-size:12.5px;line-height:1.5;
+                margin-bottom:14px}
+  .borrador-bar .btn{padding:6px 12px;font-size:12px;white-space:nowrap}
   .importar{border:1px dashed var(--linea,#D8E0DA);border-radius:12px;padding:16px;margin-bottom:14px}
   .importar h3{margin:0 0 4px;font-size:15px}
   .importar .fila-arch{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
@@ -326,7 +331,7 @@
     <button class="nav-item on" data-v="v-inicio" onclick="ir('v-inicio')"><span class="punto"></span>Resumen</button>
     <button class="nav-item" data-v="v-pedidos" onclick="ir('v-pedidos')"><span class="punto"></span>Pedidos<span class="globo" id="g-ped" style="display:none">0</span></button>
     <button class="nav-item" data-v="v-catalogo" onclick="ir('v-catalogo')"><span class="punto"></span>Mi catálogo</button>
-    <button class="nav-item" data-v="v-nuevo" onclick="ir('v-nuevo')"><span class="punto"></span>Cargar producto</button>
+    <button class="nav-item" data-v="v-nuevo" onclick="ir('v-nuevo')"><span class="punto"></span>Cargar producto<span class="globo" id="g-borrador" style="display:none">1</span></button>
     <button class="nav-item" data-v="v-kit" onclick="ir('v-kit')"><span class="punto"></span>Material de venta</button>
     <button class="nav-item" data-v="v-liq" onclick="ir('v-liq')"><span class="punto"></span>Mi dinero<span class="globo" id="g-din" style="display:none">0</span></button>
     <div class="pie"><b id="pie-marca">Mi marca</b><span id="pie-ubic"></span><button onclick="salir()">Cerrar sesión</button></div>
@@ -335,6 +340,7 @@
   <main class="principal">
 
     <section class="vista on" id="v-inicio">
+      <div id="aviso-borrador-inicio"></div>
       <div class="cab"><h1 id="saludo">Hola 👋</h1><p>Todo pedido que ves aquí ya está pagado y validado por SOCIO. Tu única tarea es empaquetar, despachar y registrar la guía.</p></div>
       <div class="metricas">
         <div class="tarjeta metrica urgente"><small>Por despachar</small><div class="valor num" id="m-desp">0</div><div class="detalle">pedidos pagados</div></div>
@@ -387,6 +393,7 @@
     </section>
 
     <section class="vista" id="v-nuevo">
+      <div id="aviso-borrador"></div>
       <div class="cab"><h1>Cargar producto</h1><p>Un producto puede tener varias presentaciones (mg, tamaños, packs), cada una con su precio y su stock por almacén.</p></div>
       <div class="pasos">
         <div class="paso on" id="ps1"><div class="barra"></div><span>1 · Producto</span></div>
@@ -486,7 +493,7 @@
                 <div class="pista">Escribe lo que el socio debe saber y transmitir: manejo, conservación, cuidados de traslado, garantía que ofreces.</div></div>
 
               <div class="nota nota-info">🔍 <span><b>Revisión comercial (24–48 h):</b> verificamos que la información esté completa y las condiciones de entrega sean claras, y luego lo publicamos a la red.</span></div>
-              <button class="btn btn-sol btn-w" onclick="enviarRevision()">Enviar a revisión</button>
+              <button class="btn btn-sol btn-w" id="btn-enviar-revision" onclick="enviarRevision()">Enviar a revisión</button>
               <button class="btn btn-fantasma btn-w" onclick="paso(3)">Volver</button>
             </div>
           </div>
@@ -673,6 +680,7 @@ function abrir(m){
   document.getElementById('pie-marca').textContent = m.nombre;
   document.getElementById('pie-ubic').textContent = 'Almacén ' + m.almacen + (m.punto ? ' · Entregas ' + m.punto : '');
   if(!borrador.length) agregarVariante(); else pintarVariantes();
+  if(restaurarBorradorProducto()) pintarAvisoBorrador();
   if(CONECTADO){
     refrescarCatalogo()
       .then(pintarTodo)
@@ -714,6 +722,7 @@ function ir(id){
   pintarTodo();
 }
 function pintarTodo(){
+  pintarAvisoBorrador();
   if(!marca) return;
   pintarCatalogo(); pintarPedidos(); pintarKit(); pintarLiq(); pintarMetricas(); previa();
 }
@@ -801,6 +810,124 @@ function alternar(i){
   }
   guardarCat(c); pintarCatalogo(); pintarMetricas();
   aviso(nuevo ? '"'+c[i].nombre+'" visible para los socios' : '"'+c[i].nombre+'" pausado');
+}
+
+/* ================= Resguardo del avance =================
+   Cargar un producto lleva rato: hay que buscar la foto, redactar la reseña,
+   consultar precios. El proveedor tiene que poder salir a buscar eso y volver
+   sin perder lo escrito. Todo lo que teclea se guarda solo en su navegador
+   (no en la base: todavía no es un producto, es un borrador suyo). */
+
+const CAMPOS_PRODUCTO = ['n-nombre','n-cat','n-emoji','n-desc','n-prep','n-cob',
+                         'n-corte-nac','n-corte-loc','n-dias','n-reco'];
+
+function claveBorrador(){
+  return 'prov_borrador_' + (marca ? (marca.id || marca.cel) : 'sin-cuenta');
+}
+
+function hayAlgoEscrito(campos, vars){
+  const conTexto = CAMPOS_PRODUCTO.some(function(id){
+    if(id === 'n-emoji') return false;                 // trae 📦 por defecto
+    return String(campos[id] || '').trim() !== '';
+  });
+  const conVariantes = (vars || []).some(function(v){
+    return String(v.pres || '').trim() !== '' || Number(v.may) > 0 || Number(v.sug) > 0;
+  });
+  return conTexto || conVariantes;
+}
+
+let tempBorrador;
+function programarGuardadoBorrador(){
+  clearTimeout(tempBorrador);
+  tempBorrador = setTimeout(guardarBorradorProducto, 600);   // no en cada tecla
+}
+
+function guardarBorradorProducto(){
+  if(!marca) return;
+  leerVariantes();
+  const campos = {};
+  CAMPOS_PRODUCTO.forEach(function(id){
+    const e = document.getElementById(id); if(e) campos[id] = e.value;
+  });
+  if(!hayAlgoEscrito(campos, borrador)){ borrarBorradorProducto(); return; }
+  guardar(claveBorrador(), { campos: campos, variantes: borrador, guardado: Date.now() });
+  pintarAvisoBorrador();
+}
+
+function borrarBorradorProducto(){
+  try{ localStorage.removeItem(claveBorrador()); }catch(e){}
+  delete mem[claveBorrador()];
+  pintarAvisoBorrador();
+}
+
+function descartarBorrador(){
+  borrarBorradorProducto();
+  CAMPOS_PRODUCTO.forEach(function(id){
+    const e = document.getElementById(id);
+    if(e) e.value = (id === 'n-emoji') ? '📦' : '';
+  });
+  borrador = [{pres:'', may:'', sug:'', stockA:0, stockB:0}];
+  pintarVariantes(); paso(1); previa();
+  aviso('Borrador descartado');
+}
+
+function restaurarBorradorProducto(){
+  const b = leer(claveBorrador(), null);
+  if(!b || !b.campos) return false;
+  CAMPOS_PRODUCTO.forEach(function(id){
+    const e = document.getElementById(id);
+    if(e && b.campos[id] !== undefined) e.value = b.campos[id];
+  });
+  if(b.variantes && b.variantes.length) borrador = b.variantes;
+  pintarVariantes(); previa();
+  return true;
+}
+
+function haceCuanto(ms){
+  const s = Math.round((Date.now() - ms) / 1000);
+  if(s < 60) return 'hace un momento';
+  const m = Math.round(s / 60);
+  if(m < 60) return 'hace ' + m + (m === 1 ? ' minuto' : ' minutos');
+  const h = Math.round(m / 60);
+  if(h < 24) return 'hace ' + h + (h === 1 ? ' hora' : ' horas');
+  const d = Math.round(h / 24);
+  return 'hace ' + d + (d === 1 ? ' día' : ' días');
+}
+
+function pintarAvisoBorrador(){
+  const dentro = document.getElementById('aviso-borrador');
+  const inicio = document.getElementById('aviso-borrador-inicio');
+  const globo  = document.getElementById('g-borrador');
+  const b = leer(claveBorrador(), null);
+
+  if(!b || !b.guardado){
+    if(dentro) dentro.innerHTML = '';
+    if(inicio) inicio.innerHTML = '';
+    if(globo)  globo.style.display = 'none';
+    return;
+  }
+
+  const nombre = (b.campos && b.campos['n-nombre'] || '').trim();
+  const cuando = haceCuanto(b.guardado);
+  if(globo) globo.style.display = '';
+
+  // Dentro del asistente: el avance está a la vista, solo hay que confirmarlo.
+  if(dentro) dentro.innerHTML =
+    '<div class="borrador-bar">' +
+      '<span>💾 <b>Tu avance está guardado</b>' +
+      (nombre ? ' — “' + esc(nombre) + '”' : '') + ' · ' + cuando +
+      '. Puedes cerrar esto, buscar tus fotos o tus reseñas, y volver: sigue aquí.</span>' +
+      '<button class="btn btn-fantasma" onclick="descartarBorrador()">Descartar y empezar de cero</button>' +
+    '</div>';
+
+  // En Resumen, que es donde aterriza al volver: hay que avisarle que lo tiene
+  // esperando, o no se entera.
+  if(inicio) inicio.innerHTML =
+    '<div class="borrador-bar">' +
+      '<span>💾 Dejaste un producto a medio cargar' +
+      (nombre ? ' — <b>“' + esc(nombre) + '”</b>' : '') + ' · ' + cuando + '.</span>' +
+      '<button class="btn btn-sol" onclick="ir(\'v-nuevo\')">Seguir donde lo dejaste</button>' +
+    '</div>';
 }
 
 /* ================= Asistente ================= */
@@ -929,18 +1056,49 @@ function enviarRevision(){
     kit:{fotos:false, videos:false, textos:false}, creado:new Date().toISOString()
   };
   if(CONECTADO){
+    // El guardado va por internet y puede fallar. NADA se limpia hasta que la
+    // base confirme: si no, el proveedor pierde todo lo que escribió y ve un
+    // error con el formulario ya vacío.
+    const btn = document.getElementById('btn-enviar-revision');
+    if(btn){ btn.disabled = true; btn.dataset.txt = btn.textContent; btn.textContent = 'Guardando…'; }
+    aviso('Guardando "' + nuevoProd.nombre + '"…');
+
     window.SocioDatos.crearProducto(marca.id, nuevoProd)
       .then(refrescarCatalogo)
-      .then(function(){ pintarTodo(); aviso('Producto enviado a revisión ✓ SOCIO responde en 24–48 h'); })
-      .catch(function(e){ aviso(e.message); });
-  } else {
-    const c = cat(); c.unshift(nuevoProd); guardarCat(c);
+      .then(function(){
+        limpiarFormularioProducto();      // solo ahora, con el guardado confirmado
+        pintarTodo(); paso(1); ir('v-catalogo');
+        aviso('Producto enviado a revisión ✓ SOCIO responde en 24–48 h');
+      })
+      .catch(function(e){
+        // El formulario queda intacto y el borrador sigue guardado.
+        aviso('No se guardó: ' + e.message + ' — tus datos siguen aquí.');
+      })
+      .then(function(){
+        if(btn){ btn.disabled = false; btn.textContent = btn.dataset.txt || 'Enviar a revisión'; }
+      });
+    return;
   }
-  ['n-nombre','n-cat','n-desc','n-reco'].forEach(function(id){ const e=document.getElementById(id); if(e) e.value=''; });
-  ['n-d1','n-d2','n-d3','n-d4'].forEach(function(id){ document.getElementById(id).checked=false; });
-  borrador = [{pres:'', may:'', sug:'', stockA:0, stockB:0}];
-  pintarVariantes(); paso(1); ir('v-catalogo');
+
+  const c = cat(); c.unshift(nuevoProd); guardarCat(c);
+  limpiarFormularioProducto();
+  pintarTodo(); paso(1); ir('v-catalogo');
   aviso('Producto enviado a revisión ✓ SOCIO responde en 24–48 h');
+}
+
+/* Vaciar el asistente. Se llama SOLO cuando el producto ya quedó guardado. */
+function limpiarFormularioProducto(){
+  CAMPOS_PRODUCTO.forEach(function(id){
+    const e = document.getElementById(id);
+    if(e) e.value = (id === 'n-emoji') ? '📦' : '';
+  });
+  ['n-d1','n-d2','n-d3','n-d4'].forEach(function(id){
+    const e = document.getElementById(id); if(e) e.checked = false;
+  });
+  borrador = [{pres:'', may:'', sug:'', stockA:0, stockB:0}];
+  pintarVariantes();
+  borrarBorradorProducto();
+  previa();
 }
 
 /* ================= Carga masiva del catálogo ================= */
@@ -1278,6 +1436,14 @@ function retirar(monto){
   if(monto<=0) return;
   aviso('Retiro de S/ '+monto.toFixed(2)+' solicitado — se transfiere a tu cuenta registrada en el día');
 }
+
+/* Cada cambio en el asistente reprograma el guardado del borrador. */
+(function(){
+  const zona = document.getElementById('v-nuevo');
+  if(!zona) return;
+  zona.addEventListener('input',  programarGuardadoBorrador);
+  zona.addEventListener('change', programarGuardadoBorrador);
+})();
 
 /* ================= Aviso ================= */
 let tt;
