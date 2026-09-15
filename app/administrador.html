@@ -224,6 +224,13 @@
             <input type="date" id="rc-desde" style="padding:8px;border:1px solid var(--linea);border-radius:8px;font-family:inherit"></div>
           <div><label style="display:block;font-size:11px;font-weight:700;color:var(--tinta-suave);margin-bottom:4px">Hasta</label>
             <input type="date" id="rc-hasta" style="padding:8px;border:1px solid var(--linea);border-radius:8px;font-family:inherit"></div>
+          <div><label style="display:block;font-size:11px;font-weight:700;color:var(--tinta-suave);margin-bottom:4px">Agrupar por</label>
+            <select id="rc-periodo" onchange="pintarContabilidad()" style="padding:8px;border:1px solid var(--linea);border-radius:8px;font-family:inherit">
+              <option value="mes">Mes</option><option value="semana">Semana</option><option value="ninguno">Sin agrupar</option>
+            </select></div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding-bottom:9px">
+            <input type="checkbox" id="rc-cerradas" checked onchange="pintarContabilidad()">
+            Solo transacciones cerradas</label>
           <button class="btn btn-borde" onclick="cargarContabilidad()">Actualizar</button>
           <button class="btn btn-ok" id="rc-exportar" onclick="exportarContabilidad()">⬇ Exportar a Excel / CSV</button>
         </div>
@@ -404,20 +411,23 @@ function cliente(){
   return sb;
 }
 
+/* Las ocho primeras son las que la especificación técnica declara obligatorias,
+   en su orden. Las demás van detrás: hacen falta para liquidar, para facturar y
+   para responder un reclamo, y quitarlas no ahorra nada. */
 const COLUMNAS_RC = [
-  ['pedido',                      'ID de Pedido'],
+  ['pedido',                      'ID_Pedido'],
   ['fecha',                       'Fecha'],
-  ['marca',                       'Marca'],
-  ['ruc_marca',                   'RUC Marca'],
-  ['vendedor',                    'Vendedor'],
-  ['ruc_vendedor',                'RUC Vendedor'],
-  ['precio_venta',                'Precio Venta'],
-  ['costo_mayorista',             'Costo Mayorista'],
-  ['comision_vendedor',           'Comisión Vendedor'],
-  ['comision_plataforma',         'Comisión SOCIO'],
+  ['marca',                       'Nombre_Marca'],
+  ['ruc_vendedor',                'RUC_Vendedor'],
+  ['precio_venta',                'PVP_Total'],
+  ['costo_mayorista',             'Costo_Mayorista'],
+  ['comision_vendedor',           'Comision_Vendedor'],
+  ['comision_plataforma',         'Comision_SOCIO'],
   ['comision_plataforma_sin_igv', 'Comisión SOCIO sin IGV'],
   ['igv_comision_plataforma',     'IGV de la comisión'],
   ['estado',                      'Estado'],
+  ['vendedor',                    'Vendedor'],
+  ['ruc_marca',                   'RUC Marca'],
   ['comprobante_serie',           'Serie comprobante'],
   ['comprobante_numero',          'Nº comprobante'],
   ['numero_guia',                 'Guía de remisión'],
@@ -425,6 +435,28 @@ const COLUMNAS_RC = [
   ['liberado_a_marca',            'Liberado a la marca'],
   ['pendiente_a_marca',           'Pendiente a la marca']
 ];
+
+/* Una transacción "cerrada" es la que ya se entregó y liquidó: el estado 5 de la
+   máquina de estados. Es lo que se factura. Un pedido en camino ya devengó la
+   comisión, pero todavía puede cancelarse. */
+function filasVisibles(){
+  const soloCerradas = document.getElementById('rc-cerradas').checked;
+  return soloCerradas ? filasContables.filter(f => f.estado === 'entregado') : filasContables;
+}
+
+/* Etiqueta del periodo al que pertenece un pedido. La semana se nombra por su
+   lunes, que es como se cuadra una liquidación semanal. */
+function periodoDe(fecha){
+  const modo = document.getElementById('rc-periodo').value;
+  if(modo === 'ninguno') return null;
+  const d = new Date(fecha);
+  if(modo === 'mes'){
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }
+  const lunes = new Date(d);
+  lunes.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return 'Semana del ' + lunes.toLocaleDateString('es-PE');
+}
 
 async function cargarContabilidad(){
   const c = cliente();
@@ -460,8 +492,9 @@ function pintarContabilidad(){
   const tabla = document.getElementById('rc-tabla');
   const resumen = document.getElementById('rc-resumen');
 
-  if(!filasContables.length){
-    tabla.innerHTML = '<div class="vacio">Sin pedidos en este periodo.</div>';
+  const filas = filasVisibles();
+  if(!filas.length){
+    tabla.innerHTML = '<div class="vacio">Sin transacciones que mostrar en este periodo.</div>';
     document.getElementById('rc-liquidacion').innerHTML = '<div class="vacio">Sin movimientos en este periodo.</div>';
     resumen.innerHTML = '';
     document.getElementById('rc-exportar').disabled = true;
@@ -471,11 +504,11 @@ function pintarContabilidad(){
   document.getElementById('rc-exportar').disabled = false;
   document.getElementById('rc-exportar').style.opacity = 1;
 
-  const suma = campo => filasContables.reduce((a,f) => a + Number(f[campo] || 0), 0);
+  const suma = campo => filas.reduce((a,f) => a + Number(f[campo] || 0), 0);
   const sol = n => 'S/ ' + n.toLocaleString('es-PE', {minimumFractionDigits:2, maximumFractionDigits:2});
 
   resumen.innerHTML = '<div class="metricas">' +
-    '<div class="tarjeta metrica"><small>Pedidos del periodo</small><div class="valor num">' + filasContables.length + '</div></div>' +
+    '<div class="tarjeta metrica"><small>Pedidos del periodo</small><div class="valor num">' + filas.length + '</div></div>' +
     '<div class="tarjeta metrica"><small>Vendido</small><div class="valor num">' + sol(suma('precio_venta')) + '</div><div class="detalle">lo que pagaron los clientes</div></div>' +
     '<div class="tarjeta metrica"><small>Comisión de SOCIO</small><div class="valor num">' + sol(suma('comision_plataforma')) + '</div><div class="detalle">' + sol(suma('comision_plataforma_sin_igv')) + ' + ' + sol(suma('igv_comision_plataforma')) + ' de IGV</div></div>' +
     '<div class="tarjeta metrica"><small>Pendiente con marcas</small><div class="valor num">' + sol(suma('pendiente_a_marca')) + '</div><div class="detalle">liquidación por hitos</div></div>' +
@@ -485,16 +518,35 @@ function pintarContabilidad(){
                         c.indexOf('comision') === 0 || c.indexOf('igv') === 0 ||
                         c.indexOf('liberado') === 0 || c.indexOf('pendiente') === 0;
 
+  const celda = (f, c) => {
+    const v = f[c[0]];
+    if(v === null || v === undefined || v === '') return '<td>—</td>';
+    if(numerica(c[0])) return '<td class="der num">' + Number(v).toFixed(2) + '</td>';
+    if(c[0] === 'fecha') return '<td>' + new Date(v).toLocaleDateString('es-PE') + '</td>';
+    return '<td>' + String(v) + '</td>';
+  };
+  const sol2 = n => 'S/ ' + n.toLocaleString('es-PE', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  // Agrupadas por periodo, con su subtotal: así se cuadra lo que se factura.
+  const grupos = [];
+  filas.forEach(f => {
+    const etiqueta = periodoDe(f.fecha);
+    let g = grupos.find(x => x.etiqueta === etiqueta);
+    if(!g){ g = { etiqueta, filas: [] }; grupos.push(g); }
+    g.filas.push(f);
+  });
+
   tabla.innerHTML = '<table><thead><tr>' +
     COLUMNAS_RC.map(c => '<th' + (numerica(c[0]) ? ' class="der"' : '') + '>' + c[1] + '</th>').join('') +
     '</tr></thead><tbody>' +
-    filasContables.map(f => '<tr>' + COLUMNAS_RC.map(c => {
-      const v = f[c[0]];
-      if(v === null || v === undefined || v === '') return '<td>—</td>';
-      if(numerica(c[0])) return '<td class="der num">' + Number(v).toFixed(2) + '</td>';
-      if(c[0] === 'fecha') return '<td>' + new Date(v).toLocaleDateString('es-PE') + '</td>';
-      return '<td>' + String(v) + '</td>';
-    }).join('') + '</tr>').join('') +
+    grupos.map(g => {
+      const cabecera = g.etiqueta
+        ? '<tr style="background:#EEF1EC"><td colspan="' + COLUMNAS_RC.length + '"><b>' + g.etiqueta +
+          '</b> · ' + g.filas.length + ' pedidos · comisión SOCIO ' +
+          sol2(g.filas.reduce((a,f) => a + Number(f.comision_plataforma || 0), 0)) + '</td></tr>'
+        : '';
+      return cabecera + g.filas.map(f => '<tr>' + COLUMNAS_RC.map(c => celda(f, c)).join('') + '</tr>').join('');
+    }).join('') +
     '</tbody></table>';
 
   pintarLiquidacion();
@@ -514,7 +566,7 @@ const CONCEPTO_FACTURA = 'Servicio de intermediación tecnológica y gestión de
 
 function porMarca(){
   const mapa = {};
-  filasContables.forEach(f => {
+  filasVisibles().forEach(f => {
     const k = f.marca || '—';
     if(!mapa[k]) mapa[k] = { marca:k, ruc:f.ruc_marca || '', pedidos:0, recaudado:0,
                              porCuentaDeLaMarca:0, transferido:0, pendiente:0, comision:0,
@@ -588,7 +640,8 @@ function exportarLiquidacion(){
    en español mete toda la fila en una sola celda — ya nos pasó con la plantilla
    del catálogo. */
 function exportarContabilidad(){
-  if(!filasContables.length){ notificar('No hay nada que exportar en este periodo.'); return; }
+  const filas = filasVisibles();
+  if(!filas.length){ notificar('No hay nada que exportar en este periodo.'); return; }
 
   const escapar = v => {
     if(v === null || v === undefined) return '';
@@ -596,9 +649,10 @@ function exportarContabilidad(){
     return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
   };
 
-  const lineas = [COLUMNAS_RC.map(c => escapar(c[1])).join(';')];
-  filasContables.forEach(f => {
-    lineas.push(COLUMNAS_RC.map(c => {
+  const conPeriodo = document.getElementById('rc-periodo').value !== 'ninguno';
+  const lineas = [(conPeriodo ? 'Periodo;' : '') + COLUMNAS_RC.map(c => escapar(c[1])).join(';')];
+  filas.forEach(f => {
+    lineas.push((conPeriodo ? escapar(periodoDe(f.fecha)) + ';' : '') + COLUMNAS_RC.map(c => {
       const v = f[c[0]];
       // Decimales con coma: es lo que espera un Excel en español.
       if(v !== null && v !== undefined && v !== '' &&
@@ -619,7 +673,7 @@ function exportarContabilidad(){
   a.href = url; a.download = 'socio-reporte-contable_' + desde + '_a_' + hasta + '.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  notificar(filasContables.length + ' pedidos exportados. Ábrelo en Excel: ya viene separado en columnas.');
+  notificar(filas.length + ' pedidos exportados. Ábrelo en Excel: ya viene separado en columnas.');
 }
 
 pintarValidacion(); pintarFiltros(); pintarMonitoreo();

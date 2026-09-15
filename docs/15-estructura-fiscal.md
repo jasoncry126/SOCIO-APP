@@ -403,3 +403,70 @@ de la sección 7:
    modelo, no un detalle contable, y por eso no lo decido yo.
 3. **Si la comisión mercantil de SOCIO cae en detracciones (SPOT)**, ya anotado
    como pendiente en `docs/01`.
+
+---
+
+## 9 · La especificación técnica (set-2026)
+
+*Tercer documento del contador, este dirigido al equipo de desarrollo. Casi todo
+confirmaba lo ya construido; esto es lo que faltaba y lo que quedó pendiente.*
+
+### 9.1 · Lo que faltaba, y ya está
+
+**El PVP como dato propio (§1).** La especificación pide manejar los cuatro
+montos «de forma separada por cada pedido». El precio de venta al público se
+venía calculando al vuelo sumando lo que paga el socio más lo que gana. Ahora es
+una columna, y una **columna calculada**: Postgres la mantiene sola, no se puede
+escribir a mano y no puede quedar desfasada de sus sumandos. Se tiene el monto
+separado sin el riesgo de que alguien actualice uno y no el otro.
+
+**La foto de la guía (FASE 3).** Aquí había un hueco real. La especificación
+exige *dos* datos obligatorios para despachar —«Foto de la Guía de Remisión» y
+«Número de Seguimiento»— y el sistema solo pedía el **número** de la guía. Un
+número se inventa en dos segundos; una foto, no. Ahora se exigen los dos, y la
+foto vive en un cubo privado de Supabase Storage donde cada marca solo puede
+escribir en su propia carpeta y nadie puede borrar ni reemplazar lo ya subido.
+
+La pantalla de despacho del panel de la marca también pedía un solo dato. Ahora
+pide los cuatro (guía, foto, courier y tracking), y en entrega local solo los dos
+que existen.
+
+**El reporte, en el orden pedido (§4).** Las ocho columnas obligatorias van
+primero y con los nombres de la especificación. Detrás se conserva lo demás:
+hace falta para liquidar y para responder un reclamo, y quitarlo no ahorra nada.
+
+**Agrupación por periodo.** El reporte agrupa por mes o por semana, con subtotal
+de comisión por grupo, y trae un filtro de **transacciones cerradas** (entregadas)
+activado por defecto, que es lo que se factura.
+
+### 9.2 · Lo que ya cumplía sin tocar nada
+
+| Requisito | Estado |
+|---|---|
+| §1 · Los cuatro montos separados por pedido | ya estaban los otros tres |
+| §2 · Cliente final ve solo el PVP | el texto que el vendedor copia para WhatsApp muestra únicamente el precio; no hay desgloses |
+| §2 · Vendedor ve su precio, nivel y saldo a gestionar | sí |
+| §2 · Marca ve su mayorista | sí — y no ve el PVP ni las comisiones |
+| FASE 2 · Máquina de estados y validación | migración 4 |
+| FASE 4 · Liquidación automática | migración 5 |
+
+### 9.3 · Lo que queda pendiente, y por qué
+
+Tres cosas de la especificación no están hechas, y ninguna es un detalle:
+
+1. **La notificación automática a la marca** cuando SOCIO valida un pago
+   (FASE 2). Hoy la marca ve el pedido cuando entra a mirar. Falta el aviso que
+   lo empuja. Necesita decidir el canal —correo, WhatsApp, aviso dentro del
+   panel— y eso es una decisión de producto, no técnica.
+
+2. **El recordatorio al vendedor de emitir su boleta** (FASE 1.3). La base ya
+   tiene dónde guardar su RUC y el comprobante que emitió, y la función para
+   registrarlo. Falta la pantalla, porque **`vendedor.html` todavía no está
+   conectado a la base**: sigue funcionando con el almacenamiento del navegador.
+
+3. **La pantalla de despacho del proveedor no está conectada.** Se corrigió para
+   pedir los cuatro datos, pero guarda en el navegador, no en Supabase. Hasta que
+   se conecte, la foto no se sube a ningún sitio.
+
+Las tres dependen de lo mismo: conectar `vendedor.html` y la parte de pedidos de
+`proveedor.html` a la base. Es el siguiente bloque de trabajo, y es grande.

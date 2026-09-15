@@ -142,3 +142,47 @@ select '4.3 · el reporte trae el estado de la liquidación',
                    where table_name='reporte_contable'
                      and column_name in ('liberado_a_marca','pendiente_a_marca')) = 2
             then '✅' else '❌ faltan columnas' end;
+
+-- =============================================================================
+-- 6ª migración · Especificación técnica del flujo financiero (set-2026)
+-- Todo debe salir en '✅'.
+-- =============================================================================
+
+select '§1 · el PVP es un dato propio del pedido' as regla,
+       case when exists (select 1 from information_schema.columns
+                          where table_name='pedidos' and column_name='precio_publico')
+            then '✅' else '❌ falta' end as resultado
+union all
+select '§1 · y no se puede desfasar (es calculado)',
+       case when (select is_generated from information_schema.columns
+                   where table_name='pedidos' and column_name='precio_publico') = 'ALWAYS'
+            then '✅' else '❌ se puede escribir a mano' end
+union all
+select 'FASE 3 · la foto de la guía es obligatoria para despachar',
+       case when pg_get_functiondef(p.oid) like '%guia_url%'
+            then '✅' else '❌ no se exige' end
+  from pg_proc p where p.proname = 'pedido_transicion_valida'
+union all
+select 'FASE 3 · existen las reglas del cubo privado de guías',
+       case when exists (select 1 from pg_policies
+                          where schemaname='storage' and tablename='objects'
+                            and policyname like '%guias%')
+            then '✅' else '— (esto no es Supabase, o falta el cubo)' end
+union all
+select '§2 · la marca NO ve el precio final ni las comisiones',
+       case when (select count(*) from information_schema.columns
+                   where table_name='pedidos_marca'
+                     and column_name in ('precio_publico','precio_socio','ganancia_socio','comision_socio_app')) = 0
+            then '✅' else '❌ ve alguno' end
+union all
+select '§2 · el vendedor SÍ ve el PVP que pagó su cliente',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='pedidos_socio' and column_name='precio_publico')
+            then '✅' else '❌ falta' end
+union all
+select '§4 · las ocho columnas obligatorias van primero y en orden',
+       case when (select string_agg(column_name, ',' order by ordinal_position)
+                    from information_schema.columns
+                   where table_name='reporte_contable' and ordinal_position <= 8)
+                 = 'pedido,fecha,marca,ruc_vendedor,precio_venta,costo_mayorista,comision_vendedor,comision_plataforma'
+            then '✅' else '❌ orden distinto' end;

@@ -1479,10 +1479,31 @@ function tarjetaPedido(x){
       ? 'Entrega local: cobras el 100% al confirmar la entrega, el mismo día.'
       : (r.porGuia>0 ? 'Al registrar la guía se te libera <b>S/ '+r.porGuia.toFixed(2)+'</b> hoy mismo.'
                      : 'Como marca nueva, cobras el 100% al confirmarse la entrega.');
-    acc = '<div class="zona-guia"><input id="guia-'+x.codigo+'" placeholder="N° de guía del courier"><button class="btn btn-sol" onclick="despachar(\''+x.codigo+'\')">Marcar despachado</button></div>'+
+    // Los datos que el contador declaró obligatorios para despachar. En envío
+    // por agencia van los cuatro; en entrega local no hay courier ni tracking
+    // que registrar, pero la guía de remisión y su foto se exigen igual.
+    acc = '<div class="zona-guia">'+
+        '<input id="guia-'+x.codigo+'" placeholder="N° de guía de remisión">'+
+        (r.local ? '' :
+          '<input id="courier-'+x.codigo+'" placeholder="Courier (Olva, Shalom…)">'+
+          '<input id="track-'+x.codigo+'" placeholder="N° de tracking del courier">')+
+      '</div>'+
+      '<div class="zona-guia" style="border:none;padding-top:8px;align-items:center">'+
+        '<label style="flex:1;font-size:12px;font-weight:600;color:var(--tinta-suave)">'+
+          '📷 Foto de la guía de remisión <span style="color:var(--rojo)">*</span>'+
+          '<input type="file" accept="image/*,application/pdf" id="foto-'+x.codigo+'" '+
+            'onchange="marcarFoto(\''+x.codigo+'\')" '+
+            'style="display:block;margin-top:5px;font-size:11.5px;font-family:inherit">'+
+        '</label>'+
+        '<button class="btn btn-sol" onclick="despachar(\''+x.codigo+'\')">Marcar despachado</button>'+
+      '</div>'+
+      '<p id="aviso-foto-'+x.codigo+'" style="font-size:11.5px;color:var(--tinta-suave);margin-top:6px;line-height:1.5">'+
+        'Sin la foto de la guía el pedido no avanza: es la evidencia de que el paquete salió.</p>'+
       '<p style="font-size:11.5px;color:var(--sol-osc);margin-top:7px;line-height:1.5">💰 '+adelanto+'</p>';
   } else if(x.estado==='camino'){
-    acc = '<div class="zona-guia"><span style="font-size:12px;color:var(--info);font-weight:600;flex:1">📦 Guía '+x.guia+'</span>'+
+    acc = '<div class="zona-guia"><span style="font-size:12px;color:var(--info);font-weight:600;flex:1">📦 Guía '+x.guia+
+        (x.tracking ? ' · '+(x.courier||'courier')+' '+x.tracking : '')+
+        (x.guiaFoto ? ' · 📷 '+x.guiaFoto : '')+'</span>'+
       '<button class="btn btn-ok" onclick="confirmarEntrega(\''+x.codigo+'\')">Confirmar entrega</button></div>'+
       '<p style="font-size:11.5px;color:var(--tinta-suave);margin-top:7px;line-height:1.5">💰 Liberado S/ '+r.liberado.toFixed(2)+' · quedan <b>S/ '+r.pendiente.toFixed(2)+'</b> hasta confirmar la entrega.</p>';
   } else {
@@ -1510,13 +1531,50 @@ function confirmarEntrega(codigo){
     ? despues.ic+' ¡Subiste a '+despues.nombre+'! Ahora cobras: '+despues.reglaTxt
     : codigo+' entregado ✓ Se liberaron S/ '+r.pendiente.toFixed(2)+' — ya puedes retirarlos');
 }
+function marcarFoto(codigo){
+  const f = document.getElementById('foto-'+codigo);
+  const av = document.getElementById('aviso-foto-'+codigo);
+  if(!f || !av) return;
+  if(f.files && f.files.length){
+    av.textContent = '✓ ' + f.files[0].name + ' — se subirá al marcar despachado.';
+    av.style.color = 'var(--ok)';
+  } else {
+    av.textContent = 'Sin la foto de la guía el pedido no avanza: es la evidencia de que el paquete salió.';
+    av.style.color = 'var(--tinta-suave)';
+  }
+}
+
+/* El candado logístico. Lo mismo que comprueba la base de datos antes de dejar
+   pasar el pedido a 'en_camino' — aquí se comprueba solo para decirlo con
+   palabras claras y no hacer un viaje al servidor para que lo rechace. */
 function despachar(codigo){
-  const inp = document.getElementById('guia-'+codigo);
-  const guia = inp ? inp.value.trim() : '';
-  if(!guia){ if(inp) inp.focus(); aviso('Ingresa el número de guía para confirmar el despacho'); return; }
+  const leer = pre => {
+    const e = document.getElementById(pre+'-'+codigo);
+    return e ? e.value.trim() : '';
+  };
   const p = peds();
   const x = p.find(function(y){return y.codigo===codigo;});
-  x.estado='camino'; x.guia=guia;
+  const r = repartoPedido(x);
+
+  const guia = leer('guia');
+  if(!guia){ const e=document.getElementById('guia-'+codigo); if(e) e.focus();
+    aviso('Falta el número de la guía de remisión'); return; }
+
+  const foto = document.getElementById('foto-'+codigo);
+  if(!foto || !foto.files || !foto.files.length){
+    aviso('Falta la foto de la guía de remisión. Es obligatoria.'); return; }
+
+  let courier = '', tracking = '';
+  if(!r.local){
+    courier = leer('courier'); tracking = leer('track');
+    if(!courier){ const e=document.getElementById('courier-'+codigo); if(e) e.focus();
+      aviso('Falta el courier con el que despachaste'); return; }
+    if(!tracking){ const e=document.getElementById('track-'+codigo); if(e) e.focus();
+      aviso('Falta el número de tracking del courier'); return; }
+  }
+
+  x.estado='camino'; x.guia=guia; x.courier=courier; x.tracking=tracking;
+  x.guiaFoto=foto.files[0].name;
   guardarPeds(p); pintarTodo();
   const rr = repartoPedido(x);
   aviso(rr.liberado>0

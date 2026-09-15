@@ -125,15 +125,18 @@ values ('66666666-0000-0000-0000-000000000003','SOC-0913-C002','22222222-2222-22
  '11111111-1111-1111-1111-111111111111',157.50,122.50,17.50,35,'Ceci','70000002','900000003','almacen','agencia','Olva Lima','validado');
 set role authenticated;
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
-update pedidos set estado='en_camino', numero_guia='   ', courier='olva', tracking='X'
+update pedidos set estado='en_camino', numero_guia='   ', courier='olva', tracking='X',
+       guia_url='guias/prueba/guia.jpg'
  where id='66666666-0000-0000-0000-000000000003';
 
 \echo '### C6 · sin tracking tampoco (debe: fallar)'
-update pedidos set estado='en_camino', numero_guia='T001-1', courier='olva'
+update pedidos set estado='en_camino', numero_guia='T001-1', courier='olva',
+       guia_url='guias/prueba/guia.jpg'
  where id='66666666-0000-0000-0000-000000000003';
 
 \echo '### C7 · con las tres evidencias, pasa'
-update pedidos set estado='en_camino', numero_guia='T001-1', courier='olva', tracking='OLV-777'
+update pedidos set estado='en_camino', numero_guia='T001-1', courier='olva', tracking='OLV-777',
+       guia_url='guias/prueba/guia.jpg'
  where id='66666666-0000-0000-0000-000000000003';
 select codigo, estado, despachado_en is not null as se_puso_la_fecha from pedidos_marca where codigo='SOC-0913-C002';
 

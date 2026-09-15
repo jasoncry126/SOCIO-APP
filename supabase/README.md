@@ -27,6 +27,7 @@ supabase/
     07-administrador.sql
     08-estructura-fiscal.sql   ← privacidad de importes, comprobantes, estados
     09-manual-operativo.sql    ← liquidación por hitos, candado logístico
+    10-especificacion-tecnica.sql ← PVP, foto de la guía, orden del reporte
 ```
 
 ---
@@ -229,6 +230,29 @@ por nivel en `09-manual-operativo.sql`.
 Las entregas cumplidas se cuentan solas, pero ninguna marca sube de nivel sola:
 los niveles de `docs/08` piden historial limpio y antigüedad, que un contador de
 entregas no sabe. Promover es decisión de SOCIO.
+
+---
+
+## La sexta migración: especificación técnica
+
+`20260915180000_especificacion_tecnica.sql` cierra los dos huecos del tercer
+documento del contador (detalle en `docs/15-estructura-fiscal.md`, sección 9):
+
+- **El PVP pasa a ser una columna propia** de `pedidos`, calculada y almacenada.
+  La especificación pide los cuatro montos por separado; el precio de venta se
+  venía sumando al vuelo. Al ser calculada, no se puede escribir a mano ni quedar
+  desfasada de sus sumandos.
+
+- **La foto de la guía de remisión es obligatoria para despachar.** Antes solo se
+  exigía el número. Un número se inventa; una foto, no. Se crea además el cubo
+  privado `guias` en Supabase Storage, donde cada marca solo escribe en su propia
+  carpeta y nadie puede borrar ni reemplazar lo ya subido.
+
+- **El reporte contable reordena sus ocho primeras columnas** al orden y los
+  nombres que fija la especificación, conservando el resto detrás.
+
+El bloque de Storage va condicionado a que exista el esquema `storage`, para que
+la migración se pueda probar también en un Postgres normal.
 
 ---
 

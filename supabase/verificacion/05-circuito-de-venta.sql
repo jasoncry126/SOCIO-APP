@@ -61,8 +61,9 @@ select codigo, estado from pedidos_admin;
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 update pedidos set estado='en_camino' where id='55555555-5555-5555-5555-555555555555';
 
-\echo '### 10. La MARCA despacha CON guía, courier y tracking  (debe: pasar)'
-update pedidos set estado='en_camino', numero_guia='T001-0004512', courier='olva', tracking='OLVA-99123'
+\echo '### 10. La MARCA despacha CON guía, foto, courier y tracking  (debe: pasar)'
+update pedidos set estado='en_camino', numero_guia='T001-0004512', courier='olva', tracking='OLVA-99123',
+       guia_url='guias/prueba/guia.jpg'
  where id='55555555-5555-5555-5555-555555555555';
 select codigo, estado, numero_guia, courier, tracking, despachado_en is not null as fecha_puesta
   from pedidos_marca;

@@ -41,11 +41,11 @@ select precio_mayorista + ganancia_socio + comision_socio_app as suma,
 
 \echo '### 3a · Envío por agencia SIN courier ni tracking (debe: fallar)'
 set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000a';
-update pedidos set estado='en_camino', numero_guia='T001-900'
+update pedidos set estado='en_camino', numero_guia='T001-900', guia_url='guias/prueba/guia.jpg'
  where id='d0000000-0000-0000-0000-00000000000a';
 
 \echo '### 3b · Envío por agencia SIN guía de remisión (debe: fallar)'
-update pedidos set estado='en_camino', courier='olva', tracking='OLV-1'
+update pedidos set estado='en_camino', courier='olva', tracking='OLV-1', guia_url='guias/prueba/guia.jpg'
  where id='d0000000-0000-0000-0000-00000000000a';
 
 \echo '### 3c · Entrega LOCAL a domicilio: basta la guía, no hay courier'
@@ -57,7 +57,7 @@ values ('d0000000-0000-0000-0000-0000000000ee','SOC-MAN-LOCAL','c0000000-0000-00
   'punto_venta','domicilio','Av. Arequipa 1234, San Isidro','validado');
 set role authenticated;
 set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000b';
-update pedidos set estado='en_camino', numero_guia='T002-0001'
+update pedidos set estado='en_camino', numero_guia='T002-0001', guia_url='guias/prueba/guia.jpg'
  where id='d0000000-0000-0000-0000-0000000000ee';
 select codigo, estado, numero_guia, courier from pedidos_marca where codigo='SOC-MAN-LOCAL';
 
@@ -77,16 +77,16 @@ update pedidos set estado='en_camino' where id='d0000000-0000-0000-0000-00000000
 
 \echo '### 4a · Las cuatro marcas despachan (envío nacional, con las tres evidencias)'
 set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000a';
-update pedidos set estado='en_camino', numero_guia='G-A', courier='olva', tracking='T-A'
+update pedidos set estado='en_camino', numero_guia='G-A', courier='olva', tracking='T-A', guia_url='guias/prueba/guia.jpg'
  where id='d0000000-0000-0000-0000-00000000000a';
 set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000b';
-update pedidos set estado='en_camino', numero_guia='G-B', courier='olva', tracking='T-B'
+update pedidos set estado='en_camino', numero_guia='G-B', courier='olva', tracking='T-B', guia_url='guias/prueba/guia.jpg'
  where id='d0000000-0000-0000-0000-00000000000b';
 set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000c';
-update pedidos set estado='en_camino', numero_guia='G-C', courier='olva', tracking='T-C'
+update pedidos set estado='en_camino', numero_guia='G-C', courier='olva', tracking='T-C', guia_url='guias/prueba/guia.jpg'
  where id='d0000000-0000-0000-0000-00000000000c';
 set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000d';
-update pedidos set estado='en_camino', numero_guia='G-D', courier='olva', tracking='T-D'
+update pedidos set estado='en_camino', numero_guia='G-D', courier='olva', tracking='T-D', guia_url='guias/prueba/guia.jpg'
  where id='d0000000-0000-0000-0000-00000000000d';
 
 \echo '### 4b · Lo liberado al registrar la guía, según el nivel de fiabilidad'
