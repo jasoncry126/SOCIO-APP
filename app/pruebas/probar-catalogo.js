@@ -257,6 +257,44 @@ if (fs.existsSync(ruta)) {
 }
 
 /* ------------------------------------------------------------------ */
+/* El nombre para la boleta (manual del contador, PASO 1)              */
+/* ------------------------------------------------------------------ */
+
+var conBoleta = C.analizar(
+  "producto,presentacion,categoria,contexto,imagen,precio_publico,precio_mayorista,stock_almacen,stock_punto,nombre_comprobante\n" +
+  "GHK-Cu,Vial 50 mg,Piel,Péptido de cobre,,175,120,8,2,Kit de Optimización Biológica\n" +
+  "GHK-Cu,Vial 100 mg,Piel,Péptido de cobre,,300,210,4,0,Kit de Optimización Biológica\n");
+comprobar("el CSV con nombre_comprobante se lee", conBoleta.ok === true,
+  JSON.stringify(conBoleta.errores));
+comprobar("y el nombre para la boleta llega al producto",
+  conBoleta.productos[0].nombre_comprobante === "Kit de Optimización Biológica",
+  String(conBoleta.productos[0].nombre_comprobante));
+comprobar("las dos presentaciones quedan bajo el mismo producto",
+  conBoleta.productos.length === 1 && conBoleta.productos[0].presentaciones.length === 2);
+
+var sinBoleta = C.analizar(
+  "producto,presentacion,precio_publico,precio_mayorista\n" +
+  "BPC-157,Vial 5 mg,175,122.50\n");
+comprobar("la columna es opcional: sin ella el archivo sigue siendo válido",
+  sinBoleta.ok === true, JSON.stringify(sinBoleta.errores));
+comprobar("y el nombre para la boleta queda vacío, no inventado",
+  sinBoleta.productos[0].nombre_comprobante === null,
+  String(sinBoleta.productos[0].nombre_comprobante));
+
+// Si solo una fila del producto la trae, se hereda al producto entero: son
+// filas del mismo producto, no productos distintos.
+var parcial = C.analizar(
+  "producto,presentacion,precio_publico,precio_mayorista,nombre_comprobante\n" +
+  "GHK-Cu,Vial 50 mg,175,120,\n" +
+  "GHK-Cu,Vial 100 mg,300,210,Kit de Optimización Biológica\n");
+comprobar("basta con ponerlo en una fila del producto",
+  parcial.productos[0].nombre_comprobante === "Kit de Optimización Biológica",
+  String(parcial.productos[0].nombre_comprobante));
+
+comprobar("nombre_comprobante figura entre las columnas de la plantilla",
+  C.COLUMNAS.indexOf("nombre_comprobante") !== -1);
+
+/* ------------------------------------------------------------------ */
 console.log("\n  " + pasadas + " pruebas pasadas");
 if (fallidas.length) {
   console.log("  " + fallidas.length + " FALLIDAS:\n");

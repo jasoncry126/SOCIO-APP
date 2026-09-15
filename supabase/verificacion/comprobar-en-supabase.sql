@@ -106,3 +106,39 @@ select 'D · existe el reporte contable',
        case when exists (select 1 from pg_views where schemaname='public'
                           and viewname='reporte_contable')
             then '✅' else '❌ falta' end;
+
+-- =============================================================================
+-- 5ª migración · Manual operativo (set-2026)
+-- Todo debe salir en '✅'.
+-- =============================================================================
+
+select '1 · el producto tiene nombre para la boleta del cliente' as regla,
+       case when exists (select 1 from information_schema.columns
+                          where table_name='productos' and column_name='nombre_comprobante')
+            then '✅' else '❌ falta' end as resultado
+union all
+select '1 · y el vendedor lo ve en el catálogo',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='catalogo_publico' and column_name='nombre_comprobante')
+            then '✅' else '❌ falta' end
+union all
+select '3 · la entrega local se puede despachar sin courier',
+       case when pg_get_functiondef(p.oid) like '%modo_entrega = ''agencia''%'
+            then '✅' else '❌ sigue exigiendo courier a todos' end
+  from pg_proc p where p.proname = 'pedido_transicion_valida'
+union all
+select '4 · la liquidación se registra sola en cada hito',
+       case when exists (select 1 from pg_trigger where tgname='trg_liquidar_hito')
+            then '✅' else '❌ falta el trigger' end
+union all
+select '4 · el socio ve si su pedido ya se liquidó',
+       case when exists (select 1 from pg_policies
+                          where tablename='liberaciones_dinero'
+                            and policyname='socio ve las liberaciones de sus pedidos')
+            then '✅' else '❌ falta la política' end
+union all
+select '4.3 · el reporte trae el estado de la liquidación',
+       case when (select count(*) from information_schema.columns
+                   where table_name='reporte_contable'
+                     and column_name in ('liberado_a_marca','pendiente_a_marca')) = 2
+            then '✅' else '❌ faltan columnas' end;

@@ -170,7 +170,7 @@
     var sb = exigirCliente();
     var res = await sb
       .from("productos")
-      .select("id, nombre, categoria, emoji, descripcion, recomendaciones, tiempo_prep, " +
+      .select("id, nombre, nombre_comprobante, categoria, emoji, descripcion, recomendaciones, tiempo_prep, " +
               "cobertura, corte_nacional, corte_local, dias_despacho, estado, activo, creado_en, " +
               "presentaciones ( id, nombre, precio_mayorista, precio_publico, stock_almacen, stock_punto )")
       .eq("marca_id", marcaId)
@@ -204,7 +204,8 @@
         productoId = previo.id;
         var upd = await sb.from("productos").update({
           categoria: p.categoria,
-          descripcion: p.descripcion
+          descripcion: p.descripcion,
+          nombre_comprobante: p.nombre_comprobante
         }).eq("id", productoId);
         if (upd.error) throw new Error(explicar(upd.error, 'Al actualizar "' + p.nombre + '"'));
         cuenta.productosActualizados++;
@@ -212,6 +213,7 @@
         var ins = await sb.from("productos").insert({
           marca_id: marcaId,
           nombre: p.nombre,
+          nombre_comprobante: p.nombre_comprobante,
           categoria: p.categoria,
           descripcion: p.descripcion,
           estado: "revision",
@@ -269,6 +271,7 @@
       return {
         _id: p.id,
         nombre: p.nombre,
+        nombreComprobante: p.nombre_comprobante || "",
         cat: p.categoria || "",
         emoji: p.emoji || "📦",
         desc: p.descripcion || "",
@@ -334,6 +337,7 @@
     var ins = await sb.from("productos").insert({
       marca_id: marcaId,
       nombre: p.nombre,
+      nombre_comprobante: p.nombreComprobante || null,
       categoria: p.cat || null,
       emoji: p.emoji || "📦",
       descripcion: p.desc || null,

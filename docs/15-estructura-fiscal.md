@@ -1,8 +1,12 @@
 # 15 · Estructura fiscal: quién emite qué, y qué obliga el sistema
 
-*Fuente: informe del contador colegiado, septiembre 2026, «Informe Técnico y
-Tributario: Modelo Operativo y Fiscal de la Plataforma SOCIO». Este documento
-resume lo que decidió y lo que eso significa para el código.*
+*Fuentes: el «Informe Técnico y Tributario» del contador colegiado
+(septiembre 2026) y su «Manual de Flujo Operativo y Tributario», que lo
+concreta paso por paso. Este documento resume lo que decidió y lo que eso
+significa para el código.*
+
+*Actualizado con el manual: la sección 6 recoge lo que el manual precisa o
+cambia, y los dos puntos que hay que devolverle al contador.*
 
 ---
 
@@ -31,12 +35,12 @@ mismo papel visto dos veces:
 |---|---|---|---|
 | Venta final | **El vendedor** | El cliente final | Boleta o factura por el precio completo — S/ 175.00 |
 | Servicio tecnológico | **SOCIO** | El vendedor (o la marca) | Factura electrónica por la comisión de plataforma |
-| Costo del bien | **La marca** | SOCIO o el vendedor | Factura por el precio mayorista — S/ 129.67 |
+| Costo del bien | **La marca** | **El vendedor** | Factura por el precio mayorista — S/ 129.67 |
 
 Dos reglas que se derivan de ahí:
 
-- **Entre RUC nunca va boleta, va factura electrónica.** La comisión que SOCIO
-  le cobra al vendedor se factura, no se "boletea".
+- **Entre RUC nunca va boleta, va factura electrónica.** La comisión de la
+  plataforma se factura, no se "boletea".
 - **SOCIO no es recaudador.** Solo emite comprobante por su comisión. El dinero
   del cliente que pasa por la plataforma no es ingreso bruto de SOCIO — para
   eso hace falta el contrato de comisión mercantil del punto 5.
@@ -189,3 +193,124 @@ la app puede pedirlos cuando el socio cruce el umbral. El umbral concreto sí ha
 que preguntárselo al contador.
 
 Esta decisión está **abierta**: nada en el código la da por tomada.
+
+---
+
+## 6 · Lo que añade el manual operativo (set-2026)
+
+El manual traduce el informe a pasos concretos. Casi todo confirma lo que ya
+estaba; esto es lo que cambia o precisa.
+
+### 6.1 · El reparto, con números cerrados
+
+El manual fija el ejemplo base: PVP S/ 175.00, mayorista S/ 129.67, y la
+diferencia de S/ 45.33 repartida entre vendedor (S/ 17.50 en Bronce) y SOCIO
+(S/ 27.83, con IGV dentro).
+
+Esos números salen exactos del motor de precios que ya estaba escrito, sin tocar
+nada. Vale la pena notar por qué: **S/ 129.67 es justo el mayorista máximo que
+admite un PVP de 175** — el margen que deja, 25.9%, es exactamente el mínimo que
+SOCIO exige para poder pagar comisiones. El contador eligió (o dio con) el caso
+límite. Un sol más de mayorista y el producto no se habría podido publicar.
+
+Con ese mismo mayorista y un socio Diamante, el reparto queda S/ 35.00 para el
+vendedor y S/ 10.33 para SOCIO — que sigue cubriendo el 5% neto exigido, pero
+por dos céntimos. Es correcto, y conviene saber que ahí no hay holgura.
+
+### 6.2 · Entrega local: el candado logístico estaba mal puesto
+
+El manual repite la regla: sin guía de remisión y sin tracking del courier, el
+pedido no avanza. Escrita así de literal, como la dejó la migración anterior,
+**ningún pedido de entrega a domicilio podía despacharse nunca**: una entrega
+local en la misma ciudad no tiene courier ni número de seguimiento que poner.
+
+Corregido: la guía de remisión se exige **siempre** (transportar mercadería sin
+ella es sancionable igual, sea local o nacional); el courier y el tracking se
+exigen solo cuando el envío va por agencia. El manual solo contempla el envío
+nacional, así que esto es una interpretación — si el contador prefiere otra cosa
+para la entrega local, se cambia en una línea.
+
+### 6.3 · La liquidación dejó de ser un concepto
+
+El PASO 4 del manual describe la liquidación. La tabla para registrarla existía
+desde `docs/13` y nunca se llenaba. Ahora cada hito escribe su fila sola, con el
+reparto que definió `docs/08` según el nivel de fiabilidad de la marca:
+
+| Nivel de la marca | Al registrar la guía | A la entrega confirmada |
+|---|---|---|
+| 🌱 Nueva | 0% | 100% |
+| ✅ Confiable | 70% | 30% |
+| ⭐ Preferente | 90% | 10% |
+| 🏅 Aliada | 100% | 0% |
+
+El segundo hito paga siempre *el resto*, no un porcentaje recalculado: así la
+marca cobra su mayorista exacto aunque el redondeo no sea limpio. Probado con
+los cuatro niveles.
+
+Las entregas cumplidas se cuentan solas (`marcas.entregas_ok`), pero **ninguna
+marca sube de nivel sola**: los niveles de `docs/08` piden además historial
+limpio y antigüedad, y eso no lo sabe un contador de entregas. Promover es
+decisión de SOCIO, igual que validar la identidad de un socio.
+
+### 6.4 · El nombre que va en la boleta
+
+El PASO 1 pide que la boleta al cliente lleve una descripción comercial genérica
+("Kit de Optimización Biológica") en vez del nombre de catálogo. Ahora cada
+producto tiene ese campo: la marca lo llena al cargar el producto o en la
+plantilla de Excel, y el vendedor lo ve al emitir su boleta. Si se deja vacío, se
+usa el nombre del producto.
+
+### 6.5 · El botón de exportación
+
+El panel de administración tiene una pestaña **Contabilidad** con el consolidado
+del periodo y el botón que pide la sección 4.3, en CSV que el Excel en español
+abre directamente en columnas. Es lo único de ese panel que está conectado a la
+base; el resto sigue con datos de demostración.
+
+---
+
+## 7 · Dos cosas que hay que devolverle al contador
+
+### 7.1 · El PASO 5 no cuadra con el PASO 4
+
+El manual dice dos cosas que, juntas, no cierran:
+
+- **PASO 3:** la marca le factura al vendedor **S/ 129.67**.
+- **PASO 4:** de los S/ 157.50 que transfiere el vendedor, **S/ 129.67 van a la
+  marca** y S/ 27.83 van a SOCIO.
+- **PASO 5:** SOCIO le emite su factura de comisión **a la marca**, por S/ 27.83.
+
+Si la marca facturó 129.67 y *recibió* 129.67 en efectivo, pero además recibe una
+factura de SOCIO por 27.83 que nunca pagó, sus libros quedan con un ingreso de
+129.67, un gasto de 27.83 y una deuda con SOCIO de 27.83 que no existe. No cuadra.
+
+Las dos formas de cerrarlo:
+
+1. **SOCIO le factura al vendedor** (que es lo que decía el informe original, y
+   lo que coincide con el flujo del dinero del PASO 4). El vendedor sustenta
+   S/ 129.67 de costo + S/ 27.83 de servicio = S/ 157.50, e ingresó S/ 175.00.
+   Cierra solo.
+2. **La marca le factura al vendedor S/ 157.50** y SOCIO le factura a la marca
+   S/ 27.83. La marca queda neta en 129.67. También cierra, pero infla la
+   facturación de la marca con dinero que no es suyo.
+
+**Recomendación: la 1.** Es la que coincide con por dónde se mueve el dinero, y
+es la que menos papeles mueve. Pero es decisión del contador, no mía.
+
+Mientras tanto, el reporte contable trae **el RUC de las dos partes**, así que
+sirve para emitir en cualquiera de las dos direcciones sin tocar nada.
+
+### 7.2 · Facturarle a la marca rompe la confidencialidad que pediste
+
+Esto es aparte de si cuadra o no. Si SOCIO le emite la factura de comisión a la
+marca, **la marca se entera de cuánto gana la plataforma**: está escrito en el
+documento que recibe. Y como la marca ya conoce su mayorista y el precio de
+página, con ese tercer número deduce al céntimo cuánto gana el vendedor.
+
+Eso es exactamente lo que pediste evitar cuando quitamos el cuadro del reparto
+del panel del proveedor. El panel sigue sin mostrarlo —eso no cambia— pero la
+factura lo diría igual.
+
+Si la comisión se le factura al **vendedor** (opción 1 de arriba), el problema
+desaparece: el vendedor ya conoce su propia comisión, y la marca nunca ve el
+número. Es una razón más para preferir esa vía.

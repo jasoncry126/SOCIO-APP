@@ -22,6 +22,11 @@ supabase/
     02-probar-reglas-negocio.sql
     03-probar-aislamiento-rls.sql
     04-cobertura-rls-faltante.sql
+    05-circuito-de-venta.sql   ← el circuito completo, con la máquina de estados
+    06-ataques.sql             ← 13 intentos de saltarse las reglas
+    07-administrador.sql
+    08-estructura-fiscal.sql   ← privacidad de importes, comprobantes, estados
+    09-manual-operativo.sql    ← liquidación por hitos, candado logístico
 ```
 
 ---
@@ -195,6 +200,35 @@ que ahora corre también `08-estructura-fiscal.sql`: 30 comprobaciones de las
 cuatro secciones, incluidos los intentos de leer el importe ajeno, de reescribir
 los precios de un pedido cerrado y de saltarse la máquina de estados por los
 cinco atajos posibles.
+
+---
+
+## La quinta migración: manual operativo
+
+`20260915100000_manual_operativo.sql` aplica el «Manual de Flujo Operativo y
+Tributario» del contador, que concreta el informe anterior paso por paso
+(resumido en `docs/15-estructura-fiscal.md`, sección 6):
+
+| Lo que pide el manual | Cómo queda en la base |
+|---|---|
+| **PASO 1** · La boleta lleva una descripción comercial genérica | `productos.nombre_comprobante`, visible en `catalogo_publico` y en la plantilla de carga |
+| **PASO 3** · Despacho con evidencia obligatoria | la guía de remisión se exige siempre; courier y tracking, solo en envío por agencia |
+| **PASO 4** · Liquidación | `trg_liquidar_hito` escribe en `liberaciones_dinero` en cada hito, con el reparto de `docs/08` según el nivel de fiabilidad de la marca |
+| **4.3** · Botón de exportación | pestaña **Contabilidad** en `app/administrador.html`, con CSV para Excel en español |
+
+**Corrige un fallo de la migración anterior.** La regla "sin guía, courier y
+tracking no se despacha" se escribió pensando solo en el envío nacional. Una
+entrega local en la misma ciudad no tiene courier ni tracking, así que tal como
+estaba **ningún pedido de entrega a domicilio podía despacharse nunca**.
+
+La liquidación paga siempre *el resto* en el segundo hito, no un porcentaje
+recalculado: así la marca cobra su mayorista exacto en los cuatro niveles de
+fiabilidad, sin que el redondeo le quite ni le regale céntimos. Comprobado nivel
+por nivel en `09-manual-operativo.sql`.
+
+Las entregas cumplidas se cuentan solas, pero ninguna marca sube de nivel sola:
+los niveles de `docs/08` piden historial limpio y antigüedad, que un contador de
+entregas no sabe. Promover es decisión de SOCIO.
 
 ---
 

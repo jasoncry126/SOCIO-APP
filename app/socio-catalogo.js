@@ -21,7 +21,7 @@
 
   var COLUMNAS = ["producto", "presentacion", "categoria", "contexto",
                   "imagen", "precio_publico", "precio_mayorista",
-                  "stock_almacen", "stock_punto"];
+                  "stock_almacen", "stock_punto", "nombre_comprobante"];
   var OBLIGATORIAS = ["producto", "presentacion", "precio_publico", "precio_mayorista"];
 
   /* ---------------------------------------------------------------------
@@ -208,6 +208,7 @@
           nombre: producto,
           categoria: celda(fila, "categoria") || null,
           descripcion: celda(fila, "contexto") || null,
+          nombre_comprobante: celda(fila, "nombre_comprobante") || null,
           presentaciones: []
         };
         orden.push(p);
@@ -224,6 +225,7 @@
         }
         if (!p.categoria && cat) p.categoria = cat;
         if (!p.descripcion && ctx) p.descripcion = ctx;
+        if (!p.nombre_comprobante) p.nombre_comprobante = celda(fila, "nombre_comprobante") || null;
       }
 
       p.presentaciones.push({

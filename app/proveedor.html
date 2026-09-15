@@ -444,6 +444,9 @@
               <div class="campo"><label>Descripción para el socio <small>· qué es y qué recibe el cliente</small></label>
                 <textarea id="n-desc" placeholder="Qué es, presentación, conservación…"></textarea>
                 <div class="pista">Describe lo que el cliente recibe: contenido, presentación, tamaño y condiciones de entrega. Mientras más claro, menos preguntas y menos devoluciones para ti.</div></div>
+              <div class="campo"><label>Nombre en la boleta <small>· opcional</small></label>
+                <input id="n-comprobante" placeholder="Ej. Kit de Optimización Biológica" oninput="previa()">
+                <div class="pista">Así aparecerá el producto en la boleta que el vendedor le entrega al cliente dentro de la caja. Sirve para usar un nombre comercial en un documento que va a manos de terceros. Si lo dejas vacío, se usa el nombre del producto.</div></div>
               <button class="btn btn-sol btn-w" onclick="paso(2)">Continuar a presentaciones</button>
             </div>
           </div>
@@ -849,7 +852,7 @@ function alternar(i){
    sin perder lo escrito. Todo lo que teclea se guarda solo en su navegador
    (no en la base: todavía no es un producto, es un borrador suyo). */
 
-const CAMPOS_PRODUCTO = ['n-nombre','n-cat','n-emoji','n-desc','n-prep','n-cob',
+const CAMPOS_PRODUCTO = ['n-nombre','n-comprobante','n-cat','n-emoji','n-desc','n-prep','n-cob',
                          'n-corte-nac','n-corte-loc','n-dias','n-reco'];
 
 function claveBorrador(){
@@ -1084,7 +1087,8 @@ function enviarRevision(){
     return;
   }
   const nuevoProd = {
-    nombre: val('n-nombre').trim(), cat: val('n-cat').trim(), emoji: val('n-emoji')||'📦',
+    nombre: val('n-nombre').trim(), nombreComprobante: val('n-comprobante').trim(),
+    cat: val('n-cat').trim(), emoji: val('n-emoji')||'📦',
     desc: val('n-desc').trim(), prep: val('n-prep'), cobertura: val('n-cob'),
     corteNac: val('n-corte-nac'), corteLoc: val('n-corte-loc'), dias: val('n-dias'),
     reco: val('n-reco').trim(),
@@ -1292,6 +1296,8 @@ const GUIA_COLUMNAS = [
    'Unidades disponibles en tu almacén. Si lo dejas vacío, se toma 0.'],
   ['stock_punto', 'No',
    'Unidades en tu punto de venta con entrega a domicilio. Si lo dejas vacío, se toma 0.'],
+  ['nombre_comprobante', 'No',
+   'Cómo quieres que aparezca el producto en la boleta que el vendedor le entrega al cliente, dentro de la caja. Sirve para usar un nombre comercial genérico en un documento que va a manos de terceros. Si lo dejas vacío, se usa el nombre del producto.'],
   ['', '', ''],
   ['REGLAS', '', ''],
   ['1', '',
@@ -1309,13 +1315,13 @@ const GUIA_COLUMNAS = [
 const EJEMPLOS = [
   ['BPC-157', 'Vial 5 mg', 'Recuperación',
    'Pentadecapéptido derivado de una proteína gástrica, estudiado por su papel en la reparación de tejidos.',
-   'bpc-157-5.webp', 175, 122.50, 20, 5],
+   'bpc-157-5.webp', 175, 122.50, 20, 5, 'Kit de Recuperación Celular'],
   ['BPC-157', 'Vial 10 mg', 'Recuperación',
    'Pentadecapéptido derivado de una proteína gástrica, estudiado por su papel en la reparación de tejidos.',
-   'bpc-157-10.webp', 300, 210, 12, 0],
+   'bpc-157-10.webp', 300, 210, 12, 0, 'Kit de Recuperación Celular'],
   ['GHK-Cu', 'Vial 50 mg', 'Piel',
    'Péptido de cobre. Fíjate que este es OTRO producto: por eso cambia el nombre en la primera columna.',
-   'ghk-cu-50.webp', 175, 120, 8, 2]
+   'ghk-cu-50.webp', 175, 120, 8, 2, 'Kit de Optimización Biológica']
 ];
 
 function descargarPlantillaExcel(){
@@ -1323,7 +1329,7 @@ function descargarPlantillaExcel(){
   cargarXLSX().then(function(XLSX){
     const enc = [window.SocioCatalogo.COLUMNAS];
     const ws = XLSX.utils.aoa_to_sheet(enc.concat(EJEMPLOS));
-    ws['!cols'] = [{wch:24},{wch:18},{wch:18},{wch:72},{wch:22},{wch:16},{wch:18},{wch:15},{wch:14}];
+    ws['!cols'] = [{wch:24},{wch:18},{wch:18},{wch:72},{wch:22},{wch:16},{wch:18},{wch:15},{wch:14},{wch:32}];
     ws['!freeze'] = { xSplit:'0', ySplit:'1', topLeftCell:'A2', activePane:'bottomLeft', state:'frozen' };
 
     const guia = XLSX.utils.aoa_to_sheet(GUIA_COLUMNAS);
@@ -1341,10 +1347,10 @@ function descargarPlantillaExcel(){
    vea cómo se agrupan las filas de un mismo producto. */
 function descargarPlantilla(){
   const filas = [
-    ['producto','presentacion','categoria','contexto','imagen','precio_publico','precio_mayorista','stock_almacen','stock_punto'],
-    ['BPC-157','Vial 5 mg','Recuperación','Descripción del producto, tal como quieres que la lea el socio.','bpc-157-5.webp','175','122.50','20','5'],
-    ['BPC-157','Vial 10 mg','Recuperación','Descripción del producto, tal como quieres que la lea el socio.','bpc-157-10.webp','300','210','12','0'],
-    ['GHK-Cu','Vial 50 mg','Piel','Otro producto: cada presentación va en su propia fila.','ghk-cu-50.webp','175','120','8','2']
+    ['producto','presentacion','categoria','contexto','imagen','precio_publico','precio_mayorista','stock_almacen','stock_punto','nombre_comprobante'],
+    ['BPC-157','Vial 5 mg','Recuperación','Descripción del producto, tal como quieres que la lea el socio.','bpc-157-5.webp','175','122.50','20','5','Kit de Recuperación Celular'],
+    ['BPC-157','Vial 10 mg','Recuperación','Descripción del producto, tal como quieres que la lea el socio.','bpc-157-10.webp','300','210','12','0','Kit de Recuperación Celular'],
+    ['GHK-Cu','Vial 50 mg','Piel','Otro producto: cada presentación va en su propia fila.','ghk-cu-50.webp','175','120','8','2','Kit de Optimización Biológica']
   ];
   const csv = filas.map(function(f){
     return f.map(function(c){
