@@ -314,3 +314,92 @@ factura lo diría igual.
 Si la comisión se le factura al **vendedor** (opción 1 de arriba), el problema
 desaparece: el vendedor ya conoce su propia comisión, y la marca nunca ve el
 número. Es una razón más para preferir esa vía.
+
+---
+
+## 8 · ¿Facturarle al vendedor nos hace dueños del producto?
+
+*Jason planteó esta objeción a la recomendación de la sección 7.1, y merece
+respuesta precisa porque de ella depende la protección ante Indecopi.*
+
+**No.** Pero la objeción apunta a un riesgo que sí existe, solo que el disparador
+es otro. Vale la pena separar las dos cosas.
+
+### Lo que NO determina la propiedad
+
+**A quién va dirigida la factura.** Emitirle un comprobante a alguien no implica
+haberle vendido un bien. Lo que define qué se transfirió es **el concepto del
+comprobante**, no su destinatario. Una factura por "servicio de intermediación
+tecnológica" no transfiere nada, vaya dirigida al vendedor, a la marca o a quien
+sea. Es exactamente lo que `docs/01` describe como Modelo A:
+
+> «Nosotros **nunca compramos ni vendemos el producto**: solo intermediamos.
+> Nuestro único ingreso es la comisión, y **solo por la comisión emitimos
+> factura** y pagamos IGV y Renta.»
+
+Facturarle la comisión al vendedor *es* ese modelo, no una desviación de él.
+
+### Lo que SÍ determina la propiedad
+
+Son tres cosas, y conviene revisarlas una por una:
+
+| Qué lo determina | Cómo está hoy | ¿Riesgo? |
+|---|---|---|
+| **La guía de remisión** — es el documento que prueba quién movió el bien | La emite la marca como remitente; el destinatario es el cliente final. SOCIO no figura | ✅ Ninguno |
+| **A quién le factura la marca su costo** | Al **vendedor** (manual, PASO 3). Si le facturara a SOCIO, SOCIO habría comprado | ✅ Ninguno |
+| **El concepto de la factura de SOCIO** | Debe decir *servicio*. Si dijera "venta" o nombrara el producto, SOCIO aparecería vendiendo un bien | ⚠️ **Aquí sí** |
+
+De las tres, dos están resueltas en la base de datos y no dependen de que nadie
+se acuerde: el destinatario de la guía es el cliente final y solo la marca puede
+subirla. La tercera es operativa —depende de cómo se redacte cada factura— y era
+el único cabo suelto real.
+
+**Esto es lo que había que cuidar, no la dirección de la factura.**
+
+### Y el riesgo de verdad: cómo se ve el dinero
+
+Hay un cuarto punto que ninguna de las dos opciones de la sección 7.1 resuelve
+por sí sola, y que es el que de verdad puede costar caro.
+
+Si SOCIO recibe S/ 157.50 y transfiere S/ 129.67 a la marca, **desde fuera eso se
+parece a comprar a 129.67 y vender a 157.50**. `docs/01` lo advierte sin rodeos:
+
+> «Sin los contratos y liquidaciones en regla, SUNAT puede presumir que todos los
+> depósitos recibidos son ingresos gravados nuestros — ahí sí pagaríamos como si
+> hubiéramos vendido todo.»
+
+Lo que desarma esa presunción son dos papeles, y **ninguno de los dos es la
+factura de comisión**:
+
+1. **El contrato de comisión mercantil** con cada marca, que declara que SOCIO
+   cobra por mandato y no por cuenta propia. Pendiente de abogado.
+2. **Las liquidaciones periódicas documentadas** de cuánto se recaudó por cuenta
+   de cada marca y cuánto se le transfirió.
+
+El segundo ya existe: pestaña **Contabilidad → Liquidación por marca** en el
+panel de administración, exportable por periodo. Cada fila dice, por marca,
+cuánto se recaudó *por su cuenta*, cuánto se le transfirió, cuánto queda
+pendiente y cuánto retuvo SOCIO de comisión — con el concepto de la factura
+escrito en la propia fila, para que nadie lo improvise.
+
+### Conclusión, y qué preguntarle al contador
+
+La recomendación de la sección 7.1 **no cambia**: facturarle la comisión al
+vendedor sigue siendo lo que cuadra con el flujo del dinero y lo que protege la
+confidencialidad. No nos hace dueños del producto, porque la propiedad la fija la
+guía de remisión y el concepto del comprobante, y las dos cosas nos dejan fuera.
+
+Lo que sí hay que confirmar con el contador, y conviene preguntarlo junto con lo
+de la sección 7:
+
+1. **El texto exacto del concepto** de la factura de SOCIO. Hoy el sistema propone
+   *"Servicio de intermediación tecnológica y gestión de plataforma"*. Si él
+   prefiere otra redacción, se cambia en un sitio.
+2. **Si conviene que el vendedor haga dos transferencias** —una a la marca y otra
+   a SOCIO— en vez de una sola a SOCIO. Con dos transferencias, el dinero de la
+   marca nunca toca las cuentas de SOCIO y la presunción de compra-reventa
+   desaparece de raíz. **El costo es real:** se pierde la custodia, que es la
+   palanca que hoy obliga a la marca a despachar antes de cobrar. Es un cambio de
+   modelo, no un detalle contable, y por eso no lo decido yo.
+3. **Si la comisión mercantil de SOCIO cae en detracciones (SPOT)**, ya anotado
+   como pendiente en `docs/01`.

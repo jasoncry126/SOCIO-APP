@@ -230,6 +230,20 @@
       </div>
 
       <div id="rc-resumen"></div>
+
+      <div class="seccion-titulo" style="margin-top:20px">Liquidación por marca</div>
+      <p style="font-size:12.5px;color:var(--tinta-suave);margin:-4px 0 10px;max-width:760px">
+        Este es el documento que demuestra ante SUNAT que el dinero que pasó por tus cuentas
+        <b>no es ingreso tuyo</b>, sino recaudación por cuenta de cada marca. Sin él, SUNAT puede
+        presumir que todo lo que entró es venta tuya (ver <code>docs/01</code>). Se emite por periodo,
+        se archiva, y respalda el contrato de comisión mercantil.
+      </p>
+      <div style="margin-bottom:10px">
+        <button class="btn btn-borde" onclick="exportarLiquidacion()">⬇ Exportar liquidación por marca</button>
+      </div>
+      <div class="tarjeta" style="padding:6px 10px;overflow-x:auto;margin-bottom:22px"><div id="rc-liquidacion"></div></div>
+
+      <div class="seccion-titulo">Detalle pedido por pedido</div>
       <div class="tarjeta" style="padding:6px 10px;overflow-x:auto"><div id="rc-tabla"></div></div>
     </section>
 
@@ -448,6 +462,7 @@ function pintarContabilidad(){
 
   if(!filasContables.length){
     tabla.innerHTML = '<div class="vacio">Sin pedidos en este periodo.</div>';
+    document.getElementById('rc-liquidacion').innerHTML = '<div class="vacio">Sin movimientos en este periodo.</div>';
     resumen.innerHTML = '';
     document.getElementById('rc-exportar').disabled = true;
     document.getElementById('rc-exportar').style.opacity = .4;
@@ -481,6 +496,91 @@ function pintarContabilidad(){
       return '<td>' + String(v) + '</td>';
     }).join('') + '</tr>').join('') +
     '</tbody></table>';
+
+  pintarLiquidacion();
+}
+
+/* ===== Liquidación por marca =====
+   Lo que SOCIO recaudó POR CUENTA de cada marca, y lo que le transfirió. docs/01
+   lo exige: sin liquidaciones documentadas, SUNAT puede presumir que todos los
+   depósitos que entraron son ingresos gravados de la plataforma, y ahí se
+   tributaría como si SOCIO hubiera vendido el producto. Es también el respaldo
+   del contrato de comisión mercantil.
+
+   El concepto va escrito en cada fila a propósito: la factura de SOCIO nunca
+   puede decir "venta" ni nombrar el producto. Dice servicio, siempre. Eso es lo
+   que mantiene a SOCIO fuera de la cadena de propiedad del bien. */
+const CONCEPTO_FACTURA = 'Servicio de intermediación tecnológica y gestión de plataforma';
+
+function porMarca(){
+  const mapa = {};
+  filasContables.forEach(f => {
+    const k = f.marca || '—';
+    if(!mapa[k]) mapa[k] = { marca:k, ruc:f.ruc_marca || '', pedidos:0, recaudado:0,
+                             porCuentaDeLaMarca:0, transferido:0, pendiente:0, comision:0,
+                             comisionSinIgv:0, igv:0 };
+    const m = mapa[k];
+    m.pedidos++;
+    m.recaudado           += Number(f.precio_venta || 0);
+    m.porCuentaDeLaMarca   += Number(f.costo_mayorista || 0);
+    m.transferido         += Number(f.liberado_a_marca || 0);
+    m.pendiente           += Number(f.pendiente_a_marca || 0);
+    m.comision            += Number(f.comision_plataforma || 0);
+    m.comisionSinIgv      += Number(f.comision_plataforma_sin_igv || 0);
+    m.igv                 += Number(f.igv_comision_plataforma || 0);
+  });
+  return Object.values(mapa).sort((a,b) => b.recaudado - a.recaudado);
+}
+
+function pintarLiquidacion(){
+  const cont = document.getElementById('rc-liquidacion');
+  const filas = porMarca();
+  if(!filas.length){ cont.innerHTML = '<div class="vacio">Sin movimientos en este periodo.</div>'; return; }
+
+  const sol = n => 'S/ ' + n.toLocaleString('es-PE', {minimumFractionDigits:2, maximumFractionDigits:2});
+  cont.innerHTML = '<table><thead><tr>' +
+    '<th>Marca</th><th>RUC</th><th class="der">Pedidos</th>' +
+    '<th class="der">Recaudado por su cuenta</th><th class="der">Transferido</th>' +
+    '<th class="der">Pendiente</th><th class="der">Comisión SOCIO</th>' +
+    '<th class="der">Comisión sin IGV</th><th class="der">IGV</th>' +
+    '</tr></thead><tbody>' +
+    filas.map(m => '<tr>' +
+      '<td>' + m.marca + '</td><td>' + (m.ruc || '—') + '</td>' +
+      '<td class="der num">' + m.pedidos + '</td>' +
+      '<td class="der num">' + sol(m.porCuentaDeLaMarca) + '</td>' +
+      '<td class="der num">' + sol(m.transferido) + '</td>' +
+      '<td class="der num">' + sol(m.pendiente) + '</td>' +
+      '<td class="der num"><b>' + sol(m.comision) + '</b></td>' +
+      '<td class="der num">' + sol(m.comisionSinIgv) + '</td>' +
+      '<td class="der num">' + sol(m.igv) + '</td>' +
+    '</tr>').join('') +
+    '</tbody></table>';
+}
+
+function exportarLiquidacion(){
+  const filas = porMarca();
+  if(!filas.length){ notificar('No hay nada que liquidar en este periodo.'); return; }
+  const desde = document.getElementById('rc-desde').value || 'inicio';
+  const hasta = document.getElementById('rc-hasta').value || 'hoy';
+  const dec = n => String(Number(n).toFixed(2)).replace('.', ',');
+
+  const lineas = [
+    ['Marca','RUC Marca','Pedidos','Recaudado por cuenta de la marca','Transferido a la marca',
+     'Pendiente de transferir','Comisión de SOCIO','Comisión sin IGV','IGV de la comisión',
+     'Concepto de la factura de SOCIO'].join(';')
+  ];
+  filas.forEach(m => lineas.push([
+    m.marca, m.ruc, m.pedidos, dec(m.porCuentaDeLaMarca), dec(m.transferido),
+    dec(m.pendiente), dec(m.comision), dec(m.comisionSinIgv), dec(m.igv), CONCEPTO_FACTURA
+  ].join(';')));
+
+  const blob = new Blob(['\uFEFF' + lineas.join('\n') + '\n'], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'socio-liquidacion-por-marca_' + desde + '_a_' + hasta + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  notificar(filas.length + ' marcas liquidadas. Archívalo: es tu respaldo ante SUNAT.');
 }
 
 /* Exportación. Se genera un CSV con separador ';' y BOM, que es lo que el Excel
