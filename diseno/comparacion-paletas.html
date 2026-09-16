@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOCIO — Comparación de paletas</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,700..900&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Instrument Sans',sans-serif;background:#EDEFEA;color:#14261E;padding:34px 18px 60px}
+  .env{max-width:1180px;margin:0 auto}
+  h1{font-family:'Archivo',sans-serif;font-weight:900;font-stretch:110%;font-size:26px}
+  .lead{font-size:14px;color:#455850;margin-top:8px;max-width:640px;line-height:1.55}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
+  @media(max-width:980px){.grid{grid-template-columns:1fr;max-width:420px;margin-left:auto;margin-right:auto}}
+
+  .col{border-radius:20px;padding:20px;border:1px solid #dfe4dc}
+  .col h2{font-family:'Archivo',sans-serif;font-weight:800;font-size:16.5px}
+  .col .tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+  .col .desc{font-size:12.5px;margin-top:9px;line-height:1.55}
+
+  .chips{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+  .chip-sw{width:26px;height:26px;border-radius:8px;border:1px solid rgba(0,0,0,.08)}
+
+  /* ---- tarjeta de producto (app vendedor) ---- */
+  .prodcard{border-radius:14px;padding:13px;margin-top:16px}
+  .prodcard .fila{display:flex;gap:10px;align-items:center}
+  .prodcard .ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .prodcard h3{font-size:13.5px;font-weight:800;font-family:'Archivo',sans-serif}
+  .prodcard p{font-size:11px;margin-top:1px}
+  .prodcard .precios{display:flex;justify-content:space-between;align-items:center;margin-top:11px;padding-top:11px;border-top:1px dashed}
+  .prodcard .num{font-family:'Archivo',sans-serif;font-weight:800;font-size:12.5px}
+  .miniboton{border:none;border-radius:9px;padding:9px 13px;font-family:inherit;font-weight:800;font-size:12px;margin-top:11px;width:100%}
+  .mchip{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;margin-top:8px}
+
+  /* ---- métrica (panel proveedor) ---- */
+  .metrica{border-radius:13px;padding:12px;margin-top:10px}
+  .metrica small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .metrica .v{font-family:'Archivo',sans-serif;font-weight:900;font-size:22px;margin-top:3px}
+
+  .veredicto{margin-top:40px;background:#14261E;color:#F2F4EF;border-radius:20px;padding:26px 26px 30px}
+  .veredicto h2{font-family:'Archivo',sans-serif;font-weight:800;font-size:19px}
+  .veredicto p{font-size:13.5px;color:#C6D2CB;line-height:1.7;margin-top:12px;max-width:820px}
+  .veredicto p b{color:#fff}
+  .veredicto .marca{display:inline-block;background:#EFA51F;color:#14261E;font-weight:800;font-size:11px;padding:3px 10px;border-radius:99px;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="env">
+  <h1>Tres paletas para SOCIO, aplicadas a la app real</h1>
+  <p class="lead">No son solo colores sueltos: cada una está puesta sobre la tarjeta de producto que ve el vendedor y la métrica que ve el proveedor, para que se compare como se va a usar de verdad — no en un cuadradito aislado.</p>
+
+  <div class="grid">
+
+    <!-- ===================== OPCIÓN 1 — ACTUAL ===================== -->
+    <div class="col" style="background:#F2F4EF">
+      <h2 style="color:#14261E">Sol Dorado</h2>
+      <div class="tag" style="color:#C9860F">La que ya tiene la app</div>
+      <p class="desc" style="color:#3D5248">Fondo claro, tinta verde oscuro, oro como color de acción y rosa chicha reservado solo para el momento en que el socio ve su ganancia. Referencias directas: el sol y la chicha morada.</p>
+      <div class="chips">
+        <div class="chip-sw" style="background:#F2F4EF"></div>
+        <div class="chip-sw" style="background:#14261E"></div>
+        <div class="chip-sw" style="background:#EFA51F"></div>
+        <div class="chip-sw" style="background:#E84D8A"></div>
+        <div class="chip-sw" style="background:#1E8A5A"></div>
+      </div>
+
+      <div class="prodcard" style="background:#fff;border:1px solid #DFE4DC">
+        <div class="fila">
+          <div class="ico" style="background:#E4F4EC">🧪</div>
+          <div><h3 style="color:#14261E">GHK-Cu</h3><p style="color:#3D5248">Vial 50 mg · Piel</p></div>
+        </div>
+        <span class="mchip" style="background:#E4F4EC;color:#1E8A5A">24 en Cusco</span>
+        <div class="precios" style="border-color:#DFE4DC">
+          <span class="num" style="color:#3D5248">Socio: <b style="color:#14261E">S/ 157.50</b></span>
+          <span class="num" style="color:#C9860F">Ganas S/ 17.50</span>
+        </div>
+        <button class="miniboton" style="background:#EFA51F;color:#14261E">Vender este producto →</button>
+      </div>
+
+      <div class="metrica" style="background:#fff;border:1px solid #EFA51F">
+        <small style="color:#3D5248">Por despachar</small>
+        <div class="v" style="color:#C9860F">3</div>
+      </div>
+    </div>
+
+    <!-- ===================== OPCIÓN 2 — NOCTURNO (tu referencia) ===================== -->
+    <div class="col" style="background:#0A1512;border-color:#1E2F29">
+      <h2 style="color:#F2F4EF">Nocturno</h2>
+      <div class="tag" style="color:#4DE0D6">Inspirada en la captura que enviaste</div>
+      <p class="desc" style="color:#93A69C">Fondo casi negro con dos acentos en contraste — cian y rosa. Mantengo el <b style="color:#fff">rosa chicha</b> como hilo de marca y sumo un cian nuevo, en vez de copiar la paleta ajena tal cual.</p>
+      <div class="chips">
+        <div class="chip-sw" style="background:#0A1512"></div>
+        <div class="chip-sw" style="background:#F2F4EF"></div>
+        <div class="chip-sw" style="background:#4DE0D6"></div>
+        <div class="chip-sw" style="background:#FF5C97"></div>
+        <div class="chip-sw" style="background:#3ED191"></div>
+      </div>
+
+      <div class="prodcard" style="background:#101F1A;border:1px solid #1E2F29">
+        <div class="fila">
+          <div class="ico" style="background:rgba(77,224,214,.14)">🧪</div>
+          <div><h3 style="color:#F2F4EF">GHK-Cu</h3><p style="color:#93A69C">Vial 50 mg · Piel</p></div>
+        </div>
+        <span class="mchip" style="background:rgba(62,209,145,.15);color:#3ED191">24 en Cusco</span>
+        <div class="precios" style="border-color:#1E2F29">
+          <span class="num" style="color:#93A69C">Socio: <b style="color:#F2F4EF">S/ 157.50</b></span>
+          <span class="num" style="color:#FF5C97">Ganas S/ 17.50</span>
+        </div>
+        <button class="miniboton" style="background:#4DE0D6;color:#0A1512">Vender este producto →</button>
+      </div>
+
+      <div class="metrica" style="background:#101F1A;border:1px solid #4DE0D6">
+        <small style="color:#93A69C">Por despachar</small>
+        <div class="v" style="color:#4DE0D6">3</div>
+      </div>
+    </div>
+
+    <!-- ===================== OPCIÓN 3 — CONFIANZA ===================== -->
+    <div class="col" style="background:#F4F6F5">
+      <h2 style="color:#0F2A28">Confianza</h2>
+      <div class="tag" style="color:#0E6B64">Un punto medio, pensada para el proveedor</div>
+      <p class="desc" style="color:#4A625E">Fondo claro (se lee bien al sol, en la calle), pero cambia el dorado por un <b style="color:#0F2A28">verde petróleo</b> como color principal — se siente más "banco/negocio serio" para quien maneja inventario y dinero, sin perder calidez.</p>
+      <div class="chips">
+        <div class="chip-sw" style="background:#F4F6F5"></div>
+        <div class="chip-sw" style="background:#0F2A28"></div>
+        <div class="chip-sw" style="background:#0E6B64"></div>
+        <div class="chip-sw" style="background:#D6547D"></div>
+        <div class="chip-sw" style="background:#1E8A5A"></div>
+      </div>
+
+      <div class="prodcard" style="background:#fff;border:1px solid #DCE6E3">
+        <div class="fila">
+          <div class="ico" style="background:#E4F4EC">🧪</div>
+          <div><h3 style="color:#0F2A28">GHK-Cu</h3><p style="color:#4A625E">Vial 50 mg · Piel</p></div>
+        </div>
+        <span class="mchip" style="background:#E4F4EC;color:#0E6B64">24 en Cusco</span>
+        <div class="precios" style="border-color:#DCE6E3">
+          <span class="num" style="color:#4A625E">Socio: <b style="color:#0F2A28">S/ 157.50</b></span>
+          <span class="num" style="color:#D6547D">Ganas S/ 17.50</span>
+        </div>
+        <button class="miniboton" style="background:#0E6B64;color:#fff">Vender este producto →</button>
+      </div>
+
+      <div class="metrica" style="background:#fff;border:1px solid #0E6B64">
+        <small style="color:#4A625E">Por despachar</small>
+        <div class="v" style="color:#0E6B64">3</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="veredicto">
+    <h2>Mi recomendación</h2>
+    <p>Antes de elegir por gusto, hay un dato del propio uso que pesa más que la estética: <b>tus vendedores van a abrir esta app en la calle, con el celular a plena luz del día.</b> Un fondo oscuro como el de tu captura se ve espectacular en una laptop o de noche, pero al sol directo el brillo de la pantalla rebota contra el negro y cuesta mucho más leer que sobre un fondo claro. Es al revés de lo que la intuición dice.</p>
+    <p>Por eso me quedaría con un <b>fondo claro como principal</b> — <b>Sol Dorado</b> (la que ya tienes) o <b>Confianza</b> — y dejaría <b>Nocturno</b> como un modo oscuro opcional que el usuario active si quiere, no como el diseño por defecto. Es exactamente lo que hacen apps como WhatsApp o Yape: claro por defecto, oscuro opcional.</p>
+    <p>Entre las dos claras: si el vendedor y el proveedor comparten look, <b>Sol Dorado</b> ya funciona y tiene una historia detrás (el sol, la chicha morada) que conecta con tu marca — no la cambiaría sin una razón de peso. <b>Confianza</b> vale la pena solo si notas que a los proveedores (dueños de negocio, no vendedores de a pie) el dorado les resulta "poco serio" para un panel donde manejan su dinero — ahí sí un verde más sobrio ayuda a que se sientan en un panel de negocio, no en una app de promociones.</p>
+    <span class="marca">☀️ SOCIO</span>
+  </div>
+</div>
+</body>
+</html>
