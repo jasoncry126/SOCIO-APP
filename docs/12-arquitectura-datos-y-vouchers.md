@@ -57,7 +57,13 @@ Es una línea de código en Postgres y es tu control más poderoso. Ningún vouc
 
 **Capa 2 — Monto único por pedido**
 
-Este truco es simple y elegante: en lugar de pedir S/ 158.00 exactos, el sistema pide **S/ 158.37** — con céntimos generados a partir del código del pedido. Como es prácticamente imposible que dos pedidos del mismo día tengan el mismo monto, al mirar tu estado de cuenta cada depósito se identifica solo: ese S/ 158.37 corresponde inequívocamente a ese pedido.
+Este truco es simple y elegante: en lugar de pedir S/ 158.00 exactos, el sistema pide **S/ 158.37** — con céntimos generados a partir del código del pedido. Al mirar tu estado de cuenta, cada depósito se identifica casi siempre solo.
+
+> **Corrección tras implementarlo.** Aquí decía que es «prácticamente imposible» que dos pedidos del mismo día pidan el mismo monto. No es así, y conviene saberlo: solo hay 99 céntimos posibles, de modo que entre **20 pedidos del mismo producto en un día se repite alguno** (medido, no estimado: ver `11-circuito-de-venta.sql`, caso 12). Dos pedidos de productos distintos casi nunca chocan, porque el total de partida ya difiere.
+>
+> Esto no rompe nada, porque **quien garantiza la identificación es la capa 1**, el número de operación único, no los céntimos. Pero al cruzar el extracto bancario hay que mirar el número de operación, no solo el monto: el monto orienta, no prueba.
+>
+> **Y un detalle de dinero.** El monto se redondea *hacia arriba* hasta el céntimo del código, así que el socio paga hasta un sol de más sobre lo que le corresponde. Ese sobrante queda en SOCIO. Es menos de S/ 1 por pedido, pero es real: si se prefiere que no exista, o que vaya al socio, se cambia en una línea (`monto_a_pagar`).
 
 Muchos negocios en Perú lo usan justamente porque Yape y Plin no ofrecen confirmación automática para comercios pequeños.
 

@@ -186,3 +186,37 @@ select '§4 · las ocho columnas obligatorias van primero y en orden',
                    where table_name='reporte_contable' and ordinal_position <= 8)
                  = 'pedido,fecha,marca,ruc_vendedor,precio_venta,costo_mayorista,comision_vendedor,comision_plataforma'
             then '✅' else '❌ orden distinto' end;
+
+-- =============================================================================
+-- 7ª migración · Circuito de venta
+-- Todo debe salir en '✅'.
+-- =============================================================================
+
+select 'El pedido lo crea la base, no el navegador' as regla,
+       case when exists (select 1 from pg_proc where proname='crear_pedido' and prosecdef)
+            then '✅' else '❌ falta' end as resultado
+union all
+select 'El pago lo registra la base, con su monto recalculado',
+       case when exists (select 1 from pg_proc where proname='declarar_pago' and prosecdef)
+            then '✅' else '❌ falta' end
+union all
+select 'Nadie puede insertar un pedido a mano (ni inventarse su comisión)',
+       case when has_table_privilege('authenticated','pedidos','insert')
+            then '❌ todavía puede' else '✅' end
+union all
+select 'Ni sus líneas',
+       case when has_table_privilege('authenticated','pedido_items','insert')
+            then '❌ todavía puede' else '✅' end
+union all
+select 'Ni un pago con el monto que quiera',
+       case when has_table_privilege('authenticated','pagos','insert')
+            then '❌ todavía puede' else '✅' end
+union all
+select 'El monto a pagar lleva céntimos únicos (docs/12 capa 2)',
+       case when exists (select 1 from pg_proc where proname='monto_a_pagar')
+            then '✅' else '❌ falta' end
+union all
+select 'Y nunca cobra de menos',
+       case when (select count(*) from generate_series(1,200) g
+                   where monto_a_pagar('SOC-'||g, 100 + g*0.37) < round((100 + g*0.37)::numeric,2)) = 0
+            then '✅' else '❌ hay casos que cobran de menos' end;
