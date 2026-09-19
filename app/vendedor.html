@@ -2,15 +2,21 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SOCIO — Vende y gana</title>
-<link rel="manifest" href="manifest.json">
+<!-- El manifiesto y los iconos viven en la raíz del sitio, no en app/: el
+     alcance de una app instalada no puede subir por encima de donde está su
+     manifiesto, y desde app/ no alcanzaría a index.html. -->
+<link rel="manifest" href="../manifest.json">
 <meta name="theme-color" content="#14261E">
-<link rel="apple-touch-icon" href="icono-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- 'black' y no 'black-translucent': el translúcido mete el contenido debajo
+     de la hora y la batería del teléfono, y esta pantalla no tiene margen
+     arriba para compensarlo. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="SOCIO">
-<link rel="icon" type="image/png" href="icono-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -38,7 +44,7 @@
   .logo{font-family:'Archivo',sans-serif;font-weight:900;font-stretch:110%;letter-spacing:.02em}
   .logo .o-sol{color:var(--sol)}
 
-  .pantalla{display:none;flex:1;overflow-y:auto;padding-bottom:150px}
+  .pantalla{display:none;flex:1;overflow-y:auto;padding-bottom:calc(150px + env(safe-area-inset-bottom))}
   .pantalla.activa{display:block;animation:aparece .18s ease-out}
   @keyframes aparece{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
   .cabecera{padding:18px 18px 12px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--fondo);z-index:5;gap:8px}
@@ -346,7 +352,7 @@
   .stepper.con .cant{color:var(--sol-osc)}
   .agotado{opacity:.45}
 
-  .barra-carrito{position:absolute;left:14px;right:14px;bottom:78px;z-index:15;background:var(--tinta);color:#fff;border-radius:14px;padding:13px 16px;display:none;align-items:center;justify-content:space-between;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:sube .2s ease-out}
+  .barra-carrito{position:absolute;left:14px;right:14px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:15;background:var(--tinta);color:#fff;border-radius:14px;padding:13px 16px;display:none;align-items:center;justify-content:space-between;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:sube .2s ease-out}
   @keyframes sube{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
   .barra-carrito.visible{display:flex}
   .barra-carrito .cuenta{background:var(--sol);color:var(--tinta);border-radius:8px;font-weight:800;font-size:13px;padding:4px 9px;margin-right:10px}
@@ -413,7 +419,9 @@
   .vacio p{font-size:12.5px;color:var(--tinta-suave);margin-top:4px;line-height:1.5}
 
   /* ===== Tabs ===== */
-  .barra{position:absolute;bottom:0;left:0;right:0;height:66px;background:var(--tarjeta);border-top:1px solid var(--linea);display:none;z-index:10}
+  .barra{position:absolute;bottom:0;left:0;right:0;height:calc(66px + env(safe-area-inset-bottom));
+         padding-bottom:env(safe-area-inset-bottom);background:var(--tarjeta);
+         border-top:1px solid var(--linea);display:none;z-index:10}
   .barra.visible{display:flex}
   .pestana{flex:1;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:inherit;font-size:10.5px;font-weight:600;color:var(--tinta-suave)}
   .pestana svg{width:21px;height:21px;stroke:var(--tinta-suave);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -3494,8 +3502,20 @@ function notificar(msj){
   irA('p-auth');
 })();
 
+/* ===== Instalable y utilizable sin señal =====
+   El service worker vive en la raíz del sitio para que su alcance cubra tanto
+   index.html como app/. Si falla el registro no pasa nada: la app funciona
+   igual, solo que no se instala ni abre sin datos. */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .then(function(reg){
+        console.log('SOCIO · service worker registrado. Alcance:', reg.scope);
+      })
+      .catch(function(e){
+        console.error('SOCIO · no se pudo registrar el service worker:', e.message);
+      });
+  });
 }
 </script>
 </body>
