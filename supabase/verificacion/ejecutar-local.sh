@@ -10,7 +10,8 @@ MIGS=("$AQUI/../migrations/20260912000000_modelo_de_datos_inicial.sql"
       "$AQUI/../migrations/20260913180000_estructura_fiscal.sql"
       "$AQUI/../migrations/20260915100000_manual_operativo.sql"
       "$AQUI/../migrations/20260915180000_especificacion_tecnica.sql"
-      "$AQUI/../migrations/20260917100000_circuito_de_venta.sql")
+      "$AQUI/../migrations/20260917100000_circuito_de_venta.sql"
+      "$AQUI/../migrations/20260919120000_marca_en_el_catalogo.sql")
 PGBIN="$(ls -d /usr/lib/postgresql/*/bin | tail -1)"
 W="$(mktemp -d)"
 PUERTO=5599
@@ -58,6 +59,9 @@ psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[5]}"
 
 echo "### Aplicando la 7ª migración (circuito de venta)"
 psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[6]}"
+
+echo "### Aplicando la 8ª migración (marca en el catálogo)"
+psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[7]}"
 
 for f in 01-inspeccionar-esquema 05-circuito-de-venta 06-ataques 07-administrador 08-estructura-fiscal 09-manual-operativo 10-especificacion-tecnica 11-circuito-de-venta; do
   echo; echo "################ $f ################"

@@ -220,3 +220,24 @@ select 'Y nunca cobra de menos',
        case when (select count(*) from generate_series(1,200) g
                    where monto_a_pagar('SOC-'||g, 100 + g*0.37) < round((100 + g*0.37)::numeric,2)) = 0
             then '✅' else '❌ hay casos que cobran de menos' end;
+
+-- =============================================================================
+-- 8ª migración · La marca, dentro del catálogo
+-- =============================================================================
+
+select 'El socio ve de qué marca es cada producto' as regla,
+       case when (select count(*) from information_schema.columns
+                   where table_name='catalogo_publico'
+                     and column_name in ('marca','marca_giro','marca_ciudad_almacen','marca_ciudad_punto')) = 4
+            then '✅' else '❌ faltan columnas' end as resultado
+union all
+select '...sin que se le revele el RUC ni el historial del proveedor',
+       case when (select count(*) from information_schema.columns
+                   where table_name='catalogo_publico'
+                     and column_name in ('ruc','nivel_fiabilidad','entregas_ok','celular')) = 0
+            then '✅' else '❌ se filtra algo' end
+union all
+select '...y el precio mayorista sigue sin aparecer',
+       case when (select count(*) from information_schema.columns
+                   where table_name='catalogo_publico' and column_name like '%mayorista%') = 0
+            then '✅' else '❌ se filtra' end;
