@@ -3509,7 +3509,12 @@ function notificar(msj){
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('../sw.js', { scope: '../' })
-      .catch(function(e){ console.warn('No se pudo registrar el service worker:', e.message); });
+      .then(function(reg){
+        console.log('SOCIO · service worker registrado. Alcance:', reg.scope);
+      })
+      .catch(function(e){
+        console.error('SOCIO · no se pudo registrar el service worker:', e.message);
+      });
   });
 }
 </script>
