@@ -24,7 +24,7 @@
    Al cambiar el armazón, sube VERSION: eso borra la caché anterior entera.
    =========================================================================== */
 
-const VERSION = 'socio-v1';
+const VERSION = 'socio-v2';
 const ARMAZON = 'armazon-' + VERSION;
 
 /* Rutas relativas al alcance del worker, que es la raíz del sitio. */
@@ -36,7 +36,7 @@ const PRECARGA = [
   'app/socio-precios.js',
   'app/socio-catalogo.js',
   'app/socio-datos.js',
-  'manifest.webmanifest',
+  'manifest.json',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png'
