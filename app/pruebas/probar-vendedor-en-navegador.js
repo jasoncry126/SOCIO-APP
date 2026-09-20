@@ -21,6 +21,7 @@
    donde estaban los fallos. */
 
 var path = require("path");
+var fs = require("fs");
 var PAGINA = "file://" + path.join(__dirname, "..", "vendedor.html");
 
 var chromium;
@@ -30,6 +31,29 @@ try {
   console.log("\n  SALTADA · falta Chromium para esta prueba.");
   console.log("  Para correrla:  npm install playwright-core && npx playwright install chromium\n");
   process.exit(0);
+}
+
+/* Dónde está Chromium.
+
+   En un contenedor de CI o de Claude Code en la nube suele venir ya instalado,
+   pero puede ser una versión distinta de la que playwright-core espera, y
+   entonces se da por vencido y la prueba se salta sin haber probado nada. Si
+   encontramos un binario, se lo decimos en vez de dejar que lo busque.
+
+   SOCIO_CHROMIUM=/ruta/al/chrome fuerza uno concreto. */
+function rutaDeChromium() {
+  if (process.env.SOCIO_CHROMIUM) return process.env.SOCIO_CHROMIUM;
+  var base = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
+  try {
+    var dirs = fs.readdirSync(base)
+                 .filter(function (d) { return /^chromium-\d+$/.test(d); })
+                 .sort();
+    for (var i = dirs.length - 1; i >= 0; i--) {
+      var bin = path.join(base, dirs[i], "chrome-linux", "chrome");
+      if (fs.existsSync(bin)) return bin;
+    }
+  } catch (e) { /* no hay nada preinstalado; que lo busque playwright */ }
+  return null;
 }
 
 var fallos = [];
@@ -47,9 +71,17 @@ function comprobar(nombre, condicion, detalle) {
    NO Cusco y Lima, para que se note si algo sigue leyendo la lista fija— y un
    socio con 30 ventas entregadas, que es nivel Oro. */
 
-var SOCIO_FINGIDO = null;   // se rellena dentro del navegador
+/* El socio que devuelve la base. `nivel` es lo que decide el nivel en pantalla;
+   `ventas_entregadas` solo alimenta la barra de progreso y el respaldo. En la
+   base real NUNCA falta `nivel`: la columna tiene default 'bronce' y la mueve
+   el trigger actualizar_nivel_socio(). */
+var SOCIO_BASE = {
+  id: "55555555-5555-5555-5555-555555555555", nombre: "Ana Prueba",
+  dni: "70111222", celular: "987654321", ciudad: "Lima",
+  validado: true, nivel: "oro", ventas_entregadas: 30
+};
 
-function stubDeSupabase() {
+function stubDeSupabase(socioFingido) {
   var MARCA = {
     marca_id: "22222222-2222-2222-2222-222222222222",
     marca: "Marca Prueba", marca_giro: "alimentos",
@@ -74,11 +106,7 @@ function stubDeSupabase() {
     fila({ id: "44444444-4444-4444-4444-444444444444", presentacion: "500 g",
            precio_publico: "45.00", stock_almacen: 7, stock_punto: 2 })
   ];
-  var SOCIO = {
-    id: "55555555-5555-5555-5555-555555555555", nombre: "Ana Prueba",
-    dni: "70111222", celular: "987654321", ciudad: "Lima",
-    validado: true, ventas_entregadas: 30
-  };
+  var SOCIO = socioFingido;
 
   window.__llamadas = [];          // lo que la app le pidió a la base
 
@@ -129,8 +157,9 @@ function stubDeSupabase() {
 
 async function principal() {
   var navegador;
+  var bin = rutaDeChromium();
   try {
-    navegador = await chromium.launch();
+    navegador = await chromium.launch(bin ? { executablePath: bin } : {});
   } catch (e) {
     console.log("\n  SALTADA · Chromium no se pudo abrir: " + e.message);
     console.log("  Para instalarlo:  npx playwright install chromium\n");
@@ -154,7 +183,7 @@ async function principal() {
           : 'window.SOCIO_CONFIG={URL:"",ANON:""};'
       });
     });
-    if (opciones.base) await pg.addInitScript(stubDeSupabase);
+    if (opciones.base) await pg.addInitScript(stubDeSupabase, opciones.socio || SOCIO_BASE);
     await pg.goto(PAGINA);
     await pg.waitForTimeout(900);
     return { pg: pg, ctx: ctx, errores: errores };
@@ -204,8 +233,8 @@ async function principal() {
   comprobar("la marca viene de la base", s.marca && s.marca.nombre === "Marca Prueba");
   comprobar("la ciudad de almacén sale de la marca, no de ORIGENES",
             s.marca && s.marca.almacen === "Arequipa", JSON.stringify(s.marca));
-  comprobar("el nivel usa ventas ENTREGADAS de la base (30 → oro)",
-            s.ventas === 30 && s.nivel === "oro", s.nivel + " / " + s.ventas);
+  comprobar("el nivel es el que trae la ficha de la base (oro)",
+            s.nivel === "oro", s.nivel + " / " + s.ventas + " ventas");
   comprobar("la ganancia referencial es la del nivel, no un 10% fijo",
             s.ganancia === "16%", s.ganancia);
   comprobar("las presentaciones conservan su UUID",
@@ -271,6 +300,70 @@ async function principal() {
   comprobar("la confirmación muestra el código que dio la base",
             venta.codigo === "SOC-0919-TEST", venta.codigo);
   await a.ctx.close();
+
+  /* ---- 4 · de dónde sale el nivel ---- */
+  /* El nivel tiene un solo dueño: la base. Lo mueve su trigger cuando una
+     entrega se confirma, y la pantalla lo lee, no lo recalcula. Esto importa
+     porque del nivel cuelga el descuento que se le aplica al socio en TODO el
+     catálogo: si la pantalla se lo calculara por su cuenta y no coincidiera,
+     le estaría cobrando de menos o de más.
+
+     Los tres casos son el camino real, el respaldo, y el desacuerdo entre
+     ambos — que es donde se ve quién manda. */
+  console.log("\n### 4 · el nivel lo decide la base, no la pantalla");
+  var CASOS = [
+    { que:  "la ficha trae su nivel: se usa tal cual",
+      socio: { nivel: "oro", ventas_entregadas: 30 },
+      nivel: "oro", ganancia: "16%" },
+
+    { que:  "la ficha no trae nivel: se deduce de las entregas",
+      socio: { nivel: undefined, ventas_entregadas: 30 },
+      nivel: "oro", ganancia: "16%" },
+
+    { que:  "si no concuerdan, manda el nivel de la base",
+      socio: { nivel: "diamante", ventas_entregadas: 30 },
+      nivel: "diamante", ganancia: "20%" }
+  ];
+
+  for (var i = 0; i < CASOS.length; i++) {
+    var caso = CASOS[i];
+    var socio = {};
+    for (var k in SOCIO_BASE) socio[k] = SOCIO_BASE[k];
+    for (var k2 in caso.socio) socio[k2] = caso.socio[k2];
+    if (caso.socio.nivel === undefined) delete socio.nivel;
+
+    var b = await abrir({ config: true, base: true, socio: socio });
+    await b.pg.waitForTimeout(600);
+    var r = await b.pg.evaluate(function () {
+      return { nivel: nivelActual().id, ganancia: gananciaRef() };
+    });
+    comprobar(caso.que + " → " + caso.nivel,
+              r.nivel === caso.nivel && r.ganancia === caso.ganancia,
+              "salió " + r.nivel + " con " + r.ganancia);
+    await b.ctx.close();
+  }
+
+  /* Y lo que motivó todo esto: registrar un pedido no asciende a nadie. */
+  var c = await abrir({ config: true, base: true,
+                        socio: Object.assign({}, SOCIO_BASE, { nivel: "plata", ventas_entregadas: 10 }) });
+  await c.pg.waitForTimeout(600);
+  var tras = await c.pg.evaluate(async function () {
+    var antes = nivelActual().id;
+    var p = productos[0];
+    carrito = {}; carrito[claveItem(p.id, 0, "cusco")] = 2;
+    ultimoMetodo = "qr";
+    ["r-cli-nombre","r-cli-dni","r-cli-cel","r-cli-dir"].forEach(function (id, n) {
+      document.getElementById(id).value = ["Cliente Prueba","70999888","987111222","Av. Siempre Viva 123"][n];
+    });
+    document.getElementById("r-operacion").value = "OP-54321";
+    registrarPedido();
+    await new Promise(function (r) { setTimeout(r, 900); });
+    return { antes: antes, despues: nivelActual().id };
+  });
+  comprobar("registrar un pedido NO sube de nivel",
+            tras.antes === "plata" && tras.despues === "plata",
+            tras.antes + " → " + tras.despues);
+  await c.ctx.close();
 
   await navegador.close();
 

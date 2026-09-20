@@ -326,4 +326,12 @@ La marca de prueba despacha desde Arequipa y Trujillo a propósito, y no desde
 Cusco y Lima: así, si algo vuelve a leer la lista fija de `ORIGENES` en vez de las
 ciudades de la marca, la prueba lo canta.
 
-Si Chromium no está instalado la prueba se salta y lo dice, en vez de fallar.
+Comprueba además de dónde sale el **nivel del socio**, que es de donde cuelga el
+descuento que se le aplica en todo el catálogo: que la pantalla use el nivel que
+trae su ficha, que sepa deducirlo de las entregas si no viniera, que cuando ambos
+no concuerdan mande el de la base, y que registrar un pedido no ascienda a nadie.
+
+Si Chromium no está instalado la prueba se salta y lo dice, en vez de fallar. Si
+lo está pero `playwright-core` no da con él (pasa en contenedores donde viene
+preinstalado en otra versión), la prueba lo busca en `PLAYWRIGHT_BROWSERS_PATH`;
+`SOCIO_CHROMIUM=/ruta/al/chrome` fuerza uno concreto.
