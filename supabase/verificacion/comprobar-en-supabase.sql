@@ -131,11 +131,10 @@ select '4 · la liquidación se registra sola en cada hito',
        case when exists (select 1 from pg_trigger where tgname='trg_liquidar_hito')
             then '✅' else '❌ falta el trigger' end
 union all
-select '4 · el socio ve si su pedido ya se liquidó',
-       case when exists (select 1 from pg_policies
-                          where tablename='liberaciones_dinero'
-                            and policyname='socio ve las liberaciones de sus pedidos')
-            then '✅' else '❌ falta la política' end
+select '4 · el socio ve si su pedido ya se liquidó (sin el monto)',
+       case when exists (select 1 from information_schema.views
+                          where table_name='liquidaciones_socio')
+            then '✅' else '❌ falta la vista' end
 union all
 select '4.3 · el reporte trae el estado de la liquidación',
        case when (select count(*) from information_schema.columns
@@ -241,3 +240,39 @@ select '...y el precio mayorista sigue sin aparecer',
        case when (select count(*) from information_schema.columns
                    where table_name='catalogo_publico' and column_name like '%mayorista%') = 0
             then '✅' else '❌ se filtra' end;
+
+-- =============================================================================
+-- Migración 20260920 · Quién mueve el pedido
+-- Todo debe salir en '✅'.
+-- =============================================================================
+
+select 'Solo SOCIO puede validar un pedido para despacho' as regla,
+       case when (select prosrc from pg_proc where proname='pedido_transicion_valida')
+                 like '%es_admin()%'
+            then '✅' else '❌ la marca puede validarse sola' end as resultado
+union all
+select 'Un pedido no pasa a "pagado" sin un pago declarado',
+       case when (select prosrc from pg_proc where proname='pedido_transicion_valida')
+                 like '%from pagos pg where pg.pedido_id = new.id%'
+            then '✅' else '❌ la marca puede darse por pagada' end
+union all
+select 'El candado de estados corre con permisos propios',
+       case when exists (select 1 from pg_proc
+                          where proname='pedido_transicion_valida' and prosecdef)
+            then '✅' else '❌ falta security definer' end
+union all
+select 'El socio ya no lee los montos de la liquidación',
+       case when exists (select 1 from pg_policies
+                          where tablename='liberaciones_dinero'
+                            and policyname='socio ve las liberaciones de sus pedidos')
+            then '❌ la política sigue puesta' else '✅' end
+union all
+select 'Pero sí sabe si su pedido se liquidó, y cuándo',
+       case when exists (select 1 from information_schema.views
+                          where table_name='liquidaciones_socio')
+            then '✅' else '❌ falta la vista liquidaciones_socio' end
+union all
+select 'Y esa vista no trae el monto',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='liquidaciones_socio' and column_name='monto')
+            then '❌ trae el monto' else '✅' end;

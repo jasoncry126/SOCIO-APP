@@ -4,14 +4,10 @@
 set -euo pipefail
 
 AQUI="$(cd "$(dirname "$0")" && pwd)"
-MIGS=("$AQUI/../migrations/20260912000000_modelo_de_datos_inicial.sql"
-      "$AQUI/../migrations/20260912100000_permisos_para_operar.sql"
-      "$AQUI/../migrations/20260913120000_administradores.sql"
-      "$AQUI/../migrations/20260913180000_estructura_fiscal.sql"
-      "$AQUI/../migrations/20260915100000_manual_operativo.sql"
-      "$AQUI/../migrations/20260915180000_especificacion_tecnica.sql"
-      "$AQUI/../migrations/20260917100000_circuito_de_venta.sql"
-      "$AQUI/../migrations/20260919120000_marca_en_el_catalogo.sql")
+# Las migraciones se descubren solas, en el orden de su fecha. Así una rama que
+# añade una migración no choca con otra que añade la suya.
+mapfile -t MIGS < <(ls "$AQUI"/../migrations/*.sql | sort)
+
 PGBIN="$(ls -d /usr/lib/postgresql/*/bin | tail -1)"
 W="$(mktemp -d)"
 PUERTO=5599
@@ -42,28 +38,12 @@ psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 \
   -c "grant usage on schema public to anon, authenticated;" \
   -c "grant select, insert, update, delete on all tables in schema public to anon, authenticated;"
 
-echo "### Aplicando la 2ª migración (permisos para operar)"
-psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[1]}"
+for m in "${MIGS[@]:1}"; do
+  echo "### Aplicando $(basename "$m")"
+  psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "$m"
+done
 
-echo "### Aplicando la 3ª migración (administradores)"
-psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[2]}"
-
-echo "### Aplicando la 4ª migración (estructura fiscal)"
-psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[3]}"
-
-echo "### Aplicando la 5ª migración (manual operativo)"
-psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[4]}"
-
-echo "### Aplicando la 6ª migración (especificación técnica)"
-psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[5]}"
-
-echo "### Aplicando la 7ª migración (circuito de venta)"
-psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[6]}"
-
-echo "### Aplicando la 8ª migración (marca en el catálogo)"
-psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "${MIGS[7]}"
-
-for f in 01-inspeccionar-esquema 05-circuito-de-venta 06-ataques 07-administrador 08-estructura-fiscal 09-manual-operativo 10-especificacion-tecnica 11-circuito-de-venta; do
+for f in 01-inspeccionar-esquema 05-circuito-de-venta 06-ataques 07-administrador 08-estructura-fiscal 09-manual-operativo 10-especificacion-tecnica 11-circuito-de-venta 12-quien-mueve-el-pedido; do
   echo; echo "################ $f ################"
   ejecutar "$AQUI/$f.sql"
 done
