@@ -28,6 +28,7 @@ supabase/
     08-estructura-fiscal.sql   ← privacidad de importes, comprobantes, estados
     09-manual-operativo.sql    ← liquidación por hitos, candado logístico
     10-especificacion-tecnica.sql ← PVP, foto de la guía, orden del reporte
+    12-quien-mueve-el-pedido.sql  ← los dos huecos de permisos que tocaban dinero
 ```
 
 ---
@@ -253,6 +254,56 @@ documento del contador (detalle en `docs/15-estructura-fiscal.md`, sección 9):
 
 El bloque de Storage va condicionado a que exista el esquema `storage`, para que
 la migración se pueda probar también en un Postgres normal.
+
+---
+
+## La octava migración: quién mueve el pedido
+
+`20260920120000_quien_mueve_el_pedido.sql` cierra los dos huecos de permisos
+que tocaban dinero, de los seis que encontró la revisión de las reglas RLS.
+
+**1 · Una marca podía darse por pagada sola y cobrar.** La marca tiene permiso
+de escribir `estado` en sus propios pedidos, y el candado de estados comprobaba
+el *orden* de la transición pero no *quién* la hacía. Con eso recorría ella sola
+el camino entero —pendiente de pago → pagado → validado → en camino → entregado—
+y al final se liquidaba su precio mayorista íntegro, sin que existiera ningún
+pago ni ningún administrador de SOCIO de por medio. Probado contra PostgreSQL 16:
+pedido de S/ 180, cero filas en `pagos`, S/ 100 liberados a la marca.
+
+El candado ahora comprueba también la autoría, con dos reglas de negocio:
+
+| Paso | Quién |
+|---|---|
+| → `pagado` | tiene que existir un pago declarado para ese pedido (y declararlo solo se puede por `declarar_pago()`, que exige que el pedido sea del socio que llama) |
+| → `validado` | solo un administrador de SOCIO (`es_admin()`), que es lo que el estado `validado` significaba desde que se creó |
+
+La función pasa a `security definer` para que la comprobación del pago sea
+fiable venga de quien venga.
+
+**2 · El socio podía deducir el precio mayorista y la comisión de SOCIO.** Se le
+había dejado leer las liquidaciones de sus pedidos para que supiera si estaban
+cerrados, pero esas filas llevan el monto, y la suma de los dos hitos es el
+mayorista exacto de la marca. Probado: mayorista real S/ 100.00, el socio leyó
+S/ 100.00. Es la regla nº 1 de `CLAUDE.md`, la misma que `pedidos_socio` y
+`pedido_items_socio` sostienen columna por columna.
+
+Se retira esa política y en su lugar queda la vista `liquidaciones_socio`, con
+el hito y la fecha pero sin el importe — el mismo remedio que ya se usó con
+`catalogo_publico` para el precio mayorista del catálogo.
+
+**Qué NO cambia:** ni el panel de la marca ni el de SOCIO escriben estados desde
+el navegador, y nadie lee `liberaciones_dinero` desde la app, así que las tres
+pantallas siguen funcionando igual.
+
+Se verifica con `12-quien-mueve-el-pedido.sql`, que recorre los dos atajos
+cerrados y después el camino legítimo completo, hasta ver a la marca cobrar sus
+dos hitos con un pago validado detrás.
+
+**Los otros cuatro huecos siguen abiertos**, a la espera de una segunda
+migración: la marca puede deducir lo que paga el socio leyendo
+`pagos.monto_esperado`; una marca puede aprobar y publicar su propio catálogo
+sin revisión de SOCIO; cualquiera puede pedir un retiro de cualquier monto y
+colgárselo a otra marca; y la bitácora se puede firmar a nombre ajeno.
 
 ---
 
