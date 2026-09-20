@@ -276,3 +276,61 @@ select 'Y esa vista no trae el monto',
        case when exists (select 1 from information_schema.columns
                           where table_name='liquidaciones_socio' and column_name='monto')
             then '❌ trae el monto' else '✅' end;
+
+-- =============================================================================
+-- Migración 20260920140000 · Los otros cuatro huecos
+-- Todo debe salir en '✅'.
+-- =============================================================================
+
+select 'La marca ya no lee el monto que paga el socio' as regla,
+       case when exists (select 1 from pg_policies
+                          where tablename='pagos'
+                            and policyname='marca ve el pago de sus pedidos')
+            then '❌ la política sigue puesta' else '✅' end as resultado
+union all
+select 'Pero sí ve si le pagaron, por su vista',
+       case when exists (select 1 from information_schema.views where table_name='pagos_marca')
+            then '✅' else '❌ falta la vista pagos_marca' end
+union all
+select '...y esa vista no trae importes',
+       case when (select count(*) from information_schema.columns
+                   where table_name='pagos_marca'
+                     and column_name in ('monto_esperado','monto_reportado','numero_operacion','imagen_voucher_url')) = 0
+            then '✅' else '❌ se filtra algo' end
+union all
+select 'Una marca no puede aprobar su propio producto',
+       case when has_column_privilege('authenticated','productos','estado','update')
+            then '❌ todavía puede' else '✅' end
+union all
+select '...ni colarlo ya aprobado al crearlo',
+       case when exists (select 1 from pg_trigger where tgname='trg_producto_lo_aprueba_socio')
+            then '✅' else '❌ falta el trigger' end
+union all
+select '...pero sí puede pausarlo y editar su ficha',
+       case when has_column_privilege('authenticated','productos','activo','update')
+             and has_column_privilege('authenticated','productos','descripcion','update')
+            then '✅' else '❌ se le cerró de más' end
+union all
+select 'Un retiro es de una marca o de un socio, nunca de los dos',
+       case when exists (select 1 from pg_constraint where conname='retiros_un_solo_dueno')
+            then '✅' else '❌ falta la restricción' end
+union all
+select 'El monto del retiro lo comprueba la base',
+       case when exists (select 1 from pg_proc where proname='solicitar_retiro' and prosecdef)
+            then '✅' else '❌ falta solicitar_retiro()' end
+union all
+select '...y nadie inserta un retiro a mano',
+       case when has_table_privilege('authenticated','retiros','insert')
+            then '❌ todavía puede' else '✅' end
+union all
+select 'En la bitácora cada quien firma con su nombre',
+       case when exists (select 1 from pg_policies
+                          where tablename='bitacora'
+                            and policyname='cada quien deja constancia con su nombre')
+            then '✅' else '❌ falta la política' end
+union all
+select '...y sigue sin poder editarse ni borrarse',
+       case when has_table_privilege('authenticated','bitacora','update')
+              or has_table_privilege('authenticated','bitacora','delete')
+            then '❌ todavía puede' else '✅' end;
+

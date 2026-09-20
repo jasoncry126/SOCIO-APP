@@ -29,6 +29,7 @@ supabase/
     09-manual-operativo.sql    ← liquidación por hitos, candado logístico
     10-especificacion-tecnica.sql ← PVP, foto de la guía, orden del reporte
     12-quien-mueve-el-pedido.sql  ← los dos huecos de permisos que tocaban dinero
+    13-los-otros-cuatro-huecos.sql ← los cuatro restantes de esa misma revisión
 ```
 
 ---
@@ -304,6 +305,40 @@ migración: la marca puede deducir lo que paga el socio leyendo
 `pagos.monto_esperado`; una marca puede aprobar y publicar su propio catálogo
 sin revisión de SOCIO; cualquiera puede pedir un retiro de cualquier monto y
 colgárselo a otra marca; y la bitácora se puede firmar a nombre ajeno.
+
+---
+
+## La novena migración: los otros cuatro huecos
+
+`20260920140000_los_otros_cuatro_huecos.sql` cierra los cuatro que quedaban de
+la revisión de permisos. Ninguno dejaba salir dinero como los dos anteriores,
+pero los cuatro rompían una regla que el resto del sistema sostiene con cuidado.
+
+| Hueco | Cómo queda |
+|---|---|
+| La marca leía `pagos` entero de sus pedidos, y con `monto_esperado` deducía el precio del socio y la comisión de SOCIO | se retira esa política y queda la vista `pagos_marca`, con el estado del pago y sus fechas pero sin importes, número de operación ni voucher |
+| Una marca podía crear un producto ya aprobado, o aprobar el suyo | `estado` sale del permiso de escritura de la marca, y un trigger deja entrar el alta pero siempre en revisión. `activo` sigue siendo suyo: es su interruptor de pausa y no publica nada por sí solo |
+| Cualquiera pedía un retiro de cualquier monto, y podía colgárselo a otra marca | `solicitar_retiro()` calcula el saldo en la base, y una restricción exige que el retiro sea de una marca **o** de un socio, nunca de los dos |
+| La bitácora se podía firmar a nombre ajeno | la política exige ahora que el autor sea quien escribe, y que el tipo de autor sea el que de verdad es |
+
+**Qué es el saldo de cada quien**, que hasta ahora no estaba escrito en ningún
+sitio: de una marca, lo que se le ha liberado por hitos menos lo que ya pidió;
+de un socio, lo que ganó en pedidos **entregados** menos lo que ya pidió. Un
+retiro rechazado no descuenta, porque el dinero nunca salió. Si SOCIO quiere
+además un periodo de retención antes de pagar, se cambia `saldo_disponible()`
+y nada más.
+
+Se verifica con `13-los-otros-cuatro-huecos.sql`, que de cada hueco comprueba
+las dos caras: que el atajo ya no existe y que lo legítimo se sigue pudiendo
+hacer — la marca edita y pausa su producto, el socio retira lo que tiene, y
+las funciones de la plataforma siguen dejando constancia.
+
+Con esto los seis huecos de la revisión quedan cerrados.
+
+**Un cambio de comportamiento que conviene tener presente:** un producto que
+una marca sube queda en revisión *siempre*, aunque el navegador mande otra
+cosa. `05-circuito-de-venta.sql` se actualizó por eso — ahora sube el producto
+y SOCIO lo aprueba, que es el camino real.
 
 ---
 
