@@ -2022,19 +2022,32 @@ const NIVELES = [
   {id:'oro',      nombre:'Socio Oro',      med:'🥇', desc:0.16, meta:25, req:'25 ventas entregadas'},
   {id:'diamante', nombre:'Socio Diamante', med:'💎', desc:0.20, meta:50, req:'50 ventas + 3 meses activo'},
 ];
-/* Con base detrás, el nivel lo lleva la propia base: sube por ventas
-   ENTREGADAS (CLAUDE.md regla 5), que es lo que cuenta su trigger. En modo
-   local se contaban los pedidos registrados, que no es lo mismo. */
+/* El nivel tiene un solo dueño: la base. Lo mueve su trigger
+   actualizar_nivel_socio() cuando un pedido pasa a ENTREGADO, que es la regla
+   5 de CLAUDE.md. Aquí no se recalcula nada — se lee lo que la base decidió.
+
+   Contar pedidos registrados, como se hacía antes, era la regla vieja: le
+   subía el nivel al socio por pedir, no por entregar, y le aplicaba desde ese
+   momento un descuento que todavía no se había ganado.
+
+   Sin base detrás no hay entregas confirmadas que contar: nadie confirma una
+   entrega desde el teléfono del socio. Así que se queda en el nivel de
+   entrada y la pantalla se lo dice, en vez de inventarle un número. */
 function ventasHechas(){
-  if(!usuario) return 0;
-  if(CONECTADO) return Number(usuario.ventas_entregadas || 0);
-  return misPedidos().length;
+  if(!usuario || !CONECTADO) return 0;
+  return Number(usuario.ventas_entregadas || 0);
 }
 function nivelActual(){
-  const n = ventasHechas();
-  let idx = 0;
-  NIVELES.forEach((niv,i)=>{ if(n >= niv.meta) idx = i; });
-  return {...NIVELES[idx], idx};
+  if(CONECTADO && usuario){
+    const i = NIVELES.findIndex(n => n.id === usuario.nivel);
+    if(i >= 0) return {...NIVELES[i], idx:i};
+    /* La base trae un nivel que esta pantalla no conoce todavía. Se deduce de
+       las ventas entregadas, con los mismos cortes que usa su trigger. */
+    const porVentas = SocioPrecios.nivelPorVentas(ventasHechas()).id;
+    const j = Math.max(0, NIVELES.findIndex(n => n.id === porVentas));
+    return {...NIVELES[j], idx:j};
+  }
+  return {...NIVELES[0], idx:0};
 }
 function nivelSiguiente(){
   const a = nivelActual();
@@ -2939,7 +2952,7 @@ function abrirSesion(u){
       .then(function(r){
         pintarMarcas(); pintarCatalogo(); actualizarBarra();
         if(typeof pintarPedidos === 'function') pintarPedidos();
-        // El nivel se recalcula: ya se sabe cuántas ventas entregadas lleva.
+        // El nivel ya viene en su ficha, puesto por la base según sus entregas.
         const niv = nivelActual();
         document.getElementById('u-estado').innerHTML =
           `${niv.med} ${niv.nombre} · ${usuario.validado ? '✓ validado' : 'en validación'}`;
@@ -3000,6 +3013,35 @@ async function cargarPedidosDeLaBase(){
 }
 function guardarPedidos(lista){ if(usuario) guardar('socio_pedidos_'+usuario.celular, lista); }
 
+/* El nivel ahora solo lo mueve la base, y puede haberse movido mientras el
+   socio no miraba: una entrega que la marca confirmó ayer. Su ficha se vuelve
+   a leer cuando abre sus pedidos o sus ganancias, y si subió, se le avisa —
+   que es el momento en que de verdad se lo ganó. */
+async function refrescarSocio(){
+  if(!CONECTADO || !usuario) return null;
+  const antes = nivelActual().idx;
+  const fila = await SocioDatos.socioActual();
+  if(!fila) return null;
+  usuario = fila;
+  const ahora = nivelActual();
+  document.getElementById('u-estado').innerHTML =
+    `${ahora.med} ${ahora.nombre} · ${usuario.validado ? '✓ validado' : 'en validación'}`;
+  if(ahora.idx > antes){
+    notificar(`${ahora.med} ¡Subiste a ${ahora.nombre}! Ahora ganas ${Math.round(ahora.desc*100)}% en todo el catálogo`);
+  }
+  return ahora;
+}
+
+/* Los pedidos y la ficha del socio se leen juntos: el nivel se mueve por las
+   entregas, así que lo que cambia uno cambia el otro. Si la lectura falla no
+   se interrumpe nada — se sigue viendo lo último que se cargó. */
+function refrescarDeLaBase(repintar){
+  if(!CONECTADO || !usuario) return;
+  Promise.all([cargarPedidosDeLaBase(), refrescarSocio()])
+    .then(function(){ if(typeof repintar === 'function') repintar(); })
+    .catch(function(){ /* se queda lo ya cargado */ });
+}
+
 /* ===== Navegación ===== */
 function irA(id){
   document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa'));
@@ -3009,8 +3051,11 @@ function irA(id){
   document.getElementById('barra-carrito').classList.toggle('visible', id==='p-catalogo' && totalItems()>0);
   const ba = document.getElementById('barra-accion');
   if(ba) ba.classList.toggle('ver', id==='p-producto');
-  if(id==='p-pedidos') pintarPedidos();
-  if(id==='p-ganancias'){ pintarGanancias(); pintarEstadoDisp(); }
+  if(id==='p-pedidos'){ pintarPedidos(); refrescarDeLaBase(pintarPedidos); }
+  if(id==='p-ganancias'){
+    pintarGanancias(); pintarEstadoDisp();
+    refrescarDeLaBase(pintarGanancias);
+  }
   if(id==='p-resumen') pintarEstadoDisp();
 }
 
@@ -3643,15 +3688,10 @@ function registrarPedido(){
     metodo: ultimoMetodo,
     total: t.conEnvio, ganancia: t.gana
   });
+  /* Registrar un pedido no asciende a nadie: asciende la entrega confirmada, y
+     de eso se encarga la base. Aquí ya no se anuncia ningún ascenso. */
   guardarPedidos(lista);
 
-  // ¿subió de nivel con este pedido?
-  const nivPrevio = nivelActual();
-  guardarPedidos(lista);
-  const nivNuevo = nivelActual();
-  if(nivNuevo.idx > nivPrevio.idx){
-    setTimeout(()=>notificar(`${nivNuevo.med} ¡Subiste a ${nivNuevo.nombre}! Ahora ganas ${Math.round(nivNuevo.desc*100)}% en todo el catálogo`), 900);
-  }
   document.getElementById('conf-codigo').textContent = codigo;
   document.getElementById('conf-sub').textContent = ultimoMetodo==='qr'
     ? 'Detectaremos tu pago QR y el pedido pasará a despacho automáticamente.'
@@ -3693,6 +3733,19 @@ function pintarPedidos(){
 /* ===== Ganancias ===== */
 function bloqueNivel(){
   const a = nivelActual(), s = nivelSiguiente(), n = ventasHechas();
+
+  /* Sin base no hay entregas confirmadas que contar, así que una barra de
+     progreso no mediría nada. Se dice en su lugar de dónde sale el nivel. */
+  if(!CONECTADO){
+    return `<div class="nivel-cinta">
+      <div class="medalla">${a.med}</div>
+      <div class="info">
+        <b>${a.nombre} · ${Math.round(a.desc*100)}% de ganancia</b>
+        <small>Tu nivel sube con cada <b>entrega confirmada</b>, no al registrar el pedido. Esta copia de la app todavía no está conectada al sistema de SOCIO, así que aquí no se ve tu avance.</small>
+      </div>
+    </div>`;
+  }
+
   const faltan = s ? s.meta - n : 0;
   const pct = s ? Math.min(100, Math.round((n - a.meta) / (s.meta - a.meta) * 100)) : 100;
   return `<div class="nivel-cinta">
