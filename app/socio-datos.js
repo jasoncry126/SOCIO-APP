@@ -162,6 +162,207 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* Cuentas de socio                                                    */
+  /* ------------------------------------------------------------------ */
+
+  async function registrarSocio(d) {
+    var sb = exigirCliente();
+
+    var alta = await sb.auth.signUp({
+      email: correoDe(d.celular, DOMINIO_SOCIOS),
+      password: claveDe(d.clave)
+    });
+    if (alta.error) throw new Error(explicar(alta.error, "No se pudo crear tu cuenta"));
+
+    var usuario = alta.data && alta.data.user;
+    var sesion = alta.data && alta.data.session;
+    if (!usuario) throw new Error("Supabase no devolvió la cuenta creada.");
+    if (!sesion) {
+      throw new Error("La cuenta se creó pero quedó pendiente de confirmar correo. " +
+                      "En Supabase: Authentication → Sign In / Providers → desactiva «Confirm email», " +
+                      "y vuelve a intentar.");
+    }
+
+    var fila = {
+      id: usuario.id,                    // debe coincidir con auth.uid()
+      nombre: d.nombre,
+      dni: d.dni,
+      celular: d.celular,
+      ciudad: d.ciudad,
+      clave_hash: "gestionado_por_supabase_auth"
+    };
+
+    var res = await sb.from("usuarios_socios").insert(fila).select().single();
+    if (res.error) throw new Error(explicar(res.error, "No se pudo guardar tu ficha"));
+    return res.data;
+  }
+
+  async function ingresarSocio(celular, clave) {
+    var sb = exigirCliente();
+    var r = await sb.auth.signInWithPassword({
+      email: correoDe(celular, DOMINIO_SOCIOS),
+      password: claveDe(clave)
+    });
+    if (r.error) throw new Error(explicar(r.error, "No se pudo entrar"));
+    return await socioActual();
+  }
+
+  async function socioActual() {
+    var sb = iniciar();
+    if (!sb) return null;
+    var s = await sb.auth.getSession();
+    if (!s.data || !s.data.session) return null;
+    var res = await sb.from("usuarios_socios").select("*")
+                      .eq("id", s.data.session.user.id).maybeSingle();
+    if (res.error) throw new Error(explicar(res.error, "No se pudo leer tu ficha"));
+    return res.data;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* El catálogo que ve el socio                                         */
+  /* ------------------------------------------------------------------ */
+
+  /* Se lee de la VISTA catalogo_publico, no de las tablas. La vista no tiene
+     columna de precio mayorista: aunque alguien manipule esta función desde la
+     consola del navegador, ese dato no está del otro lado (CLAUDE.md regla 1). */
+  async function cargarCatalogoPublico() {
+    var sb = exigirCliente();
+    var res = await sb.from("catalogo_publico")
+                      .select("*")
+                      .order("producto", { ascending: true });
+    if (res.error) throw new Error(explicar(res.error, "No se pudo leer el catálogo"));
+
+    // Llega una fila por presentación; el panel las quiere agrupadas por
+    // producto, y los productos agrupados por marca.
+    var porProducto = {};
+    var orden = [];
+    (res.data || []).forEach(function (f) {
+      var p = porProducto[f.producto_id];
+      if (!p) {
+        p = porProducto[f.producto_id] = {
+          id: f.producto_id,
+          marcaId: f.marca_id,
+          marca: f.marca,
+          marcaGiro: f.marca_giro || "",
+          marcaCiudadAlmacen: f.marca_ciudad_almacen || "",
+          marcaCiudadPunto: f.marca_ciudad_punto || "",
+          nombre: f.producto,
+          nombreComprobante: f.nombre_comprobante || "",
+          cat: f.categoria || "",
+          emoji: f.emoji || "📦",
+          desc: f.descripcion || "",
+          reco: f.recomendaciones || "",
+          prep: f.tiempo_prep || "",
+          cobertura: f.cobertura || "",
+          corteNac: f.corte_nacional || "",
+          corteLoc: f.corte_local || "",
+          dias: f.dias_despacho || "",
+          variantes: []
+        };
+        orden.push(p);
+      }
+      p.variantes.push({
+        id: f.id,
+        pres: f.presentacion,
+        sug: Number(f.precio_publico),     // precio de página; NO hay mayorista
+        stockAlmacen: f.stock_almacen === null ? null : Number(f.stock_almacen),
+        stockPunto: f.stock_punto === null ? null : Number(f.stock_punto)
+      });
+    });
+    return orden;
+  }
+
+  /* Las marcas salen del propio catálogo, no de la tabla 'marcas': los permisos
+     no dejan al socio leerla —ahí están el RUC y el historial de cada
+     proveedor— y no hace falta, porque la vista ya trae lo que necesita ver. */
+  function marcasDelCatalogo(filas) {
+    var vistas = {}, orden = [];
+    (filas || []).forEach(function (f) {
+      if (vistas[f.marcaId]) return;
+      vistas[f.marcaId] = true;
+      orden.push({
+        id: f.marcaId,
+        nombre: f.marca,
+        giro: f.marcaGiro,
+        ciudadAlmacen: f.marcaCiudadAlmacen,
+        ciudadPunto: f.marcaCiudadPunto
+      });
+    });
+    return orden;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Registrar la venta                                                  */
+  /* ------------------------------------------------------------------ */
+
+  /* Ojo con lo que NO se manda: ningún precio. Los cuatro montos los calcula
+     crear_pedido() leyendo el catálogo y el nivel del socio. Si se mandaran
+     desde aquí, cualquiera podría editarlos antes de que salgan. */
+  async function crearPedido(d) {
+    var sb = exigirCliente();
+    var res = await sb.rpc("crear_pedido", {
+      p_items: d.items,                        // [{presentacion_id, cantidad}]
+      p_destinatario: d.destinatario,
+      p_doc: d.doc,
+      p_celular: d.celular,
+      p_origen: d.origen,                      // 'almacen' | 'punto_venta'
+      p_modo_entrega: d.modoEntrega,           // 'agencia' | 'domicilio'
+      p_detalle_entrega: d.detalleEntrega,
+      p_agencia: d.agencia || null,
+      p_costo_envio: d.costoEnvio || 0
+    });
+    if (res.error) throw new Error(explicar(res.error, "No se pudo registrar el pedido"));
+    var fila = (res.data || [])[0];
+    if (!fila) throw new Error("El pedido no se registró y la base no dijo por qué.");
+    return {
+      id: fila.pedido_id,
+      codigo: fila.codigo,
+      pagas: Number(fila.precio_socio),
+      ganas: Number(fila.ganancia_socio),
+      precioPublico: Number(fila.precio_publico),
+      montoATransferir: Number(fila.monto_esperado)
+    };
+  }
+
+  /* El monto esperado tampoco se manda: se recalcula del lado de la base. */
+  async function declararPago(d) {
+    var sb = exigirCliente();
+    var res = await sb.rpc("declarar_pago", {
+      p_pedido_id: d.pedidoId,
+      p_numero_operacion: d.numeroOperacion,
+      p_monto_reportado: d.montoReportado,
+      p_metodo: d.metodo,                      // yape | plin | transferencia | deposito
+      p_voucher_url: d.voucherUrl || null,
+      p_hash_imagen: d.hashImagen || null
+    });
+    if (res.error) throw new Error(explicar(res.error, "No se pudo registrar tu pago"));
+    var fila = (res.data || [])[0];
+    if (!fila) throw new Error("El pago no se registró y la base no dijo por qué.");
+    return { id: fila.pago_id, esperado: Number(fila.monto_esperado), cuadra: !!fila.cuadra };
+  }
+
+  async function misPedidos() {
+    var sb = exigirCliente();
+    var res = await sb.from("pedidos_socio").select("*")
+                      .order("creado_en", { ascending: false });
+    if (res.error) throw new Error(explicar(res.error, "No se pudieron leer tus pedidos"));
+    return res.data || [];
+  }
+
+  async function registrarComprobante(d) {
+    var sb = exigirCliente();
+    var res = await sb.rpc("registrar_comprobante", {
+      p_pedido_id: d.pedidoId,
+      p_tipo: d.tipo,                          // 'boleta' | 'factura'
+      p_serie: d.serie,
+      p_numero: d.numero,
+      p_url: d.url || null
+    });
+    if (res.error) throw new Error(explicar(res.error, "No se pudo registrar el comprobante"));
+    return true;
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Catálogo                                                            */
   /* ------------------------------------------------------------------ */
 
@@ -391,6 +592,15 @@
     registrarMarca: registrarMarca,
     ingresarMarca: ingresarMarca,
     marcaActual: marcaActual,
+    registrarSocio: registrarSocio,
+    ingresarSocio: ingresarSocio,
+    socioActual: socioActual,
+    cargarCatalogoPublico: cargarCatalogoPublico,
+    marcasDelCatalogo: marcasDelCatalogo,
+    crearPedido: crearPedido,
+    declararPago: declararPago,
+    misPedidos: misPedidos,
+    registrarComprobante: registrarComprobante,
     salir: salir,
     cargarCatalogo: cargarCatalogo,
     importarCatalogo: importarCatalogo,

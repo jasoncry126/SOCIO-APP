@@ -165,3 +165,20 @@ select monto_esperado, cuadra from declarar_pago(
 set request.jwt.claim.sub = 'aaaa1111-0000-0000-0000-000000000001';
 select tabla, accion, actor_tipo from bitacora
  where accion in ('creado','pago_declarado') order by id;
+
+\echo ''
+\echo '=================== EL CATÁLOGO TRAE LA MARCA ==================='
+
+\echo '### 21 · El socio ve de qué marca es cada producto y desde dónde despacha'
+set request.jwt.claim.sub = 'a4000000-0000-0000-0000-000000000001';
+select distinct marca, marca_giro, marca_ciudad_almacen, marca_ciudad_punto
+  from catalogo_publico where marca = 'Marca Circuito';
+
+\echo '### 22 · ...pero sigue sin poder leer la tabla de marcas (debe: 0 filas)'
+select count(*) as marcas_que_ve from marcas;
+
+\echo '### 23 · Y el catálogo NO revela el RUC ni el nivel de fiabilidad'
+select string_agg(column_name, ', ') as columnas_prohibidas
+  from information_schema.columns
+ where table_name = 'catalogo_publico'
+   and column_name in ('ruc','nivel_fiabilidad','entregas_ok','entregas_incidencia','celular');

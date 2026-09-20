@@ -354,3 +354,27 @@ panel y sin dependencias, y tiene pruebas:
 ```bash
 node app/pruebas/probar-catalogo.js
 ```
+
+## La app del socio, probada en un navegador
+
+Las pruebas de arriba comprueban la base y los cálculos por separado. Falta lo
+que solo se ve juntando las dos partes: que `vendedor.html` arranque sin errores,
+que enseñe el catálogo de la base y no el de demostración, y que al registrar una
+venta **no mande ningún precio** —los importes los calcula `crear_pedido()`, y si
+viajaran desde el teléfono cualquiera podría editarlos antes de que salgan.
+
+```bash
+npm install playwright-core && npx playwright install chromium   # solo la 1ª vez
+node app/pruebas/probar-vendedor-en-navegador.js
+```
+
+Abre la app en Chromium contra un Supabase de mentira, en los tres estados en que
+puede encontrarse: **conectada**, **sin configurar** (sigue con los 47 productos
+de demostración, como siempre) y **configurada pero caída**, donde lo que se
+comprueba es que se niegue a enseñar un catálogo que no es el real.
+
+La marca de prueba despacha desde Arequipa y Trujillo a propósito, y no desde
+Cusco y Lima: así, si algo vuelve a leer la lista fija de `ORIGENES` en vez de las
+ciudades de la marca, la prueba lo canta.
+
+Si Chromium no está instalado la prueba se salta y lo dice, en vez de fallar.
