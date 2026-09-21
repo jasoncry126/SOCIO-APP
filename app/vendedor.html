@@ -446,15 +446,16 @@
      ============================================================ */
 
   /* --- Entrada escalonada de una lista recién pintada ---
-     El retraso de cada tarjeta lo pone el JS en --retraso, y se corta en la
-     décima: con 47 productos, escalonarlas todas tardaría casi dos segundos
-     en terminar de aparecer, que es justo lo contrario de lo que se busca. */
-  @keyframes entra-item{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:none}}
+     El retraso de cada tarjeta lo pone el JS en --retraso, 80 ms entre una y
+     otra, y se corta en la séptima: con 47 productos, escalonarlas todas
+     tardaría casi cuatro segundos en terminar, que es justo lo contrario de
+     lo que se busca. */
+  @keyframes entra-item{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
   /* 'backwards' y no 'both': con 'both' la animación se queda con el mando del
      transform al terminar, y el realce al pasar el puntero dejaría de verse
      sobre las tarjetas recién entradas. Así solo retiene el estado inicial
      mientras cada tarjeta espera su turno. */
-  .entra{animation:entra-item .35s cubic-bezier(.22,.61,.36,1) backwards;animation-delay:var(--retraso,0ms)}
+  .entra{animation:entra-item .4s cubic-bezier(.22,.61,.36,1) backwards;animation-delay:var(--retraso,0ms)}
 
   /* --- Pantallas: adelante entra por la derecha, atrás por la izquierda ---
      Así el pedido se siente como un camino que se avanza y se desanda, en vez
@@ -499,7 +500,8 @@
   }
   @media (hover:hover){
     .marca-card:hover,.producto-tarjeta:hover,.pedido-item:hover{
-      transform:scale(1.02);box-shadow:0 8px 20px rgba(20,38,30,.09)}
+      transform:translateY(-4px);box-shadow:0 10px 22px rgba(20,38,30,.10)}
+    .producto-tarjeta:hover .producto-img img{transform:scale(1.08)}
     .metodo:hover,.modo-op:hover,.origen-op:hover,.agencia:hover,
     .cat-chip:hover,.adjunto:hover,.pres-btn:hover{transform:scale(1.03)}
     .btn:hover{transform:scale(1.015)}
@@ -525,7 +527,7 @@
   .adjunto-vista{display:flex;align-items:center;gap:11px;text-align:left}
   .adjunto-vista img{width:56px;height:56px;object-fit:cover;border-radius:10px;
                      border:1.5px solid var(--ok);flex-shrink:0;background:#fff;
-                     animation:entra-item .32s cubic-bezier(.22,.61,.36,1) backwards}
+                     animation:entra-item .3s cubic-bezier(.22,.61,.36,1) backwards}
   .adjunto-vista .txt{flex:1;min-width:0;font-weight:500;line-height:1.5}
   .adjunto-vista .txt b{display:block;font-weight:800;margin-bottom:1px}
   .adjunto-vista .txt small{display:block;font-size:11px;color:var(--tinta-suave);font-weight:600}
@@ -537,6 +539,38 @@
   .toast{transition:opacity .22s ease-out,transform .3s cubic-bezier(.22,.61,.36,1);
          transform:translateY(14px) scale(.96)}
   .toast.visible{transform:none}
+
+  /* --- Seguimiento del pedido: cuatro hitos y una barra que se llena --- */
+  .seguimiento{position:relative;margin-top:11px;padding-top:12px;border-top:1px dashed var(--linea)}
+  /* La pista va del centro del primer icono al centro del último: por eso se
+     mete un octavo del ancho por cada lado (hay cuatro columnas iguales). */
+  .seg-barra{position:absolute;top:27px;left:12.5%;right:12.5%;height:2px;
+             background:var(--linea);border-radius:2px}
+  @keyframes avanza-barra{from{width:0}}
+  .seg-avance{height:100%;background:var(--ok);border-radius:2px;
+              animation:avanza-barra .8s cubic-bezier(.4,0,.2,1) backwards}
+  .seg-pasos{position:relative;display:flex;justify-content:space-between}
+  .seg-paso{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .seg-paso .ic{width:30px;height:30px;border-radius:50%;background:var(--tarjeta);
+                border:2px solid var(--linea);display:flex;align-items:center;justify-content:center;
+                transition:background .3s ease-out,border-color .3s ease-out,transform .3s ease-out}
+  .seg-paso .ic svg{width:15px;height:15px;fill:none;stroke:var(--tinta-suave);
+                    stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .seg-paso small{font-size:9.5px;font-weight:700;line-height:1.25;text-align:center;
+                  color:var(--tinta-suave)}
+  .seg-paso.hecho .ic{background:var(--ok);border-color:var(--ok)}
+  .seg-paso.hecho .ic svg{stroke:#fff}
+  .seg-paso.hecho small{color:var(--tinta)}
+  /* El hito en curso late despacio, para que se vea dónde está parado el pedido. */
+  @keyframes latido{0%,100%{box-shadow:0 0 0 2px #FCF0D8}50%{box-shadow:0 0 0 6px #FCF0D8}}
+  .seg-paso.ahora .ic{border-color:var(--sol);transform:scale(1.14);
+                      animation:latido 1.9s ease-in-out infinite}
+  .seg-paso.ahora .ic svg{stroke:var(--sol-osc)}
+  .seg-paso.ahora small{color:var(--tinta)}
+
+  /* --- La tarjeta se levanta, y su foto se acerca un poco --- */
+  .producto-img{overflow:hidden}
+  .producto-img img{transition:transform .3s cubic-bezier(.22,.61,.36,1)}
 </style>
 </head>
 <body>
@@ -3119,6 +3153,7 @@ async function cargarPedidosDeLaBase(){
       celular: f.celular_destinatario,
       fecha: new Date(f.creado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'short'}),
       estado: e[0], chip: e[1],
+      estadoId: f.estado,          // el estado crudo: lo usa la barra de avance
       guia: f.numero_guia || '', tracking: f.tracking || '',
       total: Number(f.precio_publico || 0),
       ganancia: Number(f.ganancia_socio || 0)
@@ -3168,7 +3203,7 @@ function escalonar(cont, animar){
   const hijos = cont.children;
   for(let i=0;i<hijos.length;i++){
     hijos[i].classList.add('entra');
-    hijos[i].style.setProperty('--retraso', (Math.min(i,10)*40) + 'ms');
+    hijos[i].style.setProperty('--retraso', (Math.min(i,6)*80) + 'ms');
   }
 }
 
@@ -3937,6 +3972,8 @@ function registrarPedido(){
     fecha: new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'short'}),
     estado: ultimoMetodo==='qr' ? 'Validando pago QR' : 'Constancia en validación',
     chip:'chip-alerta',
+    estadoId: 'pagado',            // pago declarado, todavía sin validar
+
     metodo: ultimoMetodo,
     total: t.conEnvio, ganancia: t.gana
   });
@@ -3963,6 +4000,57 @@ function copiarCodigo(){
   notificar('Código copiado: ' + cod);
 }
 
+/* ===== Seguimiento del pedido =====
+   Cuatro hitos atados a los estados que la base tiene HOY. Ojo con esto: aquí
+   NO hay custodia de pagos. En SOCIO el socio adelanta el precio de socio y le
+   cobra a su cliente por fuera, así que la plataforma no retiene dinero de
+   nadie en garantía (es la Fase 1 de docs/02). Por eso ningún hito dice
+   "en custodia" ni "fondos liberados": sería prometerle al socio algo que la
+   plataforma no hace. Si algún día se decide la custodia, se añaden hitos
+   nuevos aquí y estados nuevos en la base, no solo etiquetas. */
+
+/* Iconos de la familia lucide, dibujados a mano en SVG — que es lo mismo que
+   trae lucide-react, sin necesitar React para pintarlos. */
+const ICONOS = {
+  recibo: '<svg viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>',
+  escudo: '<svg viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>',
+  camion: '<svg viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
+  visto:  '<svg viewBox="0 0 24 24"><path d="M21.8 10A10 10 0 1 1 17 3.34"/><path d="m9 11 3 3L22 4"/></svg>'
+};
+
+const HITOS = [
+  { titulo: 'Registrado',    ic: 'recibo' },
+  { titulo: 'Pago validado', ic: 'escudo' },
+  { titulo: 'Despachado',    ic: 'camion' },
+  { titulo: 'Entregado',     ic: 'visto'  }
+];
+
+/* Cuántos hitos están cumplidos, y cuál está en curso, según lo que dice la
+   base. 'ahora' es el índice del que late; -1 cuando ya no queda ninguno. */
+const AVANCE = {
+  pendiente_pago: { hechos: 1, ahora: 1 },   // falta que pague
+  pagado:         { hechos: 1, ahora: 1 },   // pagó, SOCIO está validando
+  validado:       { hechos: 2, ahora: 2 },   // validado, la marca prepara
+  en_camino:      { hechos: 3, ahora: 3 },   // ya hay guía
+  entregado:      { hechos: 4, ahora: -1 }
+};
+
+function seguimiento(estadoId){
+  /* Un pedido cancelado no tiene camino que enseñar, y uno viejo guardado en
+     el teléfono puede no traer estado: en los dos casos, sin barra. */
+  const a = AVANCE[estadoId];
+  if(!a) return '';
+  const pct = ((a.hechos - 1) / (HITOS.length - 1)) * 100;
+  return `<div class="seguimiento">
+    <div class="seg-barra"><div class="seg-avance" style="width:${pct}%"></div></div>
+    <div class="seg-pasos">
+      ${HITOS.map((h, i) => `<div class="seg-paso ${i < a.hechos ? 'hecho' : ''} ${i === a.ahora ? 'ahora' : ''}">
+        <span class="ic">${ICONOS[h.ic]}</span><small>${h.titulo}</small>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
 /* ===== Pedidos ===== */
 function pintarPedidos(animar){
   const contPed = document.getElementById('lista-pedidos');
@@ -3973,6 +4061,7 @@ function pintarPedidos(animar){
     <div class="tarjeta pedido-item">
       <div class="arriba"><div><h3>${p.codigo}</h3><div class="det">${p.items}<br>${p.cliente} · ${p.fecha}${p.entrega?'<br>📦 '+p.entrega:''}</div></div><span class="chip ${p.chip}">${p.estado}</span></div>
       <div class="abajo"><span>Verificable en el sistema de control con tu código</span><b class="num">S/ ${p.total.toFixed(2)}</b></div>
+      ${seguimiento(p.estadoId)}
     </div>`).join('')
   : `<div class="vacio">
       <div class="ic">🧾</div>
