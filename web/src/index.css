@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* Los colores de SOCIO, los mismos que usa la app de hoy. Se declaran aquí
+   como tokens de Tailwind para que se puedan escribir como bg-fondo,
+   text-tinta o border-linea en cualquier componente. */
+@theme {
+  --color-tinta: #14261e;
+  --color-tinta-suave: #3d5248;
+  --color-fondo: #f2f4ef;
+  --color-tarjeta: #ffffff;
+  --color-linea: #dfe4dc;
+  --color-sol: #efa51f;
+  --color-sol-osc: #c9860f;
+  --color-sol-bg: #fcf0d8;
+  --color-chicha: #e84d8a;
+  --color-chicha-bg: #fdedf4;
+  --color-ok: #1e8a5a;
+  --color-ok-bg: #e4f4ec;
+  --color-alerta: #b7791f;
+  --color-alerta-bg: #fbf1dc;
+  --color-info: #2b6cb0;
+  --color-info-bg: #e8f0fa;
+
+  --font-sans: "Instrument Sans", system-ui, sans-serif;
+  --font-titulo: "Archivo", sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-tinta);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+}
+
+/* Números alineados en columna: los precios se comparan de un vistazo. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quien pidió menos movimiento en su teléfono no ve ninguna animación. Vale
+   tanto para las de CSS como para las de framer-motion, que respeta este
+   mismo ajuste a través de MotionConfig (ver main.tsx). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* El brillo que recorre las siluetas de carga. */
+@keyframes brillo {
+  to {
+    transform: translateX(100%);
+  }
+}
