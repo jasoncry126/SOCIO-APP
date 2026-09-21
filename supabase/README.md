@@ -30,7 +30,7 @@ supabase/
     10-especificacion-tecnica.sql ← PVP, foto de la guía, orden del reporte
     12-quien-mueve-el-pedido.sql  ← los dos huecos de permisos que tocaban dinero
     13-los-otros-cuatro-huecos.sql ← los cuatro restantes de esa misma revisión
-    14-las-fotos-del-catalogo.sql  ← la foto de cada presentación y su cubo
+    16-las-fotos-del-catalogo.sql  ← la foto de cada presentación y su cubo
 ```
 
 ---
