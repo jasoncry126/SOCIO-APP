@@ -30,6 +30,7 @@ supabase/
     10-especificacion-tecnica.sql ← PVP, foto de la guía, orden del reporte
     12-quien-mueve-el-pedido.sql  ← los dos huecos de permisos que tocaban dinero
     13-los-otros-cuatro-huecos.sql ← los cuatro restantes de esa misma revisión
+    14-stock-voucher-e-indices.sql ← la reserva de stock, el voucher y los índices
 ```
 
 ---
@@ -341,6 +342,55 @@ cosa. `05-circuito-de-venta.sql` se actualizó por eso — ahora sube el product
 y SOCIO lo aprueba, que es el camino real.
 
 ---
+
+## La décima migración: stock, voucher e índices
+
+`20260921120000_stock_voucher_e_indices.sql` son tres arreglos independientes
+que no tocan ninguna regla de negocio ya decidida. Salen de la auditoría del 20
+de setiembre de 2026.
+
+**1 · El stock nunca se descontaba.** `crear_pedido()` comprobaba que hubiera
+suficiente y luego no restaba nada. Dos socios que venden la última unidad el
+mismo minuto pasaban los dos la comprobación, registraban los dos su pedido, y
+la marca se enteraba al despachar — con un cliente ya cobrado del otro lado.
+
+Ahora la comprobación y la reserva son la misma operación: donde había un
+`select` del stock y una comparación, hay un `update` con
+`where stock >= cantidad`. La diferencia no es de estilo. Un `select` no
+bloquea nada, así que los dos navegadores leen «queda 1» y los dos pasan; un
+`update` bloquea la fila, así que el segundo espera al primero y se encuentra
+el stock en cero. Es la base la que pone el orden, no la suerte.
+
+**Cancelar devuelve la mercadería al catálogo**, que es la otra mitad de
+reservar: sin eso, cada pedido cancelado se lleva su stock para siempre. Con
+una excepción: si el pedido ya iba `en_camino`, la caja salió del almacén y no
+está de vuelta en el estante. Qué hacer con ella es una decisión de la marca,
+no un automatismo.
+
+**2 · El mismo voucher valía dos veces.** `numero_operacion` es único, así que
+una misma transferencia no paga dos pedidos con el mismo número. Pero
+`hash_imagen` —la huella del archivo, que existe justamente para detectar la
+foto reusada— no lo era: bastaba con teclear otro número y la misma imagen
+entraba otra vez. Ahora hay un índice único sobre los pagos que tienen huella,
+y `declarar_pago()` lo avisa con una explicación en vez de un error de base.
+
+**3 · No había un solo índice.** Ni sobre `pedidos(socio_id)`, ni
+`pedido_items(pedido_id)`, ni ninguna de las claves foráneas por las que se
+consulta todo el tiempo — Postgres indexa sola la clave primaria y las columnas
+únicas, las foráneas no. Y son justo esas las que usan todas las políticas RLS
+(«mis pedidos» es `pedidos.socio_id = auth.uid()`) y todas las pantallas. Con
+RLS cada política se evalúa fila por fila sobre un recorrido completo de la
+tabla: hoy no se nota, con diez mil pedidos sí. Van los catorce cruces que el
+código hace hoy, ni uno más.
+
+Se verifica con `14-stock-voucher-e-indices.sql`: el stock bajando unidad por
+unidad, el pedido que ya no cabe, la columna del origen que no se toca, las dos
+caras de la cancelación, la foto repetida y la propia, y los índices en su
+sitio.
+
+**Qué NO cambia:** ninguna pantalla. El stock ya se mostraba desde el catálogo
+y el socio ya veía el error cuando no alcanzaba; lo que cambia es que ahora el
+error dice la verdad.
 
 ## Nota sobre `auth.uid()`
 

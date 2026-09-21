@@ -334,3 +334,42 @@ select '...y sigue sin poder editarse ni borrarse',
               or has_table_privilege('authenticated','bitacora','delete')
             then '❌ todavía puede' else '✅' end;
 
+
+-- =============================================================================
+-- Migración 20260921 · Stock, voucher e índices
+-- Todo debe salir en '✅'.
+-- =============================================================================
+
+select 'El stock se reserva al registrar el pedido' as regla,
+       case when (select prosrc from pg_proc where proname='crear_pedido')
+                 like '%set stock_almacen = stock_almacen - it.cant%'
+            then '✅' else '❌ el stock no se descuenta' end as resultado
+union all
+select '...y la reserva es el mismo update que comprueba',
+       case when (select prosrc from pg_proc where proname='crear_pedido')
+                 like '%and stock_almacen >= it.cant%'
+            then '✅' else '❌ vuelve a comprobar por separado' end
+union all
+select 'Cancelar un pedido devuelve la mercadería',
+       case when exists (select 1 from pg_trigger where tgname='trg_devolver_stock')
+            then '✅' else '❌ falta el trigger' end
+union all
+select '...salvo si ya había salido del almacén',
+       case when (select prosrc from pg_proc where proname='devolver_stock_al_cancelar')
+                 like '%old.estado = ''en_camino''%'
+            then '✅' else '❌ devolvería stock que va camino al cliente' end
+union all
+select 'La misma foto de voucher no paga dos pedidos',
+       case when exists (select 1 from pg_indexes
+                          where indexname='pagos_hash_imagen_unico')
+            then '✅' else '❌ falta el índice único' end
+union all
+select '...y el socio lee una explicación, no un error de base',
+       case when (select prosrc from pg_proc where proname='declarar_pago')
+                 like '%Esa foto de voucher ya se usó%'
+            then '✅' else '❌ falta el aviso' end
+union all
+select 'Las claves foráneas por las que se consulta tienen índice',
+       case when (select count(*) from pg_indexes
+                   where schemaname='public' and indexname like 'idx_%') >= 14
+            then '✅' else '❌ faltan índices' end;
