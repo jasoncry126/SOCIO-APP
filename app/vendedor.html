@@ -435,6 +435,108 @@
 
   .toast{position:absolute;bottom:150px;left:18px;right:18px;background:var(--tinta);color:#fff;padding:12px 15px;border-radius:12px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(6px);z-index:30}
   .toast.visible{opacity:1;transform:none}
+
+  /* ============================================================
+     MOVIMIENTO — entradas, esqueletos y microinteracciones
+
+     Todo esto es CSS y animaciones nativas del navegador: no hay ninguna
+     librería detrás. La regla de prefers-reduced-motion de más arriba las
+     apaga todas de golpe para quien pidió menos movimiento en su teléfono,
+     así que cada animación que se añada aquí ya nace respetando ese ajuste.
+     ============================================================ */
+
+  /* --- Entrada escalonada de una lista recién pintada ---
+     El retraso de cada tarjeta lo pone el JS en --retraso, y se corta en la
+     décima: con 47 productos, escalonarlas todas tardaría casi dos segundos
+     en terminar de aparecer, que es justo lo contrario de lo que se busca. */
+  @keyframes entra-item{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:none}}
+  /* 'backwards' y no 'both': con 'both' la animación se queda con el mando del
+     transform al terminar, y el realce al pasar el puntero dejaría de verse
+     sobre las tarjetas recién entradas. Así solo retiene el estado inicial
+     mientras cada tarjeta espera su turno. */
+  .entra{animation:entra-item .35s cubic-bezier(.22,.61,.36,1) backwards;animation-delay:var(--retraso,0ms)}
+
+  /* --- Pantallas: adelante entra por la derecha, atrás por la izquierda ---
+     Así el pedido se siente como un camino que se avanza y se desanda, en vez
+     de que cada paso aparezca desde el mismo sitio. */
+  @keyframes entra-der{from{opacity:0;transform:translateX(22px)}to{opacity:1;transform:none}}
+  @keyframes entra-izq{from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:none}}
+  .pantalla.activa{animation:aparece .24s cubic-bezier(.22,.61,.36,1)}
+  .pantalla.activa.avanza{animation:entra-der .26s cubic-bezier(.22,.61,.36,1)}
+  .pantalla.activa.retrocede{animation:entra-izq .26s cubic-bezier(.22,.61,.36,1)}
+
+  /* --- Esqueletos con brillo, mientras la base contesta --- */
+  @keyframes brillo{to{transform:translateX(100%)}}
+  .esq{position:relative;overflow:hidden;background:#E4E8E0;border-radius:8px}
+  .esq::after{content:'';position:absolute;inset:0;transform:translateX(-100%);
+              background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);
+              animation:brillo 1.4s ease-in-out infinite}
+  .esq-tarjeta{margin-bottom:10px;pointer-events:none}
+  .esq-fila{display:flex;gap:11px;align-items:flex-start}
+  .esq-lineas{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding-top:3px}
+  .esq-portada{height:96px;border-radius:0}
+  .esq-marca{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;
+             overflow:hidden;margin-bottom:14px;pointer-events:none}
+  .esq-marca .cuerpo{padding:14px;display:flex;flex-direction:column;gap:9px}
+  .esq-meta{display:flex;gap:8px;margin-top:2px}
+  .esq-meta .esq{flex:1;height:44px;border-radius:10px}
+
+  /* --- Botón ocupado: el pedido está viajando a la base --- */
+  @keyframes gira{to{transform:rotate(360deg)}}
+  .btn.cargando{pointer-events:none;color:transparent;position:relative}
+  .btn.cargando::after{content:'';position:absolute;top:50%;left:50%;width:18px;height:18px;
+                       margin:-9px 0 0 -9px;border:2.5px solid rgba(20,38,30,.28);
+                       border-top-color:var(--tinta);border-radius:50%;
+                       animation:gira .7s linear infinite}
+
+  /* --- Microinteracciones: lo que se puede tocar, responde al tacto ---
+     El realce con el puntero encima solo en aparatos que de verdad tienen uno:
+     en un teléfono se queda pegado después del toque y parece un error. */
+  .marca-card,.producto-tarjeta,.producto-cuerpo,.pedido-item,.metodo,.modo-op,.origen-op,
+  .agencia,.cat-chip,.adjunto,.pres-btn,.stepper button,.btn{
+    transition:transform .18s cubic-bezier(.22,.61,.36,1),box-shadow .18s ease-out,
+               border-color .18s ease-out,background .18s ease-out;
+  }
+  @media (hover:hover){
+    .marca-card:hover,.producto-tarjeta:hover,.pedido-item:hover{
+      transform:scale(1.02);box-shadow:0 8px 20px rgba(20,38,30,.09)}
+    .metodo:hover,.modo-op:hover,.origen-op:hover,.agencia:hover,
+    .cat-chip:hover,.adjunto:hover,.pres-btn:hover{transform:scale(1.03)}
+    .btn:hover{transform:scale(1.015)}
+  }
+  .marca-card:active{transform:scale(.98)}
+  .producto-cuerpo:active{transform:scale(.985)}
+  .pedido-item:active{transform:scale(.99)}
+  .metodo:active,.modo-op:active,.origen-op:active,.agencia:active,
+  .cat-chip:active,.adjunto:active{transform:scale(.97)}
+  .stepper button:active{transform:scale(.88)}
+  .btn:active{transform:scale(.97)}
+
+  /* La cantidad pega un salto cuando cambia, para que se vea que el toque entró. */
+  @keyframes salto{0%{transform:scale(1)}45%{transform:scale(1.3)}100%{transform:scale(1)}}
+  .stepper.pulso .cant{animation:salto .3s cubic-bezier(.34,1.56,.64,1);color:var(--sol-osc)}
+
+  /* --- Comprobante: la miniatura entra y el sello se estampa --- */
+  @keyframes sello{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.18);opacity:1}100%{transform:scale(1)}}
+  .adjunto.ok .ic,.sello-ok{display:inline-block;animation:sello .42s cubic-bezier(.34,1.56,.64,1) backwards}
+  /* Con miniatura, el sello se mete en la línea del título: el icono suelto y
+     centrado de arriba se quedaba huérfano sobre la foto. */
+  .adjunto.con-vista .ic{display:none}
+  .adjunto-vista{display:flex;align-items:center;gap:11px;text-align:left}
+  .adjunto-vista img{width:56px;height:56px;object-fit:cover;border-radius:10px;
+                     border:1.5px solid var(--ok);flex-shrink:0;background:#fff;
+                     animation:entra-item .32s cubic-bezier(.22,.61,.36,1) backwards}
+  .adjunto-vista .txt{flex:1;min-width:0;font-weight:500;line-height:1.5}
+  .adjunto-vista .txt b{display:block;font-weight:800;margin-bottom:1px}
+  .adjunto-vista .txt small{display:block;font-size:11px;color:var(--tinta-suave);font-weight:600}
+
+  /* El check de "pedido registrado" se estampa al entrar la pantalla. */
+  .conf-hero .check{animation:sello .5s cubic-bezier(.34,1.56,.64,1) backwards;animation-delay:.12s}
+
+  /* El aviso de abajo sube y se asienta, en vez de solo encenderse. */
+  .toast{transition:opacity .22s ease-out,transform .3s cubic-bezier(.22,.61,.36,1);
+         transform:translateY(14px) scale(.96)}
+  .toast.visible{transform:none}
 </style>
 </head>
 <body>
@@ -783,7 +885,7 @@
           Sin este número tu pago no se puede cruzar con el estado de cuenta, y un mismo
           comprobante podría usarse dos veces.</div>
       </div>
-      <button class="btn btn-sol" style="margin-top:14px" onclick="registrarPedido()">Registrar pedido</button>
+      <button class="btn btn-sol" id="btn-registrar" style="margin-top:14px" onclick="registrarPedido()">Registrar pedido</button>
     </div>
   </section>
 
@@ -835,7 +937,7 @@
   </section>
 
   <!-- ============ BARRA CARRITO ============ -->
-  <div class="barra-carrito" id="barra-carrito" onclick="irA('p-resumen');pintarResumen()">
+  <div class="barra-carrito" id="barra-carrito" onclick="irA('p-resumen');pintarResumen(true)">
     <span class="cuenta num" id="bc-cuenta">0</span>
     <span class="texto">Ver resumen de compra<small class="num" id="bc-detalle"></small></span>
     <span class="flecha">→</span>
@@ -2850,10 +2952,11 @@ function entrarInvitado(){
   notificar('Mira el catálogo libremente. Crea tu cuenta cuando quieras vender ☀️');
   if(CONECTADO){
     productos = []; marcas = []; FICHAS = {};
+    cargandoCatalogo = true;
     pintarMarcas(); pintarCatalogo();
     cargarCatalogoDeLaBase()
-      .then(function(){ pintarMarcas(); pintarCatalogo(); actualizarBarra(); })
-      .catch(function(e){ notificar(e.message); });
+      .then(function(){ cargandoCatalogo = false; pintarMarcas(true); pintarCatalogo(true); actualizarBarra(); })
+      .catch(function(e){ cargandoCatalogo = false; pintarMarcas(); pintarCatalogo(); notificar(e.message); });
   }
 }
 function aplicarModo(){
@@ -2946,19 +3049,31 @@ function abrirSesion(u){
     // Se vacía ANTES de pedir. Si quedaran los productos de demostración, el
     // socio vería 47 artículos que no existen y podría intentar venderlos.
     productos = []; marcas = []; FICHAS = {};
+    PEDIDOS_BASE = [];
+    cargandoCatalogo = true; cargandoPedidos = true;
+    /* Las siluetas con brillo ya dicen "esto está cargando", así que aquí no
+       hace falta además un aviso abajo diciendo lo mismo. */
     pintarMarcas(); pintarOrigenes(); pintarCatalogo(); pintarAgencias(); sincronizarEnvio(); actualizarBarra();
-    notificar('Cargando el catálogo…');
+    if(typeof pintarPedidos === 'function') pintarPedidos();
     Promise.all([cargarCatalogoDeLaBase(), cargarPedidosDeLaBase()])
       .then(function(r){
-        pintarMarcas(); pintarCatalogo(); actualizarBarra();
-        if(typeof pintarPedidos === 'function') pintarPedidos();
+        cargandoCatalogo = false; cargandoPedidos = false;
+        pintarMarcas(true); pintarCatalogo(true); actualizarBarra();
+        if(typeof pintarPedidos === 'function') pintarPedidos(true);
         // El nivel ya viene en su ficha, puesto por la base según sus entregas.
         const niv = nivelActual();
         document.getElementById('u-estado').innerHTML =
           `${niv.med} ${niv.nombre} · ${usuario.validado ? '✓ validado' : 'en validación'}`;
         if(!r[0]) notificar('Todavía no hay productos aprobados para vender.');
       })
-      .catch(function(e){ notificar(e.message); });
+      .catch(function(e){
+        /* Si la lectura falla hay que apagar las siluetas: si no, se quedarían
+           brillando para siempre y parecería que sigue cargando. */
+        cargandoCatalogo = false; cargandoPedidos = false;
+        pintarMarcas(); pintarCatalogo();
+        if(typeof pintarPedidos === 'function') pintarPedidos();
+        notificar(e.message);
+      });
     return;
   }
 
@@ -3042,16 +3157,98 @@ function refrescarDeLaBase(repintar){
     .catch(function(){ /* se queda lo ya cargado */ });
 }
 
+/* ===== Movimiento de las listas y de las pantallas =====
+   Las listas se pintan de golpe con innerHTML, así que la entrada escalonada
+   se marca tarjeta por tarjeta justo después de pintar. Solo la pide quien
+   cambia el CONTENIDO de la lista (abrir una marca, filtrar por categoría,
+   terminar de cargar de la base). Quien solo suma uno al carrito NO la pide:
+   si no, el catálogo entero volvería a aparecer en cada toque del "+". */
+function escalonar(cont, animar){
+  if(!animar || !cont) return;
+  const hijos = cont.children;
+  for(let i=0;i<hijos.length;i++){
+    hijos[i].classList.add('entra');
+    hijos[i].style.setProperty('--retraso', (Math.min(i,10)*40) + 'ms');
+  }
+}
+
+/* ===== Esqueletos de carga =====
+   Mientras la base contesta se dibuja la silueta de lo que va a llegar, con un
+   brillo que la recorre. Es mejor que una pantalla en blanco, y mucho mejor
+   que el "Aún no tienes pedidos" que se veía un instante antes de que
+   llegaran los datos — decía que no había nada cuando todavía no se sabía. */
+let cargandoCatalogo = false;
+let cargandoPedidos  = false;
+
+function esqTexto(ancho, alto){
+  return `<div class="esq" style="width:${ancho};height:${alto||'13px'}"></div>`;
+}
+function esqueletoMarcas(n){
+  let s = '';
+  for(let i=0;i<n;i++){
+    s += `<div class="esq-marca" aria-hidden="true">
+      <div class="esq esq-portada"></div>
+      <div class="cuerpo">
+        ${esqTexto('58%','16px')}${esqTexto('34%','11px')}${esqTexto('86%','11px')}
+        <div class="esq-meta"><div class="esq"></div><div class="esq"></div></div>
+      </div>
+    </div>`;
+  }
+  return s;
+}
+function esqueletoProductos(n){
+  let s = '';
+  for(let i=0;i<n;i++){
+    s += `<div class="tarjeta esq-tarjeta" aria-hidden="true">
+      <div class="esq-fila">
+        <div class="esq" style="width:56px;height:56px;border-radius:10px"></div>
+        <div class="esq-lineas">
+          ${esqTexto('74%','14px')}${esqTexto('48%','11px')}${esqTexto('62%','11px')}
+        </div>
+      </div>
+    </div>`;
+  }
+  return s;
+}
+function esqueletoPedidos(n){
+  let s = '';
+  for(let i=0;i<n;i++){
+    s += `<div class="tarjeta esq-tarjeta" aria-hidden="true">
+      <div class="esq-lineas">
+        ${esqTexto('40%','14px')}${esqTexto('82%','11px')}${esqTexto('55%','11px')}
+      </div>
+    </div>`;
+  }
+  return s;
+}
+/* Quien usa lector de pantalla no ve el brillo: se le avisa con aria-busy. */
+function esperando(cont, silueta){
+  cont.setAttribute('aria-busy','true');
+  cont.innerHTML = silueta;
+}
+function yaLlego(cont){ cont.removeAttribute('aria-busy'); }
+
 /* ===== Navegación ===== */
+/* El orden en que se recorre una venta. Sirve para saber si la pantalla que
+   entra viene "después" o "antes" de la que estaba, y hacerla entrar por el
+   lado que corresponde. Lo que no está en esta lista (entrar, pedidos,
+   ganancias) entra con el desvanecido de siempre. */
+const ORDEN_FLUJO = ['p-marcas','p-catalogo','p-producto','p-resumen','p-pago','p-confirmacion'];
 function irA(id){
-  document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa'));
-  document.getElementById(id).classList.add('activa');
+  const previa = document.querySelector('.pantalla.activa');
+  const desde = ORDEN_FLUJO.indexOf(previa ? previa.id : '');
+  const hasta = ORDEN_FLUJO.indexOf(id);
+  const sentido = (desde>=0 && hasta>=0 && desde!==hasta) ? (hasta>desde ? 'avanza' : 'retrocede') : '';
+  document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa','avanza','retrocede'));
+  const destino = document.getElementById(id);
+  if(sentido) destino.classList.add(sentido);
+  destino.classList.add('activa');
   const tabRef = id==='p-catalogo' ? 'p-marcas' : id;
   document.querySelectorAll('.pestana').forEach(t=>t.classList.toggle('activa', t.dataset.p===tabRef));
   document.getElementById('barra-carrito').classList.toggle('visible', id==='p-catalogo' && totalItems()>0);
   const ba = document.getElementById('barra-accion');
   if(ba) ba.classList.toggle('ver', id==='p-producto');
-  if(id==='p-pedidos'){ pintarPedidos(); refrescarDeLaBase(pintarPedidos); }
+  if(id==='p-pedidos'){ pintarPedidos(true); refrescarDeLaBase(pintarPedidos); }
   if(id==='p-ganancias'){
     pintarGanancias(); pintarEstadoDisp();
     refrescarDeLaBase(pintarGanancias);
@@ -3085,7 +3282,12 @@ function cambiar(clave, d){
     nuevo = s;
   }
   if(nuevo===0) delete carrito[clave]; else carrito[clave]=nuevo;
+  /* Sin escalonar: el catálogo se repinta entero en cada toque del "+", y
+     volver a hacerlo aparecer todo sería mareante. Lo que sí responde es la
+     cantidad que acaba de cambiar, que da un salto. */
   pintarCatalogo(); actualizarBarra();
+  const paso = document.querySelector('.stepper[data-clave="' + clave + '"]');
+  if(paso) paso.classList.add('pulso');
 }
 function pintarOrigenes(){
   const cont = document.getElementById('origen-ops');
@@ -3107,7 +3309,7 @@ function elegirOrigen(id){
     return;
   }
   origenSel = id;
-  pintarOrigenes(); pintarCatalogo(); sincronizarEnvio();
+  pintarOrigenes(); pintarCatalogo(true); sincronizarEnvio();
 }
 /* ===================== FICHA DE PRODUCTO ===================== */
 function prodF(){ return productos.find(p=>p.id===fichaId); }
@@ -3247,7 +3449,7 @@ function venderEste(){
   const clave = claveItem(fichaId, fichaVi);
   precios[clave] = precioVenta;
   if(!carrito[clave]) cambiar(clave, 1); else { pintarCatalogo(); actualizarBarra(); }
-  pintarResumen(); irA('p-resumen');
+  pintarResumen(true); irA('p-resumen');
 }
 
 /* ===== Tabs ===== */
@@ -3392,8 +3594,11 @@ function actualizarBarra(){
 function gananciaRef(){
   return Math.round(nivelActual().desc * 100) + '%';
 }
-function pintarMarcas(){
-  document.getElementById('lista-marcas').innerHTML = marcas.map(m=>{
+function pintarMarcas(animar){
+  const contMarcas = document.getElementById('lista-marcas');
+  if(cargandoCatalogo && !marcas.length){ esperando(contMarcas, esqueletoMarcas(2)); return; }
+  yaLlego(contMarcas);
+  contMarcas.innerHTML = marcas.map(m=>{
     const r = rangoPrecios(m.id);
     return `<div class="marca-card" onclick="abrirMarca('${m.id}')">
       <div class="marca-portada" style="${m.portadaImg?`background-image:url('${m.portadaImg}')`:`background:${m.portada}`}">${m.portadaImg?'':m.emoji}<div class="marca-logo" style="${m.logoImg?'':`background:${m.color}`}">${m.logoImg?`<img src="${m.logoImg}" alt="${m.nombre}">`:m.ini}</div></div>
@@ -3412,6 +3617,7 @@ function pintarMarcas(){
       </div>
     </div>`;
   }).join('');
+  escalonar(contMarcas, animar);
 }
 let categoriaSel = 'todas';
 function abrirMarca(id){
@@ -3422,7 +3628,7 @@ function abrirMarca(id){
   const cl = document.getElementById('cat-logo');
   if(m.logoImg){ cl.src = m.logoImg; cl.alt = m.nombre; cl.style.display = 'block'; } else { cl.style.display = 'none'; }
   document.getElementById('cat-ganancia').textContent = invitado ? '🔒 Ganancias para socios' : 'Ganas ' + gananciaRef();
-  pintarOrigenes(); pintarCatalogo();
+  pintarOrigenes(); pintarCatalogo(true);
   irA('p-catalogo');
 }
 function chipStock(v, origen){
@@ -3445,11 +3651,14 @@ function pintarCatTabs(){
   cont.innerHTML = ['todas', ...cats].map(c=>
     `<button class="cat-chip ${categoriaSel===c?'activa':''}" onclick="elegirCategoria('${c}')">${c==='todas'?'Todas':c}</button>`).join('');
 }
-function elegirCategoria(c){ categoriaSel = c; pintarCatTabs(); pintarCatalogo(); }
-function pintarCatalogo(){
+function elegirCategoria(c){ categoriaSel = c; pintarCatTabs(); pintarCatalogo(true); }
+function pintarCatalogo(animar){
   pintarCatTabs();
+  const contProds = document.getElementById('lista-productos');
+  if(cargandoCatalogo && !productos.length){ esperando(contProds, esqueletoProductos(4)); return; }
+  yaLlego(contProds);
   const lista = productos.filter(p=>p.marca===marcaActual && (categoriaSel==='todas' || p.categoria===categoriaSel));
-  document.getElementById('lista-productos').innerHTML = lista.map(p=>{
+  contProds.innerHTML = lista.map(p=>{
     const vi = seleccion[p.id] ?? 0;
     const v = p.variantes[vi];
     const clave = claveItem(p.id, vi);
@@ -3486,7 +3695,7 @@ function pintarCatalogo(){
           <button class="btn-quitar" title="Ver ficha" aria-label="Ver ficha" onclick="abrirFicha(${p.id},${vi})">ℹ️</button>
           ${invitado?`<button class="btn-quitar" title="Crear cuenta para vender" onclick="pedirCuenta()">🔒</button>`:''}
           ${c>0?`<button class="btn-quitar" title="Quitar del carrito" aria-label="Quitar del carrito" onclick="quitar('${clave}')">🗑</button>`:''}
-          ${invitado?'':`<div class="stepper ${c>0?'con':''}">
+          ${invitado?'':`<div class="stepper ${c>0?'con':''}" data-clave="${clave}">
             <button onclick="cambiar('${clave}',-1)" aria-label="Menos" ${agotado?'disabled':''}>−</button>
             <span class="cant num">${c}</span>
             <button onclick="cambiar('${clave}',1)" aria-label="Más" ${agotado?'disabled':''}>+</button>
@@ -3496,10 +3705,11 @@ function pintarCatalogo(){
       ${enCarrito.length?`<div class="producto-pie" style="font-size:11px;color:var(--tinta-suave);margin-top:8px">🛒 También en tu carrito: ${enCarrito.map(x=>`<b>${x.vv.pres} ×${x.n}</b> <button class="quitar-mini" onclick="quitar('${claveItem(p.id,x.i)}')">quitar</button>`).join(' · ')}</div>`:''}
     </div>`;
   }).join('');
+  escalonar(contProds, animar);
 }
 
 /* ===== Resumen ===== */
-function pintarResumen(){
+function pintarResumen(animar){
   const cont = document.getElementById('items-resumen');
   const entradas = Object.entries(carrito);
   cont.innerHTML = entradas.map(([clave,c])=>{
@@ -3516,6 +3726,7 @@ function pintarResumen(){
       <button class="btn-quitar" title="Eliminar del pedido" aria-label="Eliminar del pedido" onclick="quitar('${clave}');pintarResumen()">🗑</button>
     </div>`;
   }).join('') || '<p style="font-size:13px;color:var(--tinta-suave);text-align:center;padding:10px">Tu carrito está vacío</p>';
+  escalonar(cont, animar);
   pintarBoleta();
 }
 function filaEnvioTxt(){
@@ -3576,13 +3787,45 @@ function metodo(m){
   document.getElementById('zona-qr').style.display = m==='qr'?'block':'none';
   document.getElementById('zona-dep').style.display = m==='dep'?'block':'none';
 }
+/* El nombre del archivo lo pone el socio desde su teléfono, así que se
+   escapa antes de meterlo en la pantalla. */
+function textoPlano(t){
+  return String(t).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+}
+function reiniciarAdjunto(){
+  voucherAdjunto = false;
+  const a = document.getElementById('adjunto');
+  if(!a) return;
+  a.classList.remove('ok','con-vista');
+  a.querySelector('.ic').textContent = '📎';
+  a.querySelector('p').innerHTML = '<b>Sube la evidencia de tu depósito</b><br>Captura o foto del voucher. El sistema de control la valida contra el monto y el código del pedido.';
+  const inp = document.getElementById('input-voucher');
+  if(inp) inp.value = '';
+}
 function voucherListo(input){
   if(!input.files || !input.files.length) return;
   voucherAdjunto = true;
+  const f = input.files[0];
   const a = document.getElementById('adjunto');
+  const texto = a.querySelector('p');
   a.classList.add('ok');
-  a.querySelector('p').innerHTML = 'Constancia adjuntada — ' + input.files[0].name + '<br>Se validará contra el monto y el código del pedido.';
   a.querySelector('.ic').textContent = '✅';
+  texto.innerHTML = 'Constancia adjuntada — ' + textoPlano(f.name) + '<br>Se validará contra el monto y el código del pedido.';
+
+  /* Y se le enseña la propia captura: ver la miniatura es la forma más rápida
+     de darse cuenta de que uno eligió la foto equivocada de la galería. */
+  const lector = new FileReader();
+  lector.onload = function(){
+    a.classList.add('con-vista');
+    texto.innerHTML = '<span class="adjunto-vista">' +
+      '<img src="' + lector.result + '" alt="Vista previa de tu comprobante">' +
+      '<span class="txt"><b><span class="sello-ok">✅</span> Constancia adjuntada</b>' +
+      textoPlano(f.name) +
+      '<small>Se validará contra el monto y el código del pedido.</small></span></span>';
+  };
+  try{ lector.readAsDataURL(f); }catch(e){ /* sin miniatura, el texto ya basta */ }
 }
 function generarCodigo(){
   const f = new Date();
@@ -3630,6 +3873,12 @@ async function registrarPedidoEnLaBase(){
   return { pedido, pago };
 }
 
+/* Mientras el pedido viaja a la base, el botón se convierte en un giro y deja
+   de aceptar toques: si no, un segundo toque manda el pedido dos veces. */
+function ocuparBoton(si){
+  const b = document.getElementById('btn-registrar');
+  if(b) b.classList.toggle('cargando', si);
+}
 function registrarPedido(){
   if(totalItems()===0){ notificar('Tu carrito está vacío'); irA('p-catalogo'); return; }
   if(ultimoMetodo==='dep' && !voucherAdjunto){ notificar('Sube la evidencia de tu depósito para registrar el pedido'); return; }
@@ -3644,14 +3893,17 @@ function registrarPedido(){
       return;
     }
     notificar('Registrando tu pedido…');
+    ocuparBoton(true);
     registrarPedidoEnLaBase()
       .then(function(r){
+        ocuparBoton(false);
         document.getElementById('conf-codigo').textContent = r.pedido.codigo;
         document.getElementById('conf-sub').textContent = r.pago.cuadra
           ? 'Tu pago entró al sistema de control. Validado el abono, la marca despacha.'
           : 'Ojo: el monto que declaraste no coincide con S/ ' + r.pago.esperado.toFixed(2) +
             '. El pedido quedó registrado, pero la validación puede demorar.';
-        carrito = {}; precios = {}; voucherAdjunto = false;
+        carrito = {}; precios = {};
+        reiniciarAdjunto();
         document.getElementById('r-operacion').value = '';
         ['r-cli-nombre','r-cli-dni','r-cli-cel','r-cli-dir','r-cli-ref','r-agencia-local']
           .forEach(function(id){ const e=document.getElementById(id); if(e) e.value=''; });
@@ -3661,7 +3913,7 @@ function registrarPedido(){
           .then(function(){ if(typeof pintarPedidos === 'function') pintarPedidos(); })
           .catch(function(){ /* la confirmación ya se mostró */ });
       })
-      .catch(function(e){ notificar(e.message); });
+      .catch(function(e){ ocuparBoton(false); notificar(e.message); });
     return;
   }
 
@@ -3697,11 +3949,8 @@ function registrarPedido(){
     ? 'Detectaremos tu pago QR y el pedido pasará a despacho automáticamente.'
     : 'Tu constancia entró al sistema de control. Validado el abono, la marca despacha.';
 
-  carrito = {}; precios = {}; voucherAdjunto = false;
-  const a = document.getElementById('adjunto');
-  a.classList.remove('ok'); a.querySelector('.ic').textContent = '📎';
-  a.querySelector('p').innerHTML = '<b>Sube la evidencia de tu depósito</b><br>Captura o foto del voucher. El sistema de control la valida contra el monto y el código del pedido.';
-  document.getElementById('input-voucher').value = '';
+  carrito = {}; precios = {};
+  reiniciarAdjunto();
   ['r-cli-nombre','r-cli-dni','r-cli-cel','r-cli-dir','r-cli-ref','r-agencia-local'].forEach(id=>{const e=document.getElementById(id); if(e) e.value='';});
   const nv = nivelActual();
   if(usuario) document.getElementById('u-estado').innerHTML = `${nv.med} ${nv.nombre} · ${usuario.validado ? '✓ validado' : 'en validación'}`;
@@ -3715,9 +3964,12 @@ function copiarCodigo(){
 }
 
 /* ===== Pedidos ===== */
-function pintarPedidos(){
+function pintarPedidos(animar){
+  const contPed = document.getElementById('lista-pedidos');
   const lista = misPedidos();
-  document.getElementById('lista-pedidos').innerHTML = lista.length ? lista.map(p=>`
+  if(cargandoPedidos && !lista.length){ esperando(contPed, esqueletoPedidos(3)); return; }
+  yaLlego(contPed);
+  contPed.innerHTML = lista.length ? lista.map(p=>`
     <div class="tarjeta pedido-item">
       <div class="arriba"><div><h3>${p.codigo}</h3><div class="det">${p.items}<br>${p.cliente} · ${p.fecha}${p.entrega?'<br>📦 '+p.entrega:''}</div></div><span class="chip ${p.chip}">${p.estado}</span></div>
       <div class="abajo"><span>Verificable en el sistema de control con tu código</span><b class="num">S/ ${p.total.toFixed(2)}</b></div>
@@ -3728,6 +3980,7 @@ function pintarPedidos(){
       <p>Cuando cierres tu primera venta, regístrala desde el catálogo y aparecerá aquí con su código de seguimiento.</p>
       <button class="btn btn-sol" style="margin-top:12px" onclick="irA('p-catalogo')">Ir al catálogo</button>
     </div>`;
+  escalonar(contPed, animar);
 }
 
 /* ===== Ganancias ===== */
