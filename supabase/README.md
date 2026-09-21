@@ -32,6 +32,7 @@ supabase/
     13-los-otros-cuatro-huecos.sql ← los cuatro restantes de esa misma revisión
     14-stock-voucher-e-indices.sql ← la reserva de stock, el voucher y los índices
     15-el-deposito-y-su-captura.sql ← el circuito del depósito, de punta a punta
+    16-la-marca-despacha-y-el-socio-confirma.sql ← el despacho, la entrega y los niveles
 ```
 
 ---
@@ -463,6 +464,76 @@ cancelar un pedido ya pagado o ajeno, y la cola leída sin cuenta).
 > en `10-especificacion-tecnica` y `12-quien-mueve-el-pedido` — en esta suite
 > los errores son el resultado correcto, así que menos errores es peor, no
 > mejor. Parte siempre de la última versión, no de la que encuentres primero.
+
+---
+
+## La duodécima migración: la marca despacha y el socio confirma
+
+`20260921160000_la_marca_despacha_y_el_socio_confirma.sql` cierra el último
+tramo del recorrido. Hasta aquí un pedido llegaba a `validado` y se quedaba ahí
+para siempre: el panel de la marca tenía su pantalla de despacho dibujada, pero
+contra datos de mentira guardados en su propio navegador. Como el nivel del
+socio, el dinero de la marca y el saldo para retirar cuelgan **todos** de la
+entrega, el circuito se cortaba justo antes de pagarle a nadie.
+
+**1 · Quién confirma la entrega.** Era la marca, y ese mismo cambio de estado le
+soltaba su segundo hito: se daba por cumplida sola y cobraba el resto de su
+mayorista sin que nadie hubiera recibido nada. Era el hallazgo abierto de la
+auditoría del 20 de septiembre. Ahora la marca despacha —con su guía, su foto y,
+por agencia, courier y tracking, como siempre— y **la entrega la confirma el
+socio**, que es quien tiene al cliente al teléfono, o SOCIO si el socio no
+aparece. El socio no tiene permiso de escribir en `pedidos` y no conviene
+dárselo: entra por `confirmar_entrega()`, que comprueba que el pedido sea suyo y
+que esté realmente en camino.
+
+**2 · La marca no sabía qué empacar.** `pedido_items_marca` devolvía el id de la
+presentación y la cantidad. Ahora lleva también el nombre del producto y el de
+su presentación. Sigue sin llevar `precio_unit_socio`: lo que el socio paga no
+es asunto de la marca.
+
+Se verifica con `16-la-marca-despacha-y-el-socio-confirma.sql`: los 22 pasos del
+tramo, incluidos los siete que **deben** fallar (la marca dándose por entregada
+—por update y por función—, un socio ajeno confirmando, confirmar dos veces,
+despachar sin foto de la guía, la marca leyendo el precio del socio y un socio
+lanzando la revisión de niveles).
+
+## La decimotercera migración: el nivel también baja
+
+`20260921170000_el_nivel_baja_si_baja_el_ritmo.sql` cumple lo que la pantalla
+del socio promete desde el primer día y `docs/09` deja escrito: el nivel se
+revisa cada trimestre y quien baja el ritmo desciende **un** escalón, nunca dos.
+
+La base solo sabía subir, y el problema era de fondo: el nivel se calculaba cada
+vez desde el total histórico de ventas entregadas, que solo crece. Bajarlo a
+mano no servía —a la siguiente venta el trigger lo devolvía a su sitio—. Ahora
+son dos cosas separadas: `ventas_entregadas` (el total, solo sube) y `descensos`
+(los escalones perdidos). El nivel es el que abrió el volumen menos los
+descensos, con piso en Bronce, así que el mérito no se borra y el descuento sí
+se apaga.
+
+El ritmo que se pide para conservar cada nivel **es una decisión de esta
+migración**, porque `docs/09` dice «baja el ritmo» sin poner número: Plata 3
+entregas por trimestre, Oro 7, Diamante 13 — la cuarta parte de lo que costó
+abrir el escalón. Si hay que cambiarlo, se cambia en `ritmo_del_nivel()` y en
+ningún sitio más.
+
+La revisión la lanza SOCIO desde su panel (`revisar_niveles_trimestrales()`).
+No hay tarea programada y no hace falta: solo entra quien lleva un trimestre sin
+revisar, así que pulsarla dos veces el mismo día no baja a nadie dos veces.
+Quien se registró hace menos de un trimestre no se revisa. Si se prefiere que
+corra sola, en Supabase se agenda con `pg_cron`.
+
+---
+
+## Lo que falta decidir: el envío
+
+El socio paga `precio_socio + costo_envio` y la base le libera a la marca su
+`precio_mayorista` y nada más. Ese `costo_envio` hoy **no se le paga a nadie**:
+se queda en la cuenta de SOCIO. Si quien despacha —la marca— es quien paga la
+agencia, hay que decidir si ese importe se le suma a su liquidación. Es una
+decisión de negocio, no un error del código, y por eso el panel de la marca
+muestra el envío como una línea aparte («S/ X cobrados al cliente») en vez de
+sumarlo a lo que va a cobrar.
 
 ---
 

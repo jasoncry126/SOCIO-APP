@@ -438,4 +438,33 @@ select 'SOCIO tiene su cola de validación',
 union all
 select 'Un pedido sin pagar se puede cancelar y devuelve el stock',
        case when exists (select 1 from pg_proc where proname='cancelar_pedido_sin_pagar')
+            then '✅' else '❌ falta la función' end
+union all
+select 'La entrega la confirma el socio, no la marca',
+       case when (select prosrc from pg_proc where proname='pedido_transicion_valida')
+                 like '%La entrega la confirma el socio%'
+            then '✅' else '❌ la marca se da por entregada sola y cobra' end
+union all
+select '...y tiene su botón',
+       case when exists (select 1 from pg_proc where proname='confirmar_entrega')
+            then '✅' else '❌ falta la función' end
+union all
+select 'La marca ve qué empacar en cada pedido',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='pedido_items_marca' and column_name='producto')
+            then '✅' else '❌ solo ve ids de presentación' end
+union all
+select '...y sigue sin ver lo que paga el socio',
+       case when not exists (select 1 from information_schema.columns
+                              where table_name='pedido_items_marca'
+                                and column_name='precio_unit_socio')
+            then '✅' else '❌ se le escapó el precio del socio' end
+union all
+select 'El nivel del socio también puede bajar',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='usuarios_socios' and column_name='descensos')
+            then '✅' else '❌ falta la columna' end
+union all
+select '...y SOCIO tiene la revisión del trimestre',
+       case when exists (select 1 from pg_proc where proname='revisar_niveles_trimestrales')
             then '✅' else '❌ falta la función' end;

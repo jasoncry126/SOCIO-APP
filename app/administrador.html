@@ -236,6 +236,17 @@
         <div class="red-item"><div class="ava">CM</div><div class="info"><h3>Carla Mendoza</h3><p>DNI adjunto · Lima · registrada hace 2 h</p></div><button class="btn btn-ok" onclick="resolver(this,'Carla validada ✓ Ya puede registrar pedidos (límite Bronce: 5/día)')">Validar</button><button class="btn btn-rojo" onclick="resolver(this,'Registro observado — se pidió nueva foto del DNI')">Observar</button></div>
         <div class="red-item"><div class="ava">PV</div><div class="info"><h3>Pedro Vílchez</h3><p>DNI adjunto · Trujillo · registrado hace 5 h</p></div><button class="btn btn-ok" onclick="resolver(this,'Pedro validado ✓ Ya puede registrar pedidos (límite Bronce: 5/día)')">Validar</button><button class="btn btn-rojo" onclick="resolver(this,'Registro observado — se pidió nueva foto del DNI')">Observar</button></div>
       </div>
+      <div class="seccion-titulo">Revisión trimestral de niveles</div>
+      <div class="tarjeta">
+        <p style="font-size:13px;line-height:1.6;margin:0 0 10px">
+          El nivel del socio sube con sus ventas entregadas y <b>baja un escalón</b> si deja de
+          vender, nunca dos de golpe. Esta revisión hace esa pasada: entra cada socio que lleva
+          un trimestre sin revisar, y pulsarla dos veces el mismo día no baja a nadie dos veces.
+        </p>
+        <button class="btn btn-ok" id="btn-niveles" onclick="revisarNiveles()">Revisar los niveles del trimestre</button>
+        <div id="resultado-niveles" style="margin-top:10px;font-size:13px;line-height:1.6"></div>
+      </div>
+
       <div class="seccion-titulo">Productos en revisión</div>
       <div class="tarjeta">
         <div class="red-item"><div class="ava" style="background:#E8F0FA;color:var(--info)">🧪</div><div class="info"><h3>KPV · Vial 10 mg — Lab Péptidos Perú</h3><p>Ficha técnica adjunta · sin promesas médicas en la descripción · precios completos</p></div><button class="btn btn-ok" onclick="resolver(this,'Producto aprobado ✓ Visible para los socios desde ahora')">Aprobar</button><button class="btn btn-rojo" onclick="resolver(this,'Producto observado — se pidió corregir la descripción')">Observar</button></div>
@@ -631,6 +642,33 @@ function periodoDe(fecha){
   const lunes = new Date(d);
   lunes.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return 'Semana del ' + lunes.toLocaleDateString('es-PE');
+}
+
+/* La revisión trimestral de niveles (docs/09). La decide la base: aquí solo
+   se lanza y se cuenta qué cambió. */
+async function revisarNiveles(){
+  const btn = document.getElementById('btn-niveles');
+  const zona = document.getElementById('resultado-niveles');
+  if(!window.SocioDatos || !window.SocioDatos.configurado()){
+    zona.innerHTML = 'Falta conectar la base: pega el Project URL y la clave anon en <b>socio-config.js</b>.';
+    return;
+  }
+  btn.disabled = true;
+  zona.textContent = 'Revisando…';
+  try{
+    const cambios = await window.SocioDatos.revisarNivelesTrimestrales();
+    zona.innerHTML = cambios.length
+      ? '<b>' + cambios.length + ' socio' + (cambios.length===1?'':'s') + ' cambió de nivel:</b><br>' +
+        cambios.map(function(c){
+          return c.nombre + ': ' + c.nivel_antes + ' → <b>' + c.nivel_despues + '</b> (' +
+                 c.entregas_trimestre + ' entrega' + (c.entregas_trimestre===1?'':'s') +
+                 ' en el trimestre, pedía ' + c.ritmo_pedido + ')';
+        }).join('<br>')
+      : 'Nadie cambió de nivel: o todos sostuvieron su ritmo, o ya se revisaron este trimestre.';
+  }catch(e){
+    zona.textContent = e.message;
+  }
+  btn.disabled = false;
 }
 
 async function cargarContabilidad(){

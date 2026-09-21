@@ -81,7 +81,9 @@ var SOCIO_BASE = {
   validado: true, nivel: "oro", ventas_entregadas: 30
 };
 
-function stubDeSupabase(socioFingido) {
+function stubDeSupabase(datos) {
+  var socioFingido = datos && datos.socio ? datos.socio : datos;
+  var PEDIDOS = (datos && datos.pedidos) || [];
   var MARCA = {
     marca_id: "22222222-2222-2222-2222-222222222222",
     marca: "Marca Prueba", marca_giro: "alimentos",
@@ -135,7 +137,8 @@ function stubDeSupabase(socioFingido) {
         from: function (tabla) {
           if (tabla === "catalogo_publico") return consulta(CATALOGO);
           if (tabla === "usuarios_socios")  return consulta([SOCIO]);
-          return consulta([]);                       // pedidos_socio: sin pedidos
+          if (tabla === "pedidos_socio")    return consulta(PEDIDOS);
+          return consulta([]);
         },
         /* El cubo de capturas. La app sube el archivo ANTES de declarar el
            pago, así que sin esto el circuito se corta aquí. */
@@ -161,6 +164,10 @@ function stubDeSupabase(socioFingido) {
           if (nombre === "declarar_pago") return Promise.resolve({ data: [{
             pago_id: "77777777-7777-7777-7777-777777777777",
             monto_esperado: 64.07, cuadra: true
+          }], error: null });
+          if (nombre === "confirmar_entrega") return Promise.resolve({ data: [{
+            codigo: "SOC-0921-CAMINO", estado: "entregado",
+            entregado_en: "2026-09-21T12:00:00Z"
           }], error: null });
           return Promise.resolve({ data: [], error: null });
         }
@@ -199,7 +206,10 @@ async function principal() {
           : 'window.SOCIO_CONFIG={URL:"",ANON:""};'
       });
     });
-    if (opciones.base) await pg.addInitScript(stubDeSupabase, opciones.socio || SOCIO_BASE);
+    if (opciones.base) await pg.addInitScript(stubDeSupabase, {
+      socio: opciones.socio || SOCIO_BASE,
+      pedidos: opciones.pedidos || []
+    });
     await pg.goto(PAGINA);
     await pg.waitForTimeout(900);
     return { pg: pg, ctx: ctx, errores: errores };
@@ -457,6 +467,45 @@ async function principal() {
             tras.antes === "plata" && tras.despues === "plata",
             tras.antes + " → " + tras.despues);
   await c.ctx.close();
+
+  /* ---- 5 · el socio cierra el circuito: confirma que llegó ---- */
+  console.log("\n### 5 · el pedido en camino lo cierra el socio");
+  var PEDIDO_EN_CAMINO = {
+    id: "88888888-8888-8888-8888-888888888888", codigo: "SOC-0921-CAMINO",
+    socio_id: SOCIO_BASE.id, marca: "Marca Prueba",
+    precio_publico: "80.00", precio_socio: "64.00", ganancia_socio: "16.00", costo_envio: "0",
+    destinatario: "Cliente Uno", doc_destinatario: "70111222", celular_destinatario: "987111222",
+    origen: "almacen", modo_entrega: "agencia", agencia: "shalom", detalle_entrega: "Shalom Arequipa",
+    numero_guia: "G-77", courier: "shalom", tracking: "T-77", guia_url: "marca/G-77.jpg",
+    estado: "en_camino", creado_en: "2026-09-20T10:00:00Z", despachado_en: "2026-09-20T17:00:00Z"
+  };
+  var d = await abrir({ config: true, base: true, pedidos: [PEDIDO_EN_CAMINO] });
+  comprobar("la página carga sin errores de JS", d.errores.length === 0, d.errores[0]);
+  await d.pg.waitForTimeout(700);
+
+  var vista = await d.pg.evaluate(function () {
+    irA("p-pedidos");
+    return {
+      html: document.getElementById("lista-pedidos").innerHTML,
+      estado: (misPedidos()[0] || {}).estado
+    };
+  });
+  comprobar("el pedido se ve 'En camino'", vista.estado === "En camino", vista.estado);
+  comprobar("y trae el botón para confirmar que llegó",
+            vista.html.indexOf("Ya le llegó a mi cliente") !== -1);
+  comprobar("con la guía y el tracking a la vista",
+            vista.html.indexOf("G-77") !== -1 && vista.html.indexOf("T-77") !== -1);
+
+  var cerrado = await d.pg.evaluate(async function () {
+    window.confirm = function () { return true; };
+    confirmarQueLlego("SOC-0921-CAMINO");
+    await new Promise(function (r) { setTimeout(r, 700); });
+    return window.__llamadas.filter(function (l) { return l.nombre === "confirmar_entrega"; });
+  });
+  comprobar("confirmar llama a confirmar_entrega() con el id del pedido",
+            cerrado.length === 1 && cerrado[0].args.p_pedido_id === PEDIDO_EN_CAMINO.id,
+            JSON.stringify(cerrado));
+  await d.ctx.close();
 
   await navegador.close();
 

@@ -745,6 +745,160 @@
     return true;
   }
 
+  /* ------------------------------------------------------------------ */
+  /* La marca · despachar y cobrar                                       */
+  /* ------------------------------------------------------------------ */
+  /*
+     El último tramo del recorrido. La marca ve aquí solo lo que SOCIO ya
+     validó: un pedido sin pago cruzado no le llega, porque la vista
+     'pedidos_marca' le muestra su estado y el panel filtra por él.
+
+     Lo que NO está en esta sección, a propósito: confirmar la entrega. Ese
+     paso le suelta a la marca el resto de su dinero, así que lo da el socio
+     —o SOCIO— desde confirmarEntrega(), más abajo.
+  */
+
+  var CUBO_GUIAS = "guias";
+  var PESO_MAXIMO_GUIA = 6 * 1024 * 1024;
+
+  async function pedidosDeMiMarca() {
+    var sb = exigirCliente();
+    var res = await sb.from("pedidos_marca").select("*")
+                      .order("creado_en", { ascending: false });
+    if (res.error) throw new Error(explicar(res.error, "No se pudieron leer tus pedidos"));
+    return res.data || [];
+  }
+
+  /* Qué hay que empacar en cada uno. Vienen todos de golpe y el panel los
+     agrupa: son pocos y así no se hace una consulta por pedido. */
+  async function itemsDeMisPedidos() {
+    var sb = exigirCliente();
+    var res = await sb.from("pedido_items_marca").select("*");
+    if (res.error) throw new Error(explicar(res.error, "No se pudo leer el detalle de los pedidos"));
+    var porPedido = {};
+    (res.data || []).forEach(function (i) {
+      (porPedido[i.pedido_id] = porPedido[i.pedido_id] || []).push(i);
+    });
+    return porPedido;
+  }
+
+  /* La foto de la guía de remisión. La base no deja despachar sin ella: es la
+     evidencia de que el paquete salió. Se acepta también un PDF, porque varias
+     agencias entregan la guía así. */
+  async function subirGuia(archivo, codigoPedido) {
+    var sb = exigirCliente();
+
+    if (!archivo) throw new Error("No elegiste ningún archivo.");
+    if (archivo.size > PESO_MAXIMO_GUIA)
+      throw new Error("El archivo pesa demasiado (máximo 6 MB). Sácale una foto más liviana.");
+    var tipo = archivo.type || "";
+    if (tipo && tipo.indexOf("image/") !== 0 && tipo.indexOf("pdf") === -1)
+      throw new Error("Sube una foto de la guía de remisión, o el PDF que te dio la agencia.");
+
+    var s = await sb.auth.getSession();
+    if (!s.data || !s.data.session) throw new Error("Tu sesión venció. Vuelve a entrar y reintenta.");
+
+    var ext = (archivo.name || "guia.jpg").split(".").pop().toLowerCase();
+    if (!/^[a-z0-9]{2,5}$/.test(ext)) ext = "jpg";
+
+    /* La primera carpeta es el id de la marca: es en lo que se apoyan las
+       reglas del cubo para que nadie escriba en la carpeta de otra. */
+    var ruta = s.data.session.user.id + "/" + codigoPedido + "-" + Date.now() + "." + ext;
+
+    var subida = await sb.storage.from(CUBO_GUIAS).upload(ruta, archivo, {
+      contentType: tipo || "image/jpeg",
+      upsert: false
+    });
+    if (subida.error)
+      throw new Error(explicar(subida.error, "No se pudo subir la foto de la guía") ||
+                      "No se pudo subir la foto de la guía. Revisa tu conexión y reintenta.");
+
+    return ruta;
+  }
+
+  async function enlaceGuia(ruta) {
+    if (!ruta) return null;
+    var sb = exigirCliente();
+    var r = await sb.storage.from(CUBO_GUIAS).createSignedUrl(ruta, 600);
+    if (r.error) throw new Error(explicar(r.error, "No se pudo abrir la guía"));
+    return r.data && r.data.signedUrl;
+  }
+
+  /* Despachar es un solo update con las cinco columnas: el estado y su
+     evidencia van juntos porque la base los comprueba a la vez. Si falta algo,
+     falla entero y el pedido no se mueve. */
+  async function despacharPedido(d) {
+    var sb = exigirCliente();
+    var res = await sb.from("pedidos").update({
+      estado: "en_camino",
+      numero_guia: String(d.guia || "").trim(),
+      courier: d.courier ? String(d.courier).trim() : null,
+      tracking: d.tracking ? String(d.tracking).trim() : null,
+      guia_url: d.guiaRuta || null
+    }).eq("id", d.pedidoId);
+    if (res.error) throw new Error(explicar(res.error, "No se pudo registrar el despacho"));
+    return true;
+  }
+
+  /* El dinero de la marca: lo que los hitos ya le liberaron, menos lo que ya
+     pidió retirar. El número lo da la base, no la pantalla. */
+  async function saldoDisponible() {
+    var sb = exigirCliente();
+    var res = await sb.rpc("saldo_disponible");
+    if (res.error) throw new Error(explicar(res.error, "No se pudo leer tu saldo"));
+    return Number(res.data) || 0;
+  }
+
+  async function misLiberaciones() {
+    var sb = exigirCliente();
+    var res = await sb.from("liberaciones_dinero").select("*")
+                      .order("liberado_en", { ascending: false });
+    if (res.error) throw new Error(explicar(res.error, "No se pudo leer tu dinero liberado"));
+    return res.data || [];
+  }
+
+  async function misRetiros() {
+    var sb = exigirCliente();
+    var res = await sb.from("retiros").select("*")
+                      .order("solicitado_en", { ascending: false });
+    if (res.error) throw new Error(explicar(res.error, "No se pudieron leer tus retiros"));
+    return res.data || [];
+  }
+
+  async function solicitarRetiro(monto) {
+    var sb = exigirCliente();
+    var res = await sb.rpc("solicitar_retiro", { p_monto: Number(monto) });
+    if (res.error) throw new Error(explicar(res.error, "No se pudo pedir el retiro"));
+    var f = (res.data && res.data[0]) || {};
+    return { monto: Number(f.monto) || 0, saldoRestante: Number(f.saldo_restante) || 0 };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* El socio · dar el pedido por recibido                               */
+  /* ------------------------------------------------------------------ */
+  /*
+     El paso que cierra el circuito: suelta el resto del pago de la marca, suma
+     la venta entregada del socio (que es de donde sale su nivel) y abre su
+     saldo para retirar. Lo da quien tiene al cliente al teléfono, no quien
+     cobra por el envío.
+  */
+
+  async function confirmarEntrega(pedidoId) {
+    var sb = exigirCliente();
+    var res = await sb.rpc("confirmar_entrega", { p_pedido_id: pedidoId });
+    if (res.error) throw new Error(explicar(res.error, "No se pudo confirmar la entrega"));
+    return (res.data && res.data[0]) || null;
+  }
+
+  /* La revisión trimestral de niveles (docs/09). La lanza SOCIO desde su
+     panel; devuelve solo los socios cuyo nivel cambió. */
+  async function revisarNivelesTrimestrales() {
+    var sb = exigirCliente();
+    var res = await sb.rpc("revisar_niveles_trimestrales");
+    if (res.error) throw new Error(explicar(res.error, "No se pudo revisar los niveles"));
+    return res.data || [];
+  }
+
   raiz.SocioDatos = {
     configurado: configurado,
     iniciar: iniciar,
@@ -776,7 +930,18 @@
     aHora: aHora,
     crearProducto: crearProducto,
     guardarStock: guardarStock,
-    alternarActivo: alternarActivo
+    alternarActivo: alternarActivo,
+    pedidosDeMiMarca: pedidosDeMiMarca,
+    itemsDeMisPedidos: itemsDeMisPedidos,
+    subirGuia: subirGuia,
+    enlaceGuia: enlaceGuia,
+    despacharPedido: despacharPedido,
+    saldoDisponible: saldoDisponible,
+    misLiberaciones: misLiberaciones,
+    misRetiros: misRetiros,
+    solicitarRetiro: solicitarRetiro,
+    confirmarEntrega: confirmarEntrega,
+    revisarNivelesTrimestrales: revisarNivelesTrimestrales
   };
 
 })(window);

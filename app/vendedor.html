@@ -3062,6 +3062,12 @@ async function cargarPedidosDeLaBase(){
       ganancia: Number(f.ganancia_socio || 0),
       /* Lo que hace falta para volver a la pantalla del depósito. */
       esperaDeposito: f.estado === 'pendiente_pago',
+      /* Y lo que hace falta para cerrar el pedido cuando el paquete llegó. */
+      enCamino: f.estado === 'en_camino',
+      courier: f.courier || '',
+      despachado: f.despachado_en
+        ? new Date(f.despachado_en).toLocaleDateString('es-PE',{day:'2-digit',month:'short'})
+        : '',
       montoAPagar: Number(f.monto_a_pagar || 0),
       pagoEstado: f.pago_estado || null,
       pagoMotivo: f.pago_motivo || ''
@@ -3922,6 +3928,33 @@ function bloqueEsperaDeposito(p){
       <button class="btn btn-fantasma" style="margin-top:6px;padding:7px;font-size:11.5px" onclick="cancelarPedido('${p.codigo}')">Ya no voy a hacer este pedido</button>
     </div>`;
 }
+/* El paquete salió y le toca al socio cerrar el circuito. Es el único que
+   sabe si llegó: tiene al cliente al teléfono. Y es lo que suma su venta
+   entregada —de donde sale su nivel— y lo que le suelta a la marca el resto
+   de su dinero, por eso no lo hace ella. */
+function bloqueConfirmarEntrega(p){
+  const guia = p.guia
+    ? `<div style="font-size:12px;color:var(--tinta-suave);line-height:1.5">📦 Guía ${escaparTexto(p.guia)}${p.tracking ? ' · ' + escaparTexto(p.courier || 'courier') + ' ' + escaparTexto(p.tracking) : ''}${p.despachado ? ' · salió el ' + p.despachado : ''}</div>`
+    : '';
+  return `<div style="margin-top:8px;padding:10px;border:1px dashed var(--linea);border-radius:10px;background:var(--fondo)">
+      <div style="font-size:12.5px;line-height:1.5"><b>Tu pedido va en camino.</b> Cuando tu cliente lo tenga en la mano, confírmalo aquí.</div>
+      ${guia}
+      <button class="btn btn-sol" style="margin-top:8px;padding:9px;font-size:12.5px" onclick="confirmarQueLlego('${p.codigo}')">Ya le llegó a mi cliente</button>
+      <p style="font-size:11px;color:var(--tinta-suave);margin-top:6px;line-height:1.5">Con esto suma una <b>venta entregada</b> a tu nivel y se cierra el pedido. No lo marques antes de que llegue.</p>
+    </div>`;
+}
+function confirmarQueLlego(codigo){
+  const f = (PEDIDOS_BASE || []).find(function(x){ return x.codigo === codigo; });
+  if(!f) return;
+  if(!confirm('¿Tu cliente ya recibió el pedido ' + codigo + '? Con esto se cierra la venta y no se puede deshacer.')) return;
+  SocioDatos.confirmarEntrega(f.id)
+    .then(function(){
+      refrescarDeLaBase(pintarPedidos);
+      notificar('✅ ' + codigo + ' entregado — suma a tu nivel y ya puedes cobrar tu ganancia');
+    })
+    .catch(function(e){ notificar(e.message); });
+}
+
 /* Desistir devuelve la mercadería al catálogo. Se pregunta antes porque el
    pedido no se puede recuperar: hay que registrarlo de nuevo. */
 function cancelarPedido(codigo){
@@ -3942,6 +3975,7 @@ function pintarPedidos(){
     <div class="tarjeta pedido-item">
       <div class="arriba"><div><h3>${p.codigo}</h3><div class="det">${p.items}<br>${p.cliente} · ${p.fecha}${p.entrega?'<br>📦 '+p.entrega:''}</div></div><span class="chip ${p.chip}">${p.estado}</span></div>
       ${p.esperaDeposito ? bloqueEsperaDeposito(p) : ''}
+      ${p.enCamino ? bloqueConfirmarEntrega(p) : ''}
       <div class="abajo"><span>Verificable en el sistema de control con tu código</span><b class="num">S/ ${p.total.toFixed(2)}</b></div>
     </div>`).join('')
   : `<div class="vacio">
