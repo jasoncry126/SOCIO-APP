@@ -43,7 +43,7 @@ for m in "${MIGS[@]:1}"; do
   psql -h "$W" -p "$PUERTO" -U postgres -q -v ON_ERROR_STOP=1 -f "$m"
 done
 
-for f in 01-inspeccionar-esquema 05-circuito-de-venta 06-ataques 07-administrador 08-estructura-fiscal 09-manual-operativo 10-especificacion-tecnica 11-circuito-de-venta 12-quien-mueve-el-pedido 13-los-otros-cuatro-huecos; do
+for f in 01-inspeccionar-esquema 05-circuito-de-venta 06-ataques 07-administrador 08-estructura-fiscal 09-manual-operativo 10-especificacion-tecnica 11-circuito-de-venta 12-quien-mueve-el-pedido 13-los-otros-cuatro-huecos 14-las-fotos-del-catalogo; do
   echo; echo "################ $f ################"
   ejecutar "$AQUI/$f.sql"
 done

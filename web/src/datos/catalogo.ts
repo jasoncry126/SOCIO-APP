@@ -1,4 +1,4 @@
-import { base } from "./supabase";
+import { base, hayConexion } from "./supabase";
 import type { Marca, Producto, Variante } from "../tipos";
 
 /* Una fila de la vista `catalogo_publico`: llega una por PRESENTACIÓN, con los
@@ -23,6 +23,24 @@ interface FilaCatalogo {
   precio_publico: string | number;
   stock_almacen: string | number | null;
   stock_punto: string | number | null;
+  imagen: string | null;
+}
+
+/* El cubo público donde cada marca sube las fotos de su catálogo. Público a
+   propósito: es la foto del producto que la marca quiere vender, y sale en la
+   misma vista que ya lee cualquiera. Ver la migración 20260921160000. */
+const CUBO_FOTOS = "catalogo";
+
+/** De lo que guarda la base a lo que entiende un <img>. Vacío si no hay foto.
+
+    La base guarda la ruta, no la URL, porque la URL lleva dentro el
+    identificador del proyecto Supabase: guardarla ataría el catálogo a un
+    proyecto y habría que reescribir 47 filas al migrar. Se arma aquí. */
+export function urlDeFoto(imagen: string): string {
+  if (!imagen) return "";
+  if (/^https?:\/\//i.test(imagen)) return imagen;
+  if (!hayConexion) return "";
+  return base().storage.from(CUBO_FOTOS).getPublicUrl(imagen).data.publicUrl;
 }
 
 function numeroONulo(v: string | number | null): number | null {
@@ -69,6 +87,7 @@ export async function cargarCatalogo(): Promise<Producto[]> {
       precioPagina: Number(f.precio_publico),
       stockAlmacen: numeroONulo(f.stock_almacen),
       stockPunto: numeroONulo(f.stock_punto),
+      imagen: f.imagen ?? "",
     };
     p.variantes.push(v);
   }

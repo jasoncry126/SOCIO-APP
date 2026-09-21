@@ -3046,7 +3046,8 @@ async function cargarCatalogoDeLaBase(){
       sug: v.sug,
       id: v.id,                                  // el id real de la presentación
       stockAlmacen: v.stockAlmacen,
-      stockPunto: v.stockPunto
+      stockPunto: v.stockPunto,
+      img: v.img || ''                           // la foto que subió la marca
     }))
   }));
 

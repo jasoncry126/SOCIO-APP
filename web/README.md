@@ -48,6 +48,7 @@ src/
   componentes/
     Ingreso.tsx                Celular y clave
     CatalogoProductos.tsx      La cuadrícula, con entrada escalonada
+    Foto.tsx                   La foto del producto, con el emoji de respaldo
     DetalleProducto.tsx        La ficha, el precio socio y agregar al pedido
     Checkout.tsx               Quién recibe, cómo se entrega y la cuenta
     PagoDeposito.tsx           El monto exacto y la captura del depósito
@@ -82,6 +83,25 @@ referenciales; el precio que se cobra lo calcula `crear_pedido()` leyendo el
 catálogo y el nivel. Del carrito a la base viajan presentaciones y cantidades,
 ningún precio.
 
+## Las fotos de producto
+
+Las trae la base: cada presentación guarda la ruta de su foto dentro del cubo
+público `catalogo` (`<marca_id>/archivo.webp`), y la pantalla arma la URL al
+pintar. Una presentación sin foto enseña el emoji del producto — que es lo que
+ve una marca recién dada de alta, y no un hueco gris.
+
+Para poner en la base las 63 fotos que ya están en `app/imagenes/`:
+
+```bash
+cd web
+node ../supabase/datos/subir-fotos.mjs --celular 9XXXXXXXX --clave XXXX --seco
+node ../supabase/datos/subir-fotos.mjs --celular 9XXXXXXXX --clave XXXX
+```
+
+Son el celular y la clave de la MARCA, los mismos de `app/proveedor.html`. Con
+`--seco` no sube nada: solo dice qué haría. De ahí en adelante cada marca sube
+las suyas desde su panel, en la columna «Foto» de su catálogo.
+
 ## Lo que hace falta de la base
 
 El recorrido se apoya en lo que ya está en `main` —`crear_pedido()`,
@@ -95,12 +115,12 @@ la migración del depósito y su captura (`20260921140000`):
   `crear_pedido()`, que es el mismo número);
 - `cancelar_pedido_sin_pagar()`, que libera el stock de un pedido que no se pagó.
 
+Y de la migración de las fotos (`20260921160000`), que va en este mismo cambio:
+la columna `presentaciones.imagen` y el cubo `catalogo`.
+
 ## Lo que todavía no está
 
 - **No hay registro de socios nuevos**, solo ingreso. Quien no tenga cuenta la
   crea hoy en `app/vendedor.html`.
-- **No hay fotos de producto.** La vista `catalogo_publico` no devuelve la URL
-  de la imagen, así que las tarjetas usan el emoji de cada producto. Las fotos
-  reales viven hoy en `app/imagenes/`.
 - **La cuenta de SOCIO es de relleno.** Está en `src/datos/cuenta-socio.ts` y la
   pantalla del depósito lo advierte mientras siga marcada como tal.

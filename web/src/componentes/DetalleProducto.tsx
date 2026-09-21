@@ -4,6 +4,7 @@ import { ArrowLeft, Building2, Clock, Lightbulb, Minus, Plus, ShoppingCart, Stor
 import type { Nivel, Producto, Variante } from "../tipos";
 import { gananciaUnitaria, precioSocio, soles } from "../precios";
 import { stockEn, type OrigenId } from "../envios";
+import { Foto } from "./Foto";
 
 interface Props {
   producto: Producto;
@@ -61,8 +62,16 @@ export function DetalleProducto({ producto, nivel, origen, alAgregar, alVolver }
       </button>
 
       <div className="overflow-hidden rounded-2xl border border-linea bg-tarjeta shadow-sm">
-        <div className="flex aspect-[16/9] items-center justify-center bg-fondo text-7xl" aria-hidden="true">
-          {producto.emoji}
+        {/* Alto de 4:3 y la foto entera dentro: las fotos de producto suelen
+            ser cuadradas, y un recorte a 16:9 le corta la mitad al frasco. */}
+        <div className="aspect-[4/3] overflow-hidden bg-fondo p-4">
+          <Foto
+            imagen={v.imagen}
+            emoji={producto.emoji}
+            alt={`${producto.nombre} · ${v.presentacion}`}
+            clase="text-7xl"
+            ajuste="contener"
+          />
         </div>
 
         <div className="p-5">

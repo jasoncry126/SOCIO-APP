@@ -117,6 +117,11 @@ async function principal() {
     var textoCatalogo = (await pagina.locator("body").innerText()).toLowerCase();
     comprobar("el catálogo no enseña precio mayorista", !textoCatalogo.includes("mayorista"));
 
+    /* Los datos de ejemplo no traen fotos, que es justo lo que ve una marca
+       recién dada de alta: se enseña su emoji y no queda ningún hueco roto. */
+    comprobar("sin foto, la tarjeta enseña el emoji del producto",
+      (await pagina.locator("main img").count()) === 0);
+
     console.log("\n  ── Ficha del producto ──");
     await tarjetas.first().click();
     await pagina.waitForSelector("text=Tu precio socio");

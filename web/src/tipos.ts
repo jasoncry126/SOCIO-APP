@@ -41,6 +41,11 @@ export interface Variante {
   /** null = la marca no lleva la cuenta del stock en ese origen. */
   stockAlmacen: number | null;
   stockPunto: number | null;
+  /* La foto, tal como la guarda la base: una ruta dentro del cubo `catalogo`
+     (`<marca_id>/archivo.webp`) o una URL https si la marca la aloja fuera.
+     Vacío es lo normal mientras una marca no haya subido las suyas, y la
+     pantalla enseña el emoji del producto. Se pinta con urlDeFoto(). */
+  imagen: string;
 }
 
 export interface Producto {

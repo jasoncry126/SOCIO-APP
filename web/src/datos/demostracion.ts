@@ -20,8 +20,8 @@ export const PRODUCTOS_DEMO: readonly Producto[] = [
     recomendaciones: "Funciona bien por kilo en oficinas y cafeterías pequeñas.",
     tiempoPreparacion: "1 día",
     variantes: [
-      { id: "demo-1a", presentacion: "1 kg", precioPagina: 80, stockAlmacen: 12, stockPunto: 4 },
-      { id: "demo-1b", presentacion: "500 g", precioPagina: 45, stockAlmacen: 7, stockPunto: 2 },
+      { id: "demo-1a", presentacion: "1 kg", precioPagina: 80, stockAlmacen: 12, stockPunto: 4, imagen: "" },
+      { id: "demo-1b", presentacion: "500 g", precioPagina: 45, stockAlmacen: 7, stockPunto: 2, imagen: "" },
     ],
   },
   {
@@ -37,7 +37,7 @@ export const PRODUCTOS_DEMO: readonly Producto[] = [
     descripcion: "Sin azúcar añadida, molienda fina.",
     recomendaciones: "Se vende solo en repostería casera.",
     tiempoPreparacion: "1 día",
-    variantes: [{ id: "demo-2a", presentacion: "500 g", precioPagina: 45, stockAlmacen: 9, stockPunto: 0 }],
+    variantes: [{ id: "demo-2a", presentacion: "500 g", precioPagina: 45, stockAlmacen: 9, stockPunto: 0, imagen: "" }],
   },
   {
     id: "demo-3",
@@ -52,7 +52,7 @@ export const PRODUCTOS_DEMO: readonly Producto[] = [
     descripcion: "De apicultores del valle, envasada en frasco de vidrio.",
     recomendaciones: "Sube bien en campañas de invierno.",
     tiempoPreparacion: "2 días",
-    variantes: [{ id: "demo-3a", presentacion: "250 g", precioPagina: 30, stockAlmacen: 0, stockPunto: 0 }],
+    variantes: [{ id: "demo-3a", presentacion: "250 g", precioPagina: 30, stockAlmacen: 0, stockPunto: 0, imagen: "" }],
   },
   {
     id: "demo-4",
@@ -67,7 +67,7 @@ export const PRODUCTOS_DEMO: readonly Producto[] = [
     descripcion: "Primera prensada en frío.",
     recomendaciones: "Buen acompañante del café en pedidos grandes.",
     tiempoPreparacion: "1 día",
-    variantes: [{ id: "demo-4a", presentacion: "1 L", precioPagina: 22, stockAlmacen: 30, stockPunto: 11 }],
+    variantes: [{ id: "demo-4a", presentacion: "1 L", precioPagina: 22, stockAlmacen: 30, stockPunto: 11, imagen: "" }],
   },
   {
     id: "demo-5",
@@ -82,7 +82,7 @@ export const PRODUCTOS_DEMO: readonly Producto[] = [
     descripcion: "Lista para cocinar, sin saponina.",
     recomendaciones: "Pedido recurrente en menús semanales.",
     tiempoPreparacion: "1 día",
-    variantes: [{ id: "demo-5a", presentacion: "500 g", precioPagina: 18, stockAlmacen: null, stockPunto: null }],
+    variantes: [{ id: "demo-5a", presentacion: "500 g", precioPagina: 18, stockAlmacen: null, stockPunto: null, imagen: "" }],
   },
   {
     id: "demo-6",
@@ -97,7 +97,7 @@ export const PRODUCTOS_DEMO: readonly Producto[] = [
     descripcion: "Caña sin refinar, endulzante natural.",
     recomendaciones: "Se vende junto con el café.",
     tiempoPreparacion: "1 día",
-    variantes: [{ id: "demo-6a", presentacion: "1 kg", precioPagina: 15, stockAlmacen: 24, stockPunto: 6 }],
+    variantes: [{ id: "demo-6a", presentacion: "1 kg", precioPagina: 15, stockAlmacen: 24, stockPunto: 6, imagen: "" }],
   },
 ];
 

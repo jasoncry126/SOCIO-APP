@@ -222,6 +222,22 @@
   /* El catálogo que ve el socio                                         */
   /* ------------------------------------------------------------------ */
 
+  /* La foto del producto. La base guarda la RUTA dentro del cubo público
+     `catalogo` (`<marca_id>/archivo.webp`), no la URL entera, porque la URL
+     lleva dentro el identificador del proyecto Supabase y ataría el catálogo a
+     un proyecto concreto. Se arma aquí. Una marca que aloje sus fotos en su
+     propia web guarda la URL completa y entonces se usa tal cual.
+
+     Sin foto se devuelve vacío y la tarjeta enseña el emoji del producto, que
+     es lo que ve una marca recién dada de alta. */
+  function urlDeFoto(imagen) {
+    if (!imagen) return "";
+    if (/^https?:\/\//i.test(imagen)) return imagen;
+    var sb = cliente;
+    if (!sb || !sb.storage) return "";
+    return sb.storage.from("catalogo").getPublicUrl(imagen).data.publicUrl;
+  }
+
   /* Se lee de la VISTA catalogo_publico, no de las tablas. La vista no tiene
      columna de precio mayorista: aunque alguien manipule esta función desde la
      consola del navegador, ese dato no está del otro lado (CLAUDE.md regla 1). */
@@ -266,7 +282,8 @@
         pres: f.presentacion,
         sug: Number(f.precio_publico),     // precio de página; NO hay mayorista
         stockAlmacen: f.stock_almacen === null ? null : Number(f.stock_almacen),
-        stockPunto: f.stock_punto === null ? null : Number(f.stock_punto)
+        stockPunto: f.stock_punto === null ? null : Number(f.stock_punto),
+        img: urlDeFoto(f.imagen)
       });
     });
     return orden;
@@ -373,7 +390,7 @@
       .from("productos")
       .select("id, nombre, nombre_comprobante, categoria, emoji, descripcion, recomendaciones, tiempo_prep, " +
               "cobertura, corte_nacional, corte_local, dias_despacho, estado, activo, creado_en, " +
-              "presentaciones ( id, nombre, precio_mayorista, precio_publico, stock_almacen, stock_punto )")
+              "presentaciones ( id, nombre, precio_mayorista, precio_publico, stock_almacen, stock_punto, imagen )")
       .eq("marca_id", marcaId)
       .order("creado_en", { ascending: false });
     if (res.error) throw new Error(explicar(res.error, "No se pudo leer tu catálogo"));
@@ -496,7 +513,8 @@
               may: Number(v.precio_mayorista),
               sug: Number(v.precio_publico),
               stockA: v.stock_almacen == null ? 0 : v.stock_almacen,
-              stockB: v.stock_punto == null ? 0 : v.stock_punto
+              stockB: v.stock_punto == null ? 0 : v.stock_punto,
+              img: v.imagen || ""
             };
           })
       };
@@ -578,6 +596,40 @@
     if (r.error) throw new Error(explicar(r.error, "No se pudo guardar el stock"));
   }
 
+  /* La marca sube la foto de una de sus presentaciones.
+
+     Va al cubo público `catalogo`, dentro de la carpeta de la marca, que es de
+     donde cuelgan los permisos: nadie escribe en la carpeta de otro. El nombre
+     lleva la hora para que reemplazar una foto no dependa de que el navegador
+     olvide la anterior — una URL nueva se ve al instante. */
+  async function subirFotoCatalogo(marcaId, presentacionId, archivo) {
+    var sb = exigirCliente();
+
+    if (!archivo) throw new Error("No elegiste ninguna imagen.");
+    if (archivo.type && archivo.type.indexOf("image/") !== 0) {
+      throw new Error("Eso no es una imagen. Sube una foto del producto.");
+    }
+    if (archivo.size > 3 * 1024 * 1024) {
+      throw new Error("La imagen pesa más de 3 MB. Redúcela antes de subirla: " +
+                      "una foto así tarda en cargar en el teléfono de cada socio.");
+    }
+
+    var ext = (archivo.name || "foto.webp").split(".").pop().toLowerCase();
+    if (!/^[a-z0-9]{2,5}$/.test(ext)) ext = "webp";
+    var ruta = marcaId + "/" + presentacionId + "-" + Date.now() + "." + ext;
+
+    var subida = await sb.storage.from("catalogo").upload(ruta, archivo, {
+      contentType: archivo.type || "image/webp",
+      upsert: false
+    });
+    if (subida.error) throw new Error(explicar(subida.error, "No se pudo subir la foto"));
+
+    var r = await sb.from("presentaciones").update({ imagen: ruta }).eq("id", presentacionId);
+    if (r.error) throw new Error(explicar(r.error, "La foto se subió pero no se pudo apuntar"));
+
+    return { ruta: ruta, url: urlDeFoto(ruta) };
+  }
+
   async function alternarActivo(productoId, activo) {
     var sb = exigirCliente();
     var r = await sb.from("productos").update({ activo: activo }).eq("id", productoId);
@@ -608,7 +660,9 @@
     aHora: aHora,
     crearProducto: crearProducto,
     guardarStock: guardarStock,
-    alternarActivo: alternarActivo
+    alternarActivo: alternarActivo,
+    subirFotoCatalogo: subirFotoCatalogo,
+    urlDeFoto: urlDeFoto
   };
 
 })(window);

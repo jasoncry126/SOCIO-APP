@@ -1,5 +1,6 @@
 import { motion, type Variants } from "framer-motion";
 import { Package, ShoppingBag } from "lucide-react";
+import { Foto } from "./Foto";
 import type { Nivel, Producto, Variante } from "../tipos";
 import { gananciaUnitaria, precioSocio, soles } from "../precios";
 
@@ -84,10 +85,12 @@ export function CatalogoProductos({ productos, nivel, alElegir }: Props) {
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.3 }}
-                className="flex h-full w-full items-center justify-center text-5xl sm:text-7xl"
-                aria-hidden="true"
+                className="h-full w-full"
               >
-                {prod.emoji}
+                {/* El alt va vacío: el nombre del producto está justo debajo,
+                    y repetirlo haría que un lector de pantalla lo diga dos
+                    veces seguidas. */}
+                <Foto imagen={v.imagen} emoji={prod.emoji} alt="" clase="text-5xl sm:text-7xl" />
               </motion.div>
             </div>
 

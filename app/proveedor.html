@@ -149,6 +149,14 @@
   .prod{margin-bottom:11px}
   .prod-cab{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .prod-cab .mini{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;background:#E4F4EC}
+  /* La foto de cada presentación: miniatura si la hay, y si no un hueco que
+     invita a subirla. Todo el cuadrito es el botón. */
+  .foto-celda{display:inline-flex;width:40px;height:40px;border-radius:9px;overflow:hidden;
+              cursor:pointer;border:1px solid var(--linea);background:#F2F4EF;
+              align-items:center;justify-content:center;font-size:16px;transition:border-color .2s}
+  .foto-celda:hover{border-color:var(--sol)}
+  .foto-celda img{width:100%;height:100%;object-fit:cover}
+  .foto-celda.quieta{cursor:default;opacity:.55}
   .prod-cab .info{flex:1;min-width:170px}
   .prod-cab h3{font-size:14.5px;font-weight:800;font-family:'Archivo',sans-serif}
   .prod-cab p{font-size:12px;color:var(--tinta-suave);margin-top:1px}
@@ -796,7 +804,15 @@ function pintarCatalogo(){
         ? '<td class="der"><span class="stock-mini '+(Number(vr.stockB)===0?'cero':'')+'"><input type="number" min="0" value="'+vr.stockB+'" onchange="setStock('+i+','+j+',\'stockB\',this.value)"> u.</span></td>'
         : '';
       const mg = Math.round((Number(vr.sug)-Number(vr.may||0))*100)/100;
-      return '<tr><td><b>'+vr.pres+'</b></td>'+
+      /* Si la foto no se puede resolver —sin conexión no hay de dónde sacar su
+         URL— se enseña el hueco en vez de una imagen rota. */
+      const urlFoto = vr.img ? window.SocioDatos.urlDeFoto(vr.img) : '';
+      const foto = urlFoto ? '<img src="'+urlFoto+'" alt="Foto de '+vr.pres+'">' : '📷';
+      const celFoto = CONECTADO
+        ? '<td><label class="foto-celda" title="Subir o cambiar la foto">'+foto+
+          '<input type="file" accept="image/*" hidden onchange="subirFoto('+i+','+j+',this)"></label></td>'
+        : '<td><span class="foto-celda quieta" title="Las fotos se suben con la cuenta conectada a la base">'+foto+'</span></td>';
+      return '<tr>'+celFoto+'<td><b>'+vr.pres+'</b></td>'+
         '<td class="der num">S/ '+Number(vr.may||0).toFixed(2)+'</td>'+
         '<td class="der num">S/ '+Number(vr.sug).toFixed(2)+'</td>'+
         '<td class="der"><span class="margen-chip '+(mg<=0?'malo':(mg < pisoSocio(vr.sug)*2 ?'flojo':''))+'">S/ '+mg.toFixed(2)+'</span></td>'+
@@ -808,9 +824,31 @@ function pintarCatalogo(){
       '<div class="info"><h3>'+p.nombre+'</h3><p>'+(p.cat||'Sin categoría')+' · '+p.variantes.length+' presentación'+(p.variantes.length>1?'es':'')+' · prep. '+p.prep+
         (p.corteNac?' · ⏰ corte nacional '+p.corteNac:'')+(p.corteLoc && p.corteLoc!=='No aplica'?' · local '+p.corteLoc:'')+'</p></div>'+
       estado+'<button class="interruptor '+(p.activo?'on':'')+'" '+(p.estado==='revision'?'disabled':'')+' onclick="alternar('+i+')" aria-label="Activar o pausar"></button>'+
-      '</div><table class="vtabla"><thead><tr><th>Presentación</th><th class="der">Tu mayorista</th><th class="der">Precio página</th><th class="der">Margen</th><th class="der">Stock '+marca.almacen+'</th>'+colB+'</tr></thead><tbody>'+filas+'</tbody></table></div>';
+      '</div><table class="vtabla"><thead><tr><th>Foto</th><th>Presentación</th><th class="der">Tu mayorista</th><th class="der">Precio página</th><th class="der">Margen</th><th class="der">Stock '+marca.almacen+'</th>'+colB+'</tr></thead><tbody>'+filas+'</tbody></table></div>';
   }).join('');
 }
+/* La marca sube la foto de una presentación. Es hermana de setStock: cambia un
+   dato de esa presentación y se ve al momento en el catálogo del socio. La
+   diferencia es que la foto necesita la base sí o sí —el archivo vive en el
+   cubo, no en este navegador—, así que sin conexión ni se ofrece. */
+function subirFoto(i,j,input){
+  const archivo = input.files && input.files[0];
+  input.value = '';
+  if(!archivo) return;
+  if(!CONECTADO){ aviso('Para subir fotos hay que tener la cuenta conectada a la base.'); return; }
+
+  const c = cat();
+  const v = c[i].variantes[j];
+  aviso('Subiendo la foto…');
+  window.SocioDatos.subirFotoCatalogo(marca.id, v._id, archivo)
+    .then(function(r){
+      v.img = r.ruta;
+      pintarCatalogo();
+      aviso('Foto actualizada — los socios ya la ven');
+    })
+    .catch(function(e){ aviso(e.message); });
+}
+
 function setStock(i,j,campo,v){
   const c = cat(); const n = Math.max(0, parseInt(v)||0);
   const antes = c[i].variantes[j][campo];
