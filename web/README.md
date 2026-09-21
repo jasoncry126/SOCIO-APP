@@ -115,7 +115,7 @@ la migración del depósito y su captura (`20260921140000`):
   `crear_pedido()`, que es el mismo número);
 - `cancelar_pedido_sin_pagar()`, que libera el stock de un pedido que no se pagó.
 
-Y de la migración de las fotos (`20260921160000`), que va en este mismo cambio:
+Y de la migración de las fotos (`20260921180000`), que va en este mismo cambio:
 la columna `presentaciones.imagen` y el cubo `catalogo`.
 
 ## Lo que todavía no está

@@ -30,7 +30,7 @@ supabase/
     10-especificacion-tecnica.sql ← PVP, foto de la guía, orden del reporte
     12-quien-mueve-el-pedido.sql  ← los dos huecos de permisos que tocaban dinero
     13-los-otros-cuatro-huecos.sql ← los cuatro restantes de esa misma revisión
-    16-las-fotos-del-catalogo.sql  ← la foto de cada presentación y su cubo
+    17-las-fotos-del-catalogo.sql  ← la foto de cada presentación y su cubo
 ```
 
 ---
@@ -426,7 +426,7 @@ preinstalado en otra versión), la prueba lo busca en `PLAYWRIGHT_BROWSERS_PATH`
 
 ---
 
-## Las fotos del catálogo (migración `20260921160000`)
+## Las fotos del catálogo (migración `20260921180000`)
 
 Hasta esta migración la base no guardaba ninguna foto de producto: las que hay
 en el repositorio viven dentro de `app/vendedor.html`, escritas a mano junto al

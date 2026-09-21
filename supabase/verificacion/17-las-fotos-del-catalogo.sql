@@ -1,4 +1,4 @@
--- Las fotos del catálogo (migración 20260921160000), comprobadas por sus dos
+-- Las fotos del catálogo (migración 20260921180000), comprobadas por sus dos
 -- caras: que la marca puede poner la foto de SU producto, que no puede tocar la
 -- del vecino, y que la vista del socio la devuelve sin devolver de paso nada
 -- que no le toque.

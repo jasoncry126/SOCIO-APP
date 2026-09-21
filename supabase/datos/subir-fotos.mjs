@@ -20,7 +20,7 @@
    La conexión sale de web/.env.local, o de las variables de entorno
    VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.
 
-   Necesita la migración 20260921160000 aplicada: sin ella no existe ni la
+   Necesita la migración 20260921180000 aplicada: sin ella no existe ni la
    columna `imagen` ni el cubo `catalogo`. */
 
 import { createClient } from "@supabase/supabase-js";
