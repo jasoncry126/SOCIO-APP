@@ -1,4 +1,4 @@
-import type { Pedido, Producto } from "../tipos";
+import type { Pedido, Producto, Socio } from "../tipos";
 
 /* Datos de demostración, para poder abrir las pantallas sin conexión a la base.
    Son inventados a propósito y la pantalla lo dice: nunca se mezclan con los
@@ -103,6 +103,22 @@ export const PRODUCTOS_DEMO: readonly Producto[] = [
 
 export const PEDIDOS_DEMO: readonly Pedido[] = [
   {
+    id: "demo-p0",
+    codigo: "SOC-0921-Z9",
+    estado: "pendiente_pago",
+    destinatario: "Elena Chávez",
+    detalleEntrega: "Olva Courier · Cusco",
+    fecha: "21 set",
+    numeroGuia: "",
+    total: 95,
+    ganancia: 15.2,
+    montoADepositar: 79.83,
+    pagoEstado: null,
+    pagoCaptura: "",
+    pagoMotivo: "",
+  },
+  {
+    id: "demo-p1",
     codigo: "SOC-0921-A1",
     estado: "pagado",
     destinatario: "Rosa Quispe",
@@ -111,8 +127,13 @@ export const PEDIDOS_DEMO: readonly Pedido[] = [
     numeroGuia: "",
     total: 80,
     ganancia: 12.8,
+    montoADepositar: 67.41,
+    pagoEstado: "declarado",
+    pagoCaptura: "",
+    pagoMotivo: "",
   },
   {
+    id: "demo-p2",
     codigo: "SOC-0920-B7",
     estado: "en_camino",
     destinatario: "Luis Ramos",
@@ -121,8 +142,13 @@ export const PEDIDOS_DEMO: readonly Pedido[] = [
     numeroGuia: "OLV-884213",
     total: 125,
     ganancia: 20,
+    montoADepositar: 105,
+    pagoEstado: "validado",
+    pagoCaptura: "",
+    pagoMotivo: "",
   },
   {
+    id: "demo-p3",
     codigo: "SOC-0918-C3",
     estado: "entregado",
     destinatario: "Marina Flores",
@@ -131,5 +157,23 @@ export const PEDIDOS_DEMO: readonly Pedido[] = [
     numeroGuia: "OLV-871004",
     total: 45,
     ganancia: 7.2,
+    montoADepositar: 37.8,
+    pagoEstado: "validado",
+    pagoCaptura: "",
+    pagoMotivo: "",
   },
 ];
+
+/* El socio de ejemplo, para poder recorrer las pantallas sin base. Su nivel
+   es el de entrada: el de verdad lo pone la base por ventas entregadas
+   (regla 5) y esta app nunca lo calcula. */
+export const SOCIO_DEMO: Socio = {
+  id: "demo-socio",
+  nombre: "Socio de ejemplo",
+  dni: "00000000",
+  celular: "900000000",
+  ciudad: "Cusco",
+  validado: true,
+  nivel: "bronce",
+  ventasEntregadas: 0,
+};

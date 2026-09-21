@@ -67,7 +67,23 @@ export interface Marca {
   ciudadPunto: string;
 }
 
+export interface Socio {
+  id: string;
+  nombre: string;
+  dni: string;
+  celular: string;
+  ciudad: string;
+  validado: boolean;
+  /** Lo pone la base por ventas ENTREGADAS. Nunca se calcula en la pantalla. */
+  nivel: NivelId;
+  ventasEntregadas: number;
+}
+
+/** En qué quedó el pago que el socio declaró, si llegó a declarar alguno. */
+export type EstadoPago = "declarado" | "validado" | "rechazado";
+
 export interface Pedido {
+  id: string;
   codigo: string;
   estado: EstadoPedido;
   destinatario: string;
@@ -76,6 +92,43 @@ export interface Pedido {
   numeroGuia: string;
   total: number;
   ganancia: number;
+  /* Lo que el socio tiene que depositar, con los céntimos que identifican
+     este pedido y ningún otro en el extracto del día. Sale de la base: los
+     céntimos se derivan del código, y el código no existe hasta que el
+     pedido está registrado. Por eso primero se registra y después se cobra. */
+  montoADepositar: number;
+  pagoEstado: EstadoPago | null;
+  /** Ruta dentro del cubo privado, no una URL: la firmada caduca en minutos. */
+  pagoCaptura: string;
+  /** Por qué SOCIO rechazó el pago, para que el socio pueda subir otra. */
+  pagoMotivo: string;
+}
+
+/** Lo que el carrito manda a la base: qué presentación y cuántas. Ningún
+    precio — los calcula crear_pedido() leyendo el catálogo y el nivel. */
+export interface ItemPedido {
+  presentacion_id: string;
+  cantidad: number;
+}
+
+/** Una línea del carrito, con lo que hace falta para pintarla. */
+export interface LineaCarrito {
+  producto: Producto;
+  variante: Variante;
+  cantidad: number;
+}
+
+export type ModoEntrega = "agencia" | "domicilio";
+
+export interface DatosEnvio {
+  destinatario: string;
+  documento: string;
+  celular: string;
+  modo: ModoEntrega;
+  /** Con modo "agencia": el local de recojo. Con "domicilio": la dirección. */
+  detalle: string;
+  referencia: string;
+  agencia: string;
 }
 
 /** De qué origen se despacha. Hoy son dos; cada marca definirá los suyos. */

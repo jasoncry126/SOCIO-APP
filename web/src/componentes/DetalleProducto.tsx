@@ -1,17 +1,25 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Building2, Clock, Lightbulb, Store } from "lucide-react";
-import type { Nivel, Producto } from "../tipos";
+import { ArrowLeft, Building2, Clock, Lightbulb, Minus, Plus, ShoppingCart, Store } from "lucide-react";
+import type { Nivel, Producto, Variante } from "../tipos";
 import { gananciaUnitaria, precioSocio, soles } from "../precios";
+import { stockEn, type OrigenId } from "../envios";
 
 interface Props {
   producto: Producto;
   nivel: Nivel;
+  /** De dónde saldría el pedido: decide qué stock cuenta. */
+  origen: OrigenId;
+  /** Devuelve null si entró al carrito, o el motivo por el que no. */
+  alAgregar: (variante: Variante, cuantas: number) => string | null;
   alVolver: () => void;
 }
 
-export function DetalleProducto({ producto, nivel, alVolver }: Props) {
+export function DetalleProducto({ producto, nivel, origen, alAgregar, alVolver }: Props) {
   const [elegida, setElegida] = useState(0);
+  const [cuantas, setCuantas] = useState(1);
+  const [aviso, setAviso] = useState("");
+  const [entro, setEntro] = useState(false);
   const v = producto.variantes[elegida] ?? producto.variantes[0];
 
   /* Un producto sin presentaciones no se puede vender: la ficha lo dice en vez
@@ -82,7 +90,12 @@ export function DetalleProducto({ producto, nivel, alVolver }: Props) {
                       type="button"
                       whileHover={{ y: -2 }}
                       whileTap={{ scale: 0.96 }}
-                      onClick={() => setElegida(i)}
+                      onClick={() => {
+                        setElegida(i);
+                        setCuantas(1);
+                        setAviso("");
+                        setEntro(false);
+                      }}
                       aria-pressed={activa}
                       className={
                         "rounded-xl border-2 px-3 py-2 text-left text-sm font-bold transition-colors " +
@@ -142,6 +155,59 @@ export function DetalleProducto({ producto, nivel, alVolver }: Props) {
               </p>
             </motion.div>
           </AnimatePresence>
+
+          {/* ---- Al carrito ---- */}
+          <div className="mt-4 flex items-center gap-3">
+            <div className="flex items-center gap-1 rounded-xl border border-linea">
+              <button
+                type="button"
+                aria-label="Una menos"
+                onClick={() => setCuantas((n) => Math.max(1, n - 1))}
+                className="px-3 py-2.5 text-tinta transition-transform active:scale-90"
+              >
+                <Minus className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <span className="num w-8 text-center font-titulo font-bold text-tinta">{cuantas}</span>
+              <button
+                type="button"
+                aria-label="Una más"
+                onClick={() => setCuantas((n) => n + 1)}
+                className="px-3 py-2.5 text-tinta transition-transform active:scale-90"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <motion.button
+              type="button"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              animate={entro ? { scale: [1, 1.04, 1] } : { scale: 1 }}
+              transition={{ duration: 0.3 }}
+              onClick={() => {
+                const problema = alAgregar(v, cuantas);
+                setAviso(problema ?? "");
+                setEntro(!problema);
+                if (!problema) setCuantas(1);
+              }}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-sol px-4 py-3 font-titulo font-bold text-tinta"
+            >
+              <ShoppingCart className="h-4 w-4" aria-hidden="true" />
+              {entro ? "Agregado ✓" : "Agregar al pedido"}
+            </motion.button>
+          </div>
+
+          {aviso ? (
+            <p role="alert" className="mt-2 rounded-lg bg-alerta-bg px-3 py-2 text-xs font-semibold text-alerta">
+              {aviso}
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-tinta-suave">
+              {stockEn(v, origen) === null
+                ? "La marca no lleva conteo de stock en el origen que elegiste."
+                : `Quedan ${String(stockEn(v, origen))} en el origen que elegiste.`}
+            </p>
+          )}
 
           <dl className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Dato

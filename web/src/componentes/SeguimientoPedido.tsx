@@ -68,7 +68,13 @@ const DETALLE: Record<EstadoPedido, string> = {
   cancelado: "Este pedido se anuló. No cuenta para tu nivel ni para tus ganancias.",
 };
 
-export function SeguimientoPedido({ pedido }: { pedido: Pedido }) {
+interface Props {
+  pedido: Pedido;
+  /** Lo que el socio puede hacer con este pedido ahora mismo, si algo puede. */
+  accion?: React.ReactNode;
+}
+
+export function SeguimientoPedido({ pedido, accion }: Props) {
   const avance = AVANCE[pedido.estado];
   const etiqueta = ETIQUETA[pedido.estado];
   const cancelado = pedido.estado === "cancelado";
@@ -179,6 +185,8 @@ export function SeguimientoPedido({ pedido }: { pedido: Pedido }) {
           </span>
         </div>
       </div>
+
+      {accion ? <div className="mt-4">{accion}</div> : null}
     </div>
   );
 }
