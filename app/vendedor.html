@@ -731,31 +731,55 @@
         ⏸️ <b>Estás en pausa (o marcaste estos días como no disponible).</b> Si registras este pedido igual, recuerda que debes estar presente para confirmar el pago y darle seguimiento al envío.
         <label class="check-pausa"><input type="checkbox" id="chk-pausa-ok"> Entiendo y quiero continuar de todas formas</label>
       </div>
-      <button class="btn btn-sol" style="margin-top:14px" onclick="continuarPago()">Continuar al pago</button>
+      <button class="btn btn-sol" style="margin-top:14px" onclick="continuarPago()">Registrar pedido y pagar</button>
     </div>
   </section>
 
   <!-- ============ PAGO ============ -->
+  <!--
+       Cuando se llega aquí el pedido YA ESTÁ REGISTRADO y esperando el depósito.
+       Esta pantalla no registra nada: muestra el monto exacto que la base
+       calculó y recoge la captura del depósito.
+
+       Por qué en ese orden. El monto lleva céntimos únicos derivados del código
+       del pedido (S/ 158.37, no S/ 158.00), y ese código no existe hasta que el
+       pedido está en la base. Si se cobrara antes, el socio depositaría una
+       cifra redonda y nadie podría distinguir su abono de los demás del día.
+  -->
   <section id="p-pago" class="pantalla">
-    <div class="cabecera"><h1>Pago del pedido</h1><button class="btn-fantasma btn" style="width:auto;padding:6px" onclick="irA('p-resumen')">←</button></div>
+    <div class="cabecera"><h1>Confirma tu depósito</h1><button class="btn-fantasma btn" style="width:auto;padding:6px" onclick="salirDelPago()">←</button></div>
     <div class="contenido">
-      <div class="tarjeta" style="text-align:center;margin-bottom:12px">
-        <small style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-suave)">Total a pagar a SOCIO</small>
-        <div class="num" style="font-family:'Archivo',sans-serif;font-weight:900;font-size:30px" id="pago-total">S/ 0</div>
+
+      <div class="codigo-caja" style="margin-top:0">
+        <small>Deposita exactamente</small>
+        <div class="cod num" id="pago-total">S/ 0</div>
+        <p>Los céntimos no son un error: son lo que identifica tu depósito
+           en la cuenta de SOCIO. Deposita el monto exacto.</p>
+      </div>
+
+      <div class="aviso-pausa" id="aviso-rechazo" style="display:none"></div>
+
+      <div class="tarjeta" style="text-align:center;margin-top:10px;margin-bottom:12px">
+        <small style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-suave)">Tu pedido</small>
+        <div class="num" style="font-family:'Archivo',sans-serif;font-weight:900;font-size:20px;letter-spacing:.05em" id="pago-codigo">—</div>
         <span class="chip chip-ganancia num" id="pago-ganancia"></span>
       </div>
+
       <div class="metodos">
-        <button class="metodo activo" id="m-qr" onclick="metodo('qr')"><div class="ic">🔳</div><h3>Pagar con QR</h3><p>Yape · Plin · banca móvil</p></button>
-        <button class="metodo" id="m-dep" onclick="metodo('dep')"><div class="ic">🏦</div><h3>Depósito</h3><p>Transferencia + constancia</p></button>
+        <button class="metodo activo" id="m-qr" onclick="metodo('qr')"><div class="ic">🔳</div><h3>Yape o Plin</h3><p>Escanea y deposita</p></button>
+        <button class="metodo" id="m-dep" onclick="metodo('dep')"><div class="ic">🏦</div><h3>Transferencia</h3><p>Desde tu banca</p></button>
       </div>
+
       <div class="tarjeta zona-qr" id="zona-qr">
         <svg viewBox="0 0 29 29" shape-rendering="crispEdges" aria-label="Código QR de pago">
           <rect width="29" height="29" fill="#fff"/>
           <path fill="#14261E" d="M1,1h7v7h-7z M21,1h7v7h-7z M1,21h7v7h-7z M3,3h3v3h-3z M23,3h3v3h-3z M3,23h3v3h-3z M10,1h2v2h-2z M14,1h1v3h-1z M17,2h2v1h-2z M10,4h1v4h-1z M12,4h2v1h-2z M16,4h1v2h-1z M18,5h2v2h-2z M13,6h2v2h-2z M10,9h3v1h-3z M15,9h1v2h-1z M18,9h2v1h-2z M22,9h2v2h-2z M26,9h2v1h-2z M2,10h2v2h-2z M5,10h1v1h-1z M7,11h2v1h-2z M12,11h2v2h-2z M17,11h1v3h-1z M20,11h1v1h-1z M25,11h2v2h-2z M1,13h1v2h-1z M4,13h2v1h-2z M9,13h2v1h-2z M14,14h2v2h-2z M19,13h2v2h-2z M23,14h1v2h-1z M27,13h1v3h-1z M2,16h2v1h-2z M6,15h2v2h-2z M10,16h2v2h-2z M13,17h1v2h-1z M16,16h2v1h-2z M21,16h2v2h-2z M25,17h2v1h-2z M9,19h2v2h-2z M12,20h2v1h-2z M15,19h2v2h-2z M18,19h1v2h-1z M20,20h3v1h-3z M24,19h2v2h-2z M27,20h1v3h-1z M10,22h1v3h-1z M13,22h2v2h-2z M16,23h2v2h-2z M19,22h2v1h-2z M22,23h2v2h-2z M26,24h2v2h-2z M9,26h3v1h-3z M14,25h1v3h-1z M17,26h2v1h-2z M20,26h2v2h-2z M25,27h2v1h-2z"/>
         </svg>
         <div class="monto-qr num" id="qr-monto">S/ 0</div>
-        <p>Escanea con Yape, Plin o tu banca móvil. El QR lleva el monto exacto y el código de tu pedido — la validación es automática al detectar el pago.</p>
+        <p>Escanea con Yape o Plin y <b>corrige el monto al exacto de arriba</b> antes de enviar.
+           Después sube la captura que te queda en la app.</p>
       </div>
+
       <div style="display:none" id="zona-dep">
         <div class="tarjeta" style="font-size:12.5px;line-height:1.7;margin-bottom:10px">
           <b>Cuenta SOCIO — BCP Soles</b><br>
@@ -763,27 +787,50 @@
           Titular: SOCIO SAC
           <button class="btn btn-borde" style="margin-top:8px;padding:9px;font-size:12.5px" onclick="notificar('Datos de cuenta copiados ✓')">⧉ Copiar datos</button>
         </div>
-        <div class="adjunto" id="adjunto" onclick="document.getElementById('input-voucher').click()">
-          <div class="ic">📎</div>
-          <p><b>Sube la evidencia de tu depósito</b><br>Captura o foto del voucher. El sistema de control la valida contra el monto y el código del pedido.</p>
-        </div>
-        <input type="file" id="input-voucher" accept="image/*" style="display:none" onchange="voucherListo(this)">
-        <div class="paso-binance"><span>1️⃣</span><span><b>Transfiere el monto exacto.</b> Es la primera huella que valida tu pago.</span></div>
-        <div class="paso-binance"><span>2️⃣</span><span><b>Sube la constancia.</b> Pago declarado ≠ pago validado — el pedido queda "En validación".</span></div>
-        <div class="paso-binance"><span>3️⃣</span><span><b>Validación (10–30 min en horario laboral).</b> Confirmado el abono, la marca despacha.</span></div>
       </div>
-      <!-- Fuera de las dos zonas: la base exige el número de operación pagues
-           como pagues, y Yape y Plin también lo dan. -->
+
+      <!-- La captura va fuera de las dos zonas: se pague por Yape o por
+           transferencia, mientras no haya pasarela es la única evidencia. -->
+      <div class="adjunto" id="adjunto" style="margin-top:12px" onclick="document.getElementById('input-voucher').click()">
+        <div class="ic">📎</div>
+        <p><b>Sube la captura de tu depósito</b><br>La foto o captura donde se vea el monto y la fecha. SOCIO la cruza contra el movimiento real de la cuenta.</p>
+      </div>
+      <input type="file" id="input-voucher" accept="image/*" style="display:none" onchange="voucherListo(this)">
+
+      <!-- La base exige el número de operación pagues como pagues, y Yape y
+           Plin también lo dan. -->
       <div class="campo" id="c-operacion" style="margin-top:14px">
         <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px">
-          N° de operación de tu pago</label>
+          N° de operación de tu depósito</label>
         <input id="r-operacion" placeholder="El código que te dio Yape, Plin o tu banco"
                style="width:100%;padding:12px;border:1px solid var(--linea);border-radius:10px;font-family:inherit;font-size:13.5px">
         <div style="font-size:11.5px;color:var(--tinta-suave);margin-top:5px;line-height:1.5">
-          Sin este número tu pago no se puede cruzar con el estado de cuenta, y un mismo
-          comprobante podría usarse dos veces.</div>
+          Sin este número tu depósito no se puede cruzar con el estado de cuenta, y una
+          misma captura podría usarse dos veces.</div>
       </div>
-      <button class="btn btn-sol" style="margin-top:14px" onclick="registrarPedido()">Registrar pedido</button>
+
+      <!-- Prellenado con el monto exacto, pero editable: si el socio depositó
+           otra cifra —pasa, y mucho— conviene que lo diga él y no que lo
+           descubra SOCIO cuadrando la cuenta. La base compara lo declarado
+           contra lo que el pedido pedía y marca la diferencia. -->
+      <div class="campo" id="c-monto-depositado" style="margin-top:10px">
+        <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px">
+          Monto que depositaste</label>
+        <input id="r-monto-depositado" type="text" inputmode="decimal"
+               style="width:100%;padding:12px;border:1px solid var(--linea);border-radius:10px;font-family:inherit;font-size:13.5px">
+        <div style="font-size:11.5px;color:var(--tinta-suave);margin-top:5px;line-height:1.5">
+          Si depositaste una cifra distinta a la pedida, corrígela aquí. El pedido
+          entra igual, pero SOCIO lo revisa a mano.</div>
+      </div>
+
+      <div class="paso-binance"><span>1️⃣</span><span><b>Deposita el monto exacto.</b> Es la primera huella que identifica tu pago.</span></div>
+      <div class="paso-binance"><span>2️⃣</span><span><b>Sube la captura y el número de operación.</b> Depósito declarado ≠ depósito validado — el pedido queda "en validación".</span></div>
+      <div class="paso-binance"><span>3️⃣</span><span><b>SOCIO lo cruza contra la cuenta.</b> Confirmado el abono, la marca despacha.</span></div>
+
+      <button class="btn btn-sol" style="margin-top:14px" id="btn-confirmar" onclick="confirmarDeposito()">Ya deposité — confirmar</button>
+      <p style="font-size:11.5px;color:var(--tinta-suave);margin-top:8px;line-height:1.5;text-align:center">
+        Tu pedido ya está registrado y te espera. Si todavía no depositaste, sal de aquí
+        y vuelve desde <b>Mis pedidos</b> cuando lo hagas.</p>
     </div>
   </section>
 
@@ -791,7 +838,7 @@
   <section id="p-confirmacion" class="pantalla">
     <div class="conf-hero">
       <div class="check">✓</div>
-      <h2>Pedido registrado</h2>
+      <h2>Depósito registrado</h2>
       <p id="conf-sub"></p>
     </div>
     <div class="contenido">
@@ -2754,7 +2801,6 @@ function pintarEstadoDisp(){
 let usuario = null;      // usuario con sesión activa
 let carrito = {};
 let ultimoMetodo = 'qr';
-let voucherAdjunto = false;
 
 /* ===== Autenticación ===== */
 function modoAuth(m){
@@ -2994,8 +3040,15 @@ const ESTADO_BONITO = {
 async function cargarPedidosDeLaBase(){
   const filas = await SocioDatos.misPedidos();
   PEDIDOS_BASE = filas.map(function(f){
-    const e = ESTADO_BONITO[f.estado] || [f.estado, 'chip-gris'];
+    /* Un pedido "pendiente de pago" al que ya le rechazaron el depósito no es
+       lo mismo que uno recién registrado: el socio tiene que enterarse de que
+       hay algo que corregir, no creer que se le olvidó pagar. */
+    const rechazado = f.estado === 'pendiente_pago' && f.pago_estado === 'rechazado';
+    const e = rechazado
+      ? ['Depósito rechazado', 'chip-alerta']
+      : (ESTADO_BONITO[f.estado] || [f.estado, 'chip-gris']);
     return {
+      id: f.id,
       codigo: f.codigo,
       items: '',
       cliente: f.destinatario,
@@ -3006,7 +3059,12 @@ async function cargarPedidosDeLaBase(){
       estado: e[0], chip: e[1],
       guia: f.numero_guia || '', tracking: f.tracking || '',
       total: Number(f.precio_publico || 0),
-      ganancia: Number(f.ganancia_socio || 0)
+      ganancia: Number(f.ganancia_socio || 0),
+      /* Lo que hace falta para volver a la pantalla del depósito. */
+      esperaDeposito: f.estado === 'pendiente_pago',
+      montoAPagar: Number(f.monto_a_pagar || 0),
+      pagoEstado: f.pago_estado || null,
+      pagoMotivo: f.pago_motivo || ''
     };
   });
   return PEDIDOS_BASE.length;
@@ -3558,17 +3616,113 @@ function continuarPago(){
     notificar('Estás en pausa — marca la casilla para continuar igual, o actívate primero');
     return;
   }
+  /* Aquí termina el pedido y empieza el cobro. El pedido se registra AHORA,
+     antes de cobrar nada, porque el monto exacto que el socio tiene que
+     depositar lleva céntimos derivados de su código — y ese código lo da la
+     base al registrarlo. Cobrar primero obligaría a pedir una cifra redonda,
+     que es justo la que no se puede distinguir en el estado de cuenta. */
+  abrirPago();
+}
+
+/* ===== Pago =====
+
+   'pedidoEnCurso' es el pedido que está esperando su depósito: su código, lo
+   que hay que depositar y lo que el socio gana. Se llena de dos maneras: al
+   registrar un pedido nuevo, o al volver desde "Mis pedidos" a uno que quedó
+   pendiente (porque el socio cerró la app camino al banco, o porque SOCIO le
+   rechazó el depósito anterior).
+*/
+let pedidoEnCurso = null;
+let voucherArchivo = null;
+
+/* Registra el pedido y lleva al socio a la pantalla del depósito. */
+function abrirPago(){
+  if(CONEXION_ROTA){
+    notificar('No hay conexión con la base. Tu pedido NO se registró — revisa tu internet y vuelve a intentarlo.');
+    return;
+  }
+
+  if(!CONECTADO){
+    /* Sin base detrás no hay dónde registrar nada: la app funciona como
+       demostración y el código y el monto se arman aquí. Los céntimos únicos
+       no existen en este camino, porque salen de la base. */
+    const t = totales();
+    pedidoEnCurso = { id:null, codigo: generarCodigo(), monto: t.conEnvio, gana: t.gana };
+    irA('p-pago'); pintarPago();
+    return;
+  }
+
+  notificar('Registrando tu pedido…');
+  registrarPedidoEnLaBase()
+    .then(function(ped){
+      pedidoEnCurso = { id: ped.id, codigo: ped.codigo, monto: ped.montoATransferir, gana: ped.ganas };
+      /* El carrito ya se convirtió en un pedido de la base: dejarlo lleno
+         invitaría a registrarlo dos veces. */
+      carrito = {}; precios = {};
+      limpiarDatosCliente();
+      pintarCatalogo(); actualizarBarra();
+      irA('p-pago'); pintarPago();
+      refrescarDeLaBase(function(){ if(typeof pintarPedidos === 'function') pintarPedidos(); });
+    })
+    .catch(function(e){ notificar(e.message); });
+}
+
+/* Vuelve a la pantalla del depósito de un pedido ya registrado. */
+function retomarPago(codigo){
+  const f = (PEDIDOS_BASE || []).find(function(x){ return x.codigo === codigo; });
+  if(!f){ notificar('No se encontró ese pedido'); return; }
+  pedidoEnCurso = { id: f.id, codigo: f.codigo, monto: f.montoAPagar, gana: f.ganancia,
+                    motivoRechazo: f.pagoMotivo || '' };
   irA('p-pago'); pintarPago();
 }
 
-/* ===== Pago ===== */
+/* El pedido ya está registrado, así que la flecha de atrás no vuelve al
+   resumen —ese carrito ya no existe— sino a la lista donde el pedido espera. */
+function salirDelPago(){
+  if(pedidoEnCurso && pedidoEnCurso.id) irA('p-pedidos');
+  else irA('p-resumen');
+}
+
+function limpiarDatosCliente(){
+  ['r-cli-nombre','r-cli-dni','r-cli-cel','r-cli-dir','r-cli-ref','r-agencia-local']
+    .forEach(function(id){ const e = document.getElementById(id); if(e) e.value=''; });
+}
+
 function pintarPago(){
-  const t = totales();
-  document.getElementById('pago-total').textContent = 'S/ ' + t.conEnvio.toFixed(2);
-  document.getElementById('qr-monto').textContent = 'S/ ' + t.conEnvio.toFixed(2);
-  document.getElementById('pago-ganancia').textContent = `Tu ganancia ya está contigo: S/ ${t.gana.toFixed(2)}`;
+  const p = pedidoEnCurso;
+  if(!p){ irA('p-catalogo'); return; }
+
+  document.getElementById('pago-total').textContent = 'S/ ' + p.monto.toFixed(2);
+  document.getElementById('qr-monto').textContent   = 'S/ ' + p.monto.toFixed(2);
+  document.getElementById('pago-codigo').textContent = p.codigo;
+
+  const g = document.getElementById('pago-ganancia');
+  g.textContent = 'Tu ganancia ya está contigo: S/ ' + (p.gana || 0).toFixed(2);
+  g.style.display = p.gana ? '' : 'none';
+
+  /* Si vuelve tras un rechazo, lo primero que tiene que leer es por qué. */
+  const aviso = document.getElementById('aviso-rechazo');
+  if(p.motivoRechazo){
+    aviso.style.display = '';
+    aviso.innerHTML = '⚠️ <b>SOCIO no pudo validar tu depósito anterior.</b><br>' +
+      escaparTexto(p.motivoRechazo) + '<br>Corrige lo que falte y vuelve a confirmar.';
+  }else{
+    aviso.style.display = 'none';
+  }
+
+  limpiarAdjunto();
+  document.getElementById('r-operacion').value = '';
+  const md = document.getElementById('r-monto-depositado');
+  if(md) md.value = p.monto.toFixed(2);
   metodo(ultimoMetodo);
 }
+
+function escaparTexto(s){
+  const d = document.createElement('div');
+  d.textContent = String(s == null ? '' : s);
+  return d.innerHTML;
+}
+
 function metodo(m){
   ultimoMetodo = m;
   document.getElementById('m-qr').classList.toggle('activo', m==='qr');
@@ -3576,14 +3730,28 @@ function metodo(m){
   document.getElementById('zona-qr').style.display = m==='qr'?'block':'none';
   document.getElementById('zona-dep').style.display = m==='dep'?'block':'none';
 }
+
 function voucherListo(input){
   if(!input.files || !input.files.length) return;
-  voucherAdjunto = true;
+  voucherArchivo = input.files[0];
   const a = document.getElementById('adjunto');
   a.classList.add('ok');
-  a.querySelector('p').innerHTML = 'Constancia adjuntada — ' + input.files[0].name + '<br>Se validará contra el monto y el código del pedido.';
+  a.querySelector('p').innerHTML = 'Captura adjuntada — ' + escaparTexto(voucherArchivo.name) +
+    '<br>Se sube cuando confirmes, y SOCIO la cruza contra la cuenta.';
   a.querySelector('.ic').textContent = '✅';
 }
+
+function limpiarAdjunto(){
+  voucherArchivo = null;
+  const a = document.getElementById('adjunto');
+  if(!a) return;
+  a.classList.remove('ok');
+  a.querySelector('.ic').textContent = '📎';
+  a.querySelector('p').innerHTML = '<b>Sube la captura de tu depósito</b><br>La foto o captura donde se vea el monto y la fecha. SOCIO la cruza contra el movimiento real de la cuenta.';
+  const inp = document.getElementById('input-voucher');
+  if(inp) inp.value = '';
+}
+
 function generarCodigo(){
   const f = new Date();
   const mmdd = String(f.getMonth()+1).padStart(2,'0') + String(f.getDate()).padStart(2,'0');
@@ -3591,6 +3759,7 @@ function generarCodigo(){
   let suf=''; for(let i=0;i<4;i++) suf += chars[Math.floor(Math.random()*chars.length)];
   return `SOC-${mmdd}-${suf}`;
 }
+
 /* Lo que se manda a la base: qué presentaciones y cuántas. NINGÚN precio — los
    calcula crear_pedido() leyendo el catálogo y el nivel del socio. Si los
    mandara el teléfono, cualquiera podría editarlos antes de que salgan. */
@@ -3608,7 +3777,7 @@ async function registrarPedidoEnLaBase(){
     ? `${ag.nombre} · ${document.getElementById('r-agencia-local').value.trim()}`
     : `${document.getElementById('r-cli-dir').value.trim()}${document.getElementById('r-cli-ref').value.trim()?' (Ref: '+document.getElementById('r-cli-ref').value.trim()+')':''}`;
 
-  const pedido = await SocioDatos.crearPedido({
+  return await SocioDatos.crearPedido({
     items: itemsParaLaBase(),
     destinatario: cliente,
     doc: document.getElementById('r-cli-dni').value.trim(),
@@ -3619,54 +3788,73 @@ async function registrarPedidoEnLaBase(){
     agencia: modo === 'agencia' ? ag.id : null,
     costoEnvio: totales().envio || 0
   });
-
-  const pago = await SocioDatos.declararPago({
-    pedidoId: pedido.id,
-    numeroOperacion: document.getElementById('r-operacion').value.trim(),
-    montoReportado: pedido.montoATransferir,
-    metodo: ultimoMetodo === 'qr' ? 'yape' : 'transferencia'
-  });
-
-  return { pedido, pago };
 }
 
-function registrarPedido(){
-  if(totalItems()===0){ notificar('Tu carrito está vacío'); irA('p-catalogo'); return; }
-  if(ultimoMetodo==='dep' && !voucherAdjunto){ notificar('Sube la evidencia de tu depósito para registrar el pedido'); return; }
+/* El socio ya depositó por fuera y vuelve con la captura. Esto sube la imagen
+   al cubo privado y declara el pago. El monto esperado no se manda: lo
+   recalcula la base con el código del pedido, así que da igual lo que diga
+   esta pantalla. */
+function confirmarDeposito(){
+  const p = pedidoEnCurso;
+  if(!p){ notificar('No hay ningún pedido esperando depósito'); irA('p-catalogo'); return; }
 
-  if(CONEXION_ROTA){ notificar('No hay conexión con la base. Tu pedido NO se registró — revisa tu internet y vuelve a intentarlo.'); return; }
-
-  if(CONECTADO){
-    const op = document.getElementById('r-operacion').value.trim();
-    if(!op){
-      document.getElementById('r-operacion').focus();
-      notificar('Falta el número de operación de tu transferencia');
-      return;
-    }
-    notificar('Registrando tu pedido…');
-    registrarPedidoEnLaBase()
-      .then(function(r){
-        document.getElementById('conf-codigo').textContent = r.pedido.codigo;
-        document.getElementById('conf-sub').textContent = r.pago.cuadra
-          ? 'Tu pago entró al sistema de control. Validado el abono, la marca despacha.'
-          : 'Ojo: el monto que declaraste no coincide con S/ ' + r.pago.esperado.toFixed(2) +
-            '. El pedido quedó registrado, pero la validación puede demorar.';
-        carrito = {}; precios = {}; voucherAdjunto = false;
-        document.getElementById('r-operacion').value = '';
-        ['r-cli-nombre','r-cli-dni','r-cli-cel','r-cli-dir','r-cli-ref','r-agencia-local']
-          .forEach(function(id){ const e=document.getElementById(id); if(e) e.value=''; });
-        pintarCatalogo(); actualizarBarra();
-        irA('p-confirmacion');
-        cargarPedidosDeLaBase()
-          .then(function(){ if(typeof pintarPedidos === 'function') pintarPedidos(); })
-          .catch(function(){ /* la confirmación ya se mostró */ });
-      })
-      .catch(function(e){ notificar(e.message); });
+  const op = document.getElementById('r-operacion').value.trim();
+  if(!op){
+    document.getElementById('r-operacion').focus();
+    notificar('Falta el número de operación de tu depósito');
+    return;
+  }
+  if(!voucherArchivo){
+    notificar('Sube la captura de tu depósito: es lo que SOCIO cruza contra la cuenta');
     return;
   }
 
+  const campoMonto = document.getElementById('r-monto-depositado');
+  const depositado = campoMonto ? Number(String(campoMonto.value).replace(',', '.')) : p.monto;
+  if(!(depositado > 0)){
+    campoMonto.focus();
+    notificar('Escribe cuánto depositaste');
+    return;
+  }
+
+  if(!CONECTADO){ confirmarDepositoSinBase(op); return; }
+
+  const btn = document.getElementById('btn-confirmar');
+  const textoBtn = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Subiendo tu captura…';
+
+  SocioDatos.subirVoucher(voucherArchivo, p.codigo)
+    .then(function(v){
+      btn.textContent = 'Registrando tu depósito…';
+      return SocioDatos.declararPago({
+        pedidoId: p.id,
+        numeroOperacion: op,
+        montoReportado: depositado,
+        metodo: ultimoMetodo === 'qr' ? 'yape' : 'transferencia',
+        voucherUrl: v.ruta,
+        hashImagen: v.huella
+      });
+    })
+    .then(function(pago){
+      document.getElementById('conf-codigo').textContent = p.codigo;
+      document.getElementById('conf-sub').textContent = pago.cuadra
+        ? 'Tu depósito entró a validación. Confirmado el abono, la marca despacha.'
+        : 'Ojo: depositaste S/ ' + depositado.toFixed(2) + ' y el pedido pedía S/ ' +
+          pago.esperado.toFixed(2) + '. Quedó registrado, pero la validación puede demorar.';
+      pedidoEnCurso = null;
+      limpiarAdjunto();
+      document.getElementById('r-operacion').value = '';
+      irA('p-confirmacion');
+      refrescarDeLaBase(function(){ if(typeof pintarPedidos === 'function') pintarPedidos(); });
+    })
+    .catch(function(e){ notificar(e.message); })
+    .then(function(){ btn.disabled = false; btn.textContent = textoBtn; });
+}
+
+/* El mismo paso, sin base detrás: la app queda como demostración y el pedido
+   se guarda en este teléfono. Ningún panel lo ve. */
+function confirmarDepositoSinBase(op){
   const t = totales();
-  const codigo = generarCodigo();
   const cliente = document.getElementById('r-cli-nombre').value.trim();
   const ciudad = ciudadEnvio();
   const ag = agenciaActual();
@@ -3679,30 +3867,27 @@ function registrarPedido(){
 
   const lista = misPedidos();
   lista.unshift({
-    codigo, items, cliente:`${cliente} · ${ciudad}`, entrega,
+    codigo: pedidoEnCurso.codigo, items, cliente:`${cliente} · ${ciudad}`, entrega,
     dni: document.getElementById('r-cli-dni').value.trim(),
     celular: document.getElementById('r-cli-cel').value.trim(),
     fecha: new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'short'}),
-    estado: ultimoMetodo==='qr' ? 'Validando pago QR' : 'Constancia en validación',
-    chip:'chip-alerta',
-    metodo: ultimoMetodo,
+    estado: 'Depósito en validación', chip:'chip-alerta',
+    metodo: ultimoMetodo, operacion: op,
     total: t.conEnvio, ganancia: t.gana
   });
   /* Registrar un pedido no asciende a nadie: asciende la entrega confirmada, y
      de eso se encarga la base. Aquí ya no se anuncia ningún ascenso. */
   guardarPedidos(lista);
 
-  document.getElementById('conf-codigo').textContent = codigo;
-  document.getElementById('conf-sub').textContent = ultimoMetodo==='qr'
-    ? 'Detectaremos tu pago QR y el pedido pasará a despacho automáticamente.'
-    : 'Tu constancia entró al sistema de control. Validado el abono, la marca despacha.';
+  document.getElementById('conf-codigo').textContent = pedidoEnCurso.codigo;
+  document.getElementById('conf-sub').textContent =
+    'Tu depósito entró al sistema de control. Validado el abono, la marca despacha.';
 
-  carrito = {}; precios = {}; voucherAdjunto = false;
-  const a = document.getElementById('adjunto');
-  a.classList.remove('ok'); a.querySelector('.ic').textContent = '📎';
-  a.querySelector('p').innerHTML = '<b>Sube la evidencia de tu depósito</b><br>Captura o foto del voucher. El sistema de control la valida contra el monto y el código del pedido.';
-  document.getElementById('input-voucher').value = '';
-  ['r-cli-nombre','r-cli-dni','r-cli-cel','r-cli-dir','r-cli-ref','r-agencia-local'].forEach(id=>{const e=document.getElementById(id); if(e) e.value='';});
+  carrito = {}; precios = {};
+  pedidoEnCurso = null;
+  limpiarAdjunto();
+  document.getElementById('r-operacion').value = '';
+  limpiarDatosCliente();
   const nv = nivelActual();
   if(usuario) document.getElementById('u-estado').innerHTML = `${nv.med} ${nv.nombre} · ${usuario.validado ? '✓ validado' : 'en validación'}`;
   pintarCatalogo(); actualizarBarra();
@@ -3715,11 +3900,48 @@ function copiarCodigo(){
 }
 
 /* ===== Pedidos ===== */
+/* Un pedido registrado y sin depósito es plata parada: la mercadería ya está
+   apartada para él y nadie la va a despachar hasta que el socio pague. Por eso
+   no se muestra como un pedido más, sino con lo que le falta y el botón para
+   hacerlo. */
+function bloqueEsperaDeposito(p){
+  const motivo = p.pagoMotivo
+    ? `<div style="font-size:11.5px;color:var(--alerta);line-height:1.5;margin-top:4px">⚠️ ${escaparTexto(p.pagoMotivo)}</div>`
+    : '';
+  return `<div style="margin-top:8px;padding:10px;border:1px dashed var(--linea);border-radius:10px;background:var(--fondo)">
+      <div style="font-size:12.5px;line-height:1.5">
+        ${p.pagoEstado === 'rechazado'
+          ? '<b>SOCIO no pudo validar tu depósito.</b>'
+          : '<b>Falta tu depósito.</b> La marca no despacha hasta que SOCIO lo confirme.'}
+      </div>
+      ${motivo}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px">
+        <span style="font-size:12px;color:var(--tinta-suave)">Deposita <b class="num">S/ ${p.montoAPagar.toFixed(2)}</b></span>
+        <button class="btn btn-sol" style="width:auto;padding:9px 14px;font-size:12.5px" onclick="retomarPago('${p.codigo}')">Subir mi depósito</button>
+      </div>
+      <button class="btn btn-fantasma" style="margin-top:6px;padding:7px;font-size:11.5px" onclick="cancelarPedido('${p.codigo}')">Ya no voy a hacer este pedido</button>
+    </div>`;
+}
+/* Desistir devuelve la mercadería al catálogo. Se pregunta antes porque el
+   pedido no se puede recuperar: hay que registrarlo de nuevo. */
+function cancelarPedido(codigo){
+  const f = (PEDIDOS_BASE || []).find(function(x){ return x.codigo === codigo; });
+  if(!f) return;
+  if(!confirm('¿Cancelar el pedido ' + codigo + '? La mercadería vuelve al catálogo y tendrás que registrarlo otra vez si cambias de idea.')) return;
+  SocioDatos.cancelarPedidoSinPagar(f.id)
+    .then(function(){
+      notificar('Pedido ' + codigo + ' cancelado');
+      refrescarDeLaBase(pintarPedidos);
+    })
+    .catch(function(e){ notificar(e.message); });
+}
+
 function pintarPedidos(){
   const lista = misPedidos();
   document.getElementById('lista-pedidos').innerHTML = lista.length ? lista.map(p=>`
     <div class="tarjeta pedido-item">
       <div class="arriba"><div><h3>${p.codigo}</h3><div class="det">${p.items}<br>${p.cliente} · ${p.fecha}${p.entrega?'<br>📦 '+p.entrega:''}</div></div><span class="chip ${p.chip}">${p.estado}</span></div>
+      ${p.esperaDeposito ? bloqueEsperaDeposito(p) : ''}
       <div class="abajo"><span>Verificable en el sistema de control con tu código</span><b class="num">S/ ${p.total.toFixed(2)}</b></div>
     </div>`).join('')
   : `<div class="vacio">

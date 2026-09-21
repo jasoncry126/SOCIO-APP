@@ -31,6 +31,7 @@ supabase/
     12-quien-mueve-el-pedido.sql  ← los dos huecos de permisos que tocaban dinero
     13-los-otros-cuatro-huecos.sql ← los cuatro restantes de esa misma revisión
     14-stock-voucher-e-indices.sql ← la reserva de stock, el voucher y los índices
+    15-el-deposito-y-su-captura.sql ← el circuito del depósito, de punta a punta
 ```
 
 ---
@@ -391,6 +392,79 @@ sitio.
 **Qué NO cambia:** ninguna pantalla. El stock ya se mostraba desde el catálogo
 y el socio ya veía el error cuando no alcanzaba; lo que cambia es que ahora el
 error dice la verdad.
+
+## La undécima migración: el depósito y su captura
+
+`20260921140000_el_deposito_y_su_captura.sql` es lo que faltaba para cobrar de
+verdad mientras no haya pasarela de pago. El orden que instala es este:
+
+1. el socio registra su pedido y **recién entonces** la base le dice cuánto
+   depositar, con los céntimos que identifican ese pedido y de nadie más;
+2. deposita por fuera, vuelve y sube la captura con su número de operación;
+3. SOCIO la cruza contra el estado de cuenta y valida o rechaza;
+4. validado, el pedido queda listo para que la marca despache.
+
+Ese orden no es una preferencia de pantalla. Los céntimos salen del código del
+pedido, y el código no existe hasta que el pedido está en la base. Cobrar antes
+obligaría a pedir una cifra redonda — justo la que no se distingue de las demás
+del día en el extracto bancario.
+
+**1 · Dónde vive la captura.** `pagos.imagen_voucher_url` existía desde la
+primera migración, pero no había ningún sitio donde guardar el archivo, así que
+la app nunca lo mandaba. Se crea el cubo privado `vouchers`, con las mismas
+reglas que el de las guías: el socio escribe y lee solo dentro de su carpeta,
+SOCIO las ve todas, y nadie borra ni reemplaza una captura ya subida. La marca
+no aparece: el voucher es plata entre el socio y SOCIO. En la columna se guarda
+la **ruta** dentro del cubo, no una URL: la URL firmada caduca a los diez
+minutos y la ruta sirve meses después, que es cuando llega el reclamo.
+
+**2 · Un pago rechazado dejaba el pedido muerto.** `declarar_pago()` exige que
+el pedido esté en `pendiente_pago`, y `pagos.pedido_id` es único. Con las dos
+reglas juntas, el socio que tecleaba mal su número de operación no tenía forma
+de corregirlo: ni podía declarar otro pago, ni el pedido podía volver atrás.
+Ahora un rechazo lo devuelve a `pendiente_pago` con el motivo escrito para que
+él lo lea, y puede declarar de nuevo sobre el mismo pedido. La máquina de
+estados gana ese único camino de vuelta, y va con candado: solo si el pago de
+ese pedido está rechazado, para que la marca —que puede escribir la columna
+`estado`— no desande un pago que sí era bueno.
+
+**3 · El socio no veía cuánto depositar.** El monto se devolvía una sola vez, al
+registrar; si cerraba la app camino al banco, lo perdía. Ahora `pedidos_socio`
+lo trae siempre, junto con el estado de su pago y el motivo si se lo
+rechazaron. Lo que no trae, y no debe: quién validó, cuándo, la huella de la
+imagen ni ningún importe de la marca.
+
+**4 · SOCIO no tenía cola de validación.** Los datos estaban repartidos entre
+cuatro tablas. La vista `cola_de_validacion` deja un pago por fila con lo que
+hace falta para cruzarlo: lo que se le pidió, lo que dice haber depositado, si
+cuadra, el número de operación, la ruta de la captura y quién vende. `cuadra`
+se calcula en la base y no en el panel, por lo de siempre: una comparación que
+vive en el navegador la cambia quien abra la página.
+
+**5 · Se puede desistir de un pedido sin pagar.** Esto no existía porque hasta
+ahora el pedido y el pago se registraban en el mismo clic, así que nunca había
+un pedido vivo y sin pagar. Ahora sí lo hay, y tiene consecuencia: desde la
+décima migración el pedido aparta stock al crearse, de modo que uno abandonado
+deja mercadería reservada para nadie. `cancelar_pedido_sin_pagar()` lo cancela
+—solo el propio, solo desde `pendiente_pago`— y el trigger de cancelación
+devuelve la mercadería al catálogo.
+
+Se verifica con `15-el-deposito-y-su-captura.sql`: los 26 pasos del circuito,
+incluidos los siete que **deben** fallar (la captura repetida, el rechazo sin
+motivo, la marca intentando desandar un pago bueno o saltarse la validación,
+cancelar un pedido ya pagado o ajeno, y la cola leída sin cuenta).
+
+> **Aviso para quien toque `pedido_transicion_valida()`.** Esa función se
+> reescribe entera con cada `create or replace`, y ya va por su quinta versión.
+> Al preparar esta migración se copió por error la de la cuarta, y eso borró de
+> un golpe tres controles que se habían añadido después: la foto de la guía
+> obligatoria, el courier y el tracking en los envíos por agencia, y que solo
+> SOCIO pueda validar. La suite lo detectó porque **bajó** el número de errores
+> en `10-especificacion-tecnica` y `12-quien-mueve-el-pedido` — en esta suite
+> los errores son el resultado correcto, así que menos errores es peor, no
+> mejor. Parte siempre de la última versión, no de la que encuentres primero.
+
+---
 
 ## Nota sobre `auth.uid()`
 

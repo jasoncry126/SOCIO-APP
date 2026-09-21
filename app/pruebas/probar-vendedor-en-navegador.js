@@ -109,6 +109,7 @@ function stubDeSupabase(socioFingido) {
   var SOCIO = socioFingido;
 
   window.__llamadas = [];          // lo que la app le pidió a la base
+  window.__subidas  = [];          // las capturas que subió al cubo
 
   function consulta(filas) {
     var t = {
@@ -135,6 +136,21 @@ function stubDeSupabase(socioFingido) {
           if (tabla === "catalogo_publico") return consulta(CATALOGO);
           if (tabla === "usuarios_socios")  return consulta([SOCIO]);
           return consulta([]);                       // pedidos_socio: sin pedidos
+        },
+        /* El cubo de capturas. La app sube el archivo ANTES de declarar el
+           pago, así que sin esto el circuito se corta aquí. */
+        storage: {
+          from: function (cubo) {
+            return {
+              upload: function (ruta, archivo) {
+                window.__subidas.push({ cubo: cubo, ruta: ruta, tipo: archivo && archivo.type });
+                return Promise.resolve({ data: { path: ruta }, error: null });
+              },
+              createSignedUrl: function (ruta) {
+                return Promise.resolve({ data: { signedUrl: "https://firmada/" + ruta }, error: null });
+              }
+            };
+          }
         },
         rpc: function (nombre, args) {
           window.__llamadas.push({ nombre: nombre, args: args });
@@ -252,8 +268,14 @@ async function principal() {
             clave.hallado && clave.idPres === "33333333-3333-3333-3333-333333333333",
             JSON.stringify(clave));
 
-  /* Registrar una venta de punta a punta. */
-  var venta = await a.pg.evaluate(async function () {
+  /* Registrar una venta de punta a punta, en los dos pasos que ahora son.
+
+     El orden importa y es lo que esta prueba vigila: PRIMERO se registra el
+     pedido —y recién entonces la base dice cuánto hay que depositar, con sus
+     céntimos— y DESPUÉS se sube la captura y se declara el pago. Al revés, el
+     socio depositaría una cifra redonda que no se puede distinguir de las
+     demás del día en el estado de cuenta. */
+  var paso1 = await a.pg.evaluate(async function () {
     var p = productos[0];
     carrito = {}; carrito[claveItem(p.id, 0, "cusco")] = 2;
     ultimoMetodo = "qr";
@@ -261,28 +283,33 @@ async function principal() {
     document.getElementById("r-cli-dni").value    = "70999888";
     document.getElementById("r-cli-cel").value    = "987111222";
     document.getElementById("r-cli-dir").value    = "Av. Siempre Viva 123";
+    /* Por agencia, que es lo único que despacha el origen de esta prueba
+       (Cusco): modoEnvio("local") lo rechazaría la propia app. */
+    document.getElementById("r-ciudad-envio").value  = "lima";
+    document.getElementById("r-agencia-local").value = "Shalom Av. Aviación 2345";
 
-    document.getElementById("r-operacion").value = "";
-    registrarPedido();                       // sin N° de operación: no debe hacer nada
-    await new Promise(function (r) { setTimeout(r, 300); });
-    var sinOperacion = window.__llamadas.length;
-
-    document.getElementById("r-operacion").value = "OP-12345";
-    registrarPedido();
+    continuarPago();
     await new Promise(function (r) { setTimeout(r, 600); });
 
     return {
-      sinOperacion: sinOperacion,
-      llamadas: window.__llamadas,
-      codigo: document.getElementById("conf-codigo").textContent
+      llamadas: window.__llamadas.slice(),
+      pantalla: document.querySelector(".pantalla.activa").id,
+      monto:    document.getElementById("pago-total").textContent,
+      codigo:   document.getElementById("pago-codigo").textContent,
+      carritoVacio: Object.keys(carrito).length === 0
     };
   });
 
-  comprobar("sin N° de operación no se registra nada", venta.sinOperacion === 0);
-  var crear = venta.llamadas.filter(function (x) { return x.nombre === "crear_pedido"; })[0];
-  var pagar = venta.llamadas.filter(function (x) { return x.nombre === "declarar_pago"; })[0];
+  var crear = paso1.llamadas.filter(function (x) { return x.nombre === "crear_pedido"; })[0];
+  comprobar("registrar el pedido NO declara todavía ningún pago",
+            paso1.llamadas.filter(function (x) { return x.nombre === "declarar_pago"; }).length === 0);
   comprobar("se llama a crear_pedido()", !!crear);
-  comprobar("se llama a declarar_pago()", !!pagar);
+  comprobar("se pasa a la pantalla del depósito", paso1.pantalla === "p-pago", paso1.pantalla);
+  comprobar("la pantalla muestra el monto EXACTO que dio la base",
+            paso1.monto === "S/ 64.07", paso1.monto);
+  comprobar("y el código del pedido que ya existe",
+            paso1.codigo === "SOC-0919-TEST", paso1.codigo);
+  comprobar("el carrito se vacía: el pedido ya está en la base", paso1.carritoVacio);
 
   if (crear) {
     // Lo que de verdad protege el dinero: que el teléfono no mande importes.
@@ -294,11 +321,67 @@ async function principal() {
               crear.args.p_items[0].cantidad === 2,
               JSON.stringify(crear.args.p_items));
   }
+
+  /* Paso 2: el socio vuelve del banco con su captura. */
+  var paso2 = await a.pg.evaluate(async function () {
+    function intentar() {
+      confirmarDeposito();
+      return new Promise(function (r) { setTimeout(r, 400); });
+    }
+
+    // Sin número de operación ni captura: no debe declararse nada.
+    document.getElementById("r-operacion").value = "";
+    await intentar();
+    var sinNada = window.__llamadas.filter(function (x) { return x.nombre === "declarar_pago"; }).length;
+
+    // Con número pero sin captura: tampoco. Mientras no haya pasarela, la
+    // captura es la única evidencia del depósito.
+    document.getElementById("r-operacion").value = "OP-12345";
+    await intentar();
+    var sinCaptura = window.__llamadas.filter(function (x) { return x.nombre === "declarar_pago"; }).length;
+
+    // Ahora sí, con la captura adjunta.
+    var dt = new DataTransfer();
+    dt.items.add(new File([new Uint8Array([1,2,3,4])], "voucher.png", { type: "image/png" }));
+    var inp = document.getElementById("input-voucher");
+    inp.files = dt.files;
+    inp.dispatchEvent(new Event("change"));
+    await intentar();
+
+    return {
+      sinNada: sinNada,
+      sinCaptura: sinCaptura,
+      llamadas: window.__llamadas.slice(),
+      subidas: window.__subidas.slice(),
+      pantalla: document.querySelector(".pantalla.activa").id,
+      codigo: document.getElementById("conf-codigo").textContent
+    };
+  });
+
+  comprobar("sin N° de operación no se declara nada", paso2.sinNada === 0);
+  comprobar("sin captura tampoco: es la única evidencia del depósito", paso2.sinCaptura === 0);
+
+  var subida = paso2.subidas[0];
+  comprobar("la captura se sube al cubo de vouchers",
+            !!subida && subida.cubo === "vouchers", JSON.stringify(paso2.subidas));
+  comprobar("y va dentro de la carpeta del socio, que es de donde cuelgan los permisos",
+            !!subida && subida.ruta.indexOf("55555555-5555-5555-5555-555555555555/") === 0,
+            subida && subida.ruta);
+
+  var pagar = paso2.llamadas.filter(function (x) { return x.nombre === "declarar_pago"; })[0];
+  comprobar("se llama a declarar_pago()", !!pagar);
   if (pagar) {
     comprobar("el pago lleva el N° de operación", pagar.args.p_numero_operacion === "OP-12345");
+    comprobar("el pago lleva la ruta de la captura",
+              !!pagar.args.p_voucher_url, JSON.stringify(pagar.args.p_voucher_url));
+    comprobar("y su huella, que es lo que detecta la captura reusada",
+              typeof pagar.args.p_hash_imagen === "string" && pagar.args.p_hash_imagen.length === 64,
+              String(pagar.args.p_hash_imagen));
+    comprobar("el pago es del pedido que se acaba de registrar",
+              pagar.args.p_pedido_id === "66666666-6666-6666-6666-666666666666");
   }
   comprobar("la confirmación muestra el código que dio la base",
-            venta.codigo === "SOC-0919-TEST", venta.codigo);
+            paso2.codigo === "SOC-0919-TEST", paso2.codigo);
   await a.ctx.close();
 
   /* ---- 4 · de dónde sale el nivel ---- */
@@ -355,8 +438,18 @@ async function principal() {
     ["r-cli-nombre","r-cli-dni","r-cli-cel","r-cli-dir"].forEach(function (id, n) {
       document.getElementById(id).value = ["Cliente Prueba","70999888","987111222","Av. Siempre Viva 123"][n];
     });
+    document.getElementById("r-ciudad-envio").value  = "lima";
+    document.getElementById("r-agencia-local").value = "Shalom Av. Aviación 2345";
+    continuarPago();
+    await new Promise(function (r) { setTimeout(r, 600); });
+
     document.getElementById("r-operacion").value = "OP-54321";
-    registrarPedido();
+    var dt = new DataTransfer();
+    dt.items.add(new File([new Uint8Array([9,9,9])], "v.png", { type: "image/png" }));
+    var inp = document.getElementById("input-voucher");
+    inp.files = dt.files;
+    inp.dispatchEvent(new Event("change"));
+    confirmarDeposito();
     await new Promise(function (r) { setTimeout(r, 900); });
     return { antes: antes, despues: nivelActual().id };
   });

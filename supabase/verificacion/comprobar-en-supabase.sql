@@ -366,10 +366,76 @@ select 'La misma foto de voucher no paga dos pedidos',
 union all
 select '...y el socio lee una explicación, no un error de base',
        case when (select prosrc from pg_proc where proname='declarar_pago')
-                 like '%Esa foto de voucher ya se usó%'
+                 like '%ya se usó para pagar otro pedido%'
             then '✅' else '❌ falta el aviso' end
 union all
 select 'Las claves foráneas por las que se consulta tienen índice',
        case when (select count(*) from pg_indexes
                    where schemaname='public' and indexname like 'idx_%') >= 14
             then '✅' else '❌ faltan índices' end;
+
+
+-- =============================================================================
+-- Migración 20260921140000 · El depósito y su captura
+-- Todo debe salir en '✅'.
+-- =============================================================================
+
+-- El cubo se consulta con query_to_xml y no con un 'select' normal a propósito:
+-- Postgres resuelve los nombres de tabla al leer la consulta, antes de ejecutar
+-- nada, así que un 'select ... from storage.buckets' haría fallar este archivo
+-- entero en un Postgres sin Supabase. Con query_to_xml el nombre se resuelve al
+-- ejecutarse, que es cuando el CASE ya decidió no entrar ahí.
+
+select 'Hay dónde guardar la captura del depósito' as regla,
+       case when to_regclass('storage.buckets') is null then '— (esto no es Supabase)'
+            when (xpath('/row/c/text()',
+                        query_to_xml('select count(*) as c from storage.buckets where id = ''vouchers''',
+                                     false, true, '')))[1]::text::int > 0
+            then '✅' else '❌ falta el cubo vouchers' end as resultado
+union all
+select '...y solo el socio dueño y SOCIO la pueden mirar',
+       case when to_regclass('storage.objects') is null then '— (esto no es Supabase)'
+            when (select count(*) from pg_policies
+                   where tablename = 'objects' and schemaname = 'storage'
+                     and (coalesce(qual,'') like '%vouchers%'
+                          or coalesce(with_check,'') like '%vouchers%')) >= 3
+            then '✅' else '❌ faltan reglas del cubo' end
+union all
+select 'Un pago rechazado devuelve el pedido a la cola',
+       case when (select prosrc from pg_proc where proname='validar_pago')
+                 like '%estado = ''pendiente_pago''%'
+            then '✅' else '❌ el pedido se queda muerto en "pagado"' end
+union all
+select '...y el socio lee por qué se lo rechazaron',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='pagos' and column_name='motivo_rechazo')
+            then '✅' else '❌ falta la columna' end
+union all
+select '...pero solo si SOCIO lo rechazó de verdad',
+       case when (select prosrc from pg_proc where proname='pedido_transicion_valida')
+                 like '%no está rechazado%'
+            then '✅' else '❌ la marca puede desandar un pago bueno' end
+union all
+select 'Y el trigger conserva los controles de despacho',
+       case when (select prosrc from pg_proc where proname='pedido_transicion_valida')
+                 like '%Falta la foto de la guía%'
+            then '✅' else '❌ se perdieron al reescribir la función' end
+union all
+select 'El socio ve cuánto depositar aunque cierre la app',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='pedidos_socio' and column_name='monto_a_pagar')
+            then '✅' else '❌ falta en la vista' end
+union all
+select '...y nada del pago que no sea suyo',
+       case when not exists (select 1 from information_schema.columns
+                              where table_name='pedidos_socio'
+                                and column_name in ('validado_por','validado_en','hash_imagen'))
+            then '✅' else '❌ se le escapó una columna de SOCIO' end
+union all
+select 'SOCIO tiene su cola de validación',
+       case when to_regclass('cola_de_validacion') is not null
+            then '✅' else '❌ falta la vista' end
+union all
+select 'Un pedido sin pagar se puede cancelar y devuelve el stock',
+       case when exists (select 1 from pg_proc where proname='cancelar_pedido_sin_pagar')
+            then '✅' else '❌ falta la función' end;
