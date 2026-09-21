@@ -298,6 +298,9 @@ async function principal() {
     document.getElementById("r-ciudad-envio").value  = "lima";
     document.getElementById("r-agencia-local").value = "Shalom Av. Aviación 2345";
 
+    /* Dos toques seguidos, como los da un dedo impaciente con la red lenta.
+       Tiene que registrarse UN pedido, no dos: cada uno aparta su stock. */
+    continuarPago();
     continuarPago();
     await new Promise(function (r) { setTimeout(r, 600); });
 
@@ -314,6 +317,9 @@ async function principal() {
   comprobar("registrar el pedido NO declara todavía ningún pago",
             paso1.llamadas.filter(function (x) { return x.nombre === "declarar_pago"; }).length === 0);
   comprobar("se llama a crear_pedido()", !!crear);
+  comprobar("dos toques seguidos registran UN pedido, no dos",
+            paso1.llamadas.filter(function (x) { return x.nombre === "crear_pedido"; }).length === 1,
+            paso1.llamadas.filter(function (x) { return x.nombre === "crear_pedido"; }).length + " llamadas");
   comprobar("se pasa a la pantalla del depósito", paso1.pantalla === "p-pago", paso1.pantalla);
   comprobar("la pantalla muestra el monto EXACTO que dio la base",
             paso1.monto === "S/ 64.07", paso1.monto);

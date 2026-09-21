@@ -731,7 +731,7 @@
         ⏸️ <b>Estás en pausa (o marcaste estos días como no disponible).</b> Si registras este pedido igual, recuerda que debes estar presente para confirmar el pago y darle seguimiento al envío.
         <label class="check-pausa"><input type="checkbox" id="chk-pausa-ok"> Entiendo y quiero continuar de todas formas</label>
       </div>
-      <button class="btn btn-sol" style="margin-top:14px" onclick="continuarPago()">Registrar pedido y pagar</button>
+      <button class="btn btn-sol" style="margin-top:14px" id="btn-registrar" onclick="continuarPago()">Registrar pedido y pagar</button>
     </div>
   </section>
 
@@ -3640,6 +3640,10 @@ function continuarPago(){
 */
 let pedidoEnCurso = null;
 let voucherArchivo = null;
+/* Registrar el pedido tarda lo que tarde la base, y en ese rato el botón sigue
+   ahí. Dos toques seguidos —o uno con la red lenta— registraban DOS pedidos, y
+   cada uno aparta su stock. Este cerrojo deja pasar el primero y nada más. */
+let registrandoPedido = false;
 
 /* Registra el pedido y lleva al socio a la pantalla del depósito. */
 function abrirPago(){
@@ -3658,6 +3662,16 @@ function abrirPago(){
     return;
   }
 
+  if(registrandoPedido) return;
+  registrandoPedido = true;
+  const btnReg = document.getElementById('btn-registrar');
+  const textoReg = btnReg ? btnReg.textContent : '';
+  if(btnReg){ btnReg.disabled = true; btnReg.textContent = 'Registrando…'; }
+  const soltarBoton = function(){
+    registrandoPedido = false;
+    if(btnReg){ btnReg.disabled = false; btnReg.textContent = textoReg; }
+  };
+
   notificar('Registrando tu pedido…');
   registrarPedidoEnLaBase()
     .then(function(ped){
@@ -3668,9 +3682,10 @@ function abrirPago(){
       limpiarDatosCliente();
       pintarCatalogo(); actualizarBarra();
       irA('p-pago'); pintarPago();
+      soltarBoton();
       refrescarDeLaBase(function(){ if(typeof pintarPedidos === 'function') pintarPedidos(); });
     })
-    .catch(function(e){ notificar(e.message); });
+    .catch(function(e){ soltarBoton(); notificar(e.message); });
 }
 
 /* Vuelve a la pantalla del depósito de un pedido ya registrado. */
