@@ -99,15 +99,12 @@ select m.nivel_fiabilidad, p.codigo, l.hito, l.monto
  where p.codigo like 'SOC-MAN-_'
  order by m.nivel_fiabilidad, l.hito;
 
-\echo '### 4c · Se confirman las cuatro entregas'
-set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000a';
-update pedidos set estado='entregado' where id='d0000000-0000-0000-0000-00000000000a';
-set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000b';
-update pedidos set estado='entregado' where id='d0000000-0000-0000-0000-00000000000b';
-set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000c';
-update pedidos set estado='entregado' where id='d0000000-0000-0000-0000-00000000000c';
-set request.jwt.claim.sub = 'b0000000-0000-0000-0000-00000000000d';
-update pedidos set estado='entregado' where id='d0000000-0000-0000-0000-00000000000d';
+\echo '### 4c · Se confirman las cuatro entregas — las confirma EL SOCIO, no la marca'
+set request.jwt.claim.sub = 'c0000000-0000-0000-0000-00000000000a';
+select confirmar_entrega('d0000000-0000-0000-0000-00000000000a');
+select confirmar_entrega('d0000000-0000-0000-0000-00000000000b');
+select confirmar_entrega('d0000000-0000-0000-0000-00000000000c');
+select confirmar_entrega('d0000000-0000-0000-0000-00000000000d');
 
 \echo '### 4d · LA REGLA DE ORO: cada marca cobró su mayorista exacto, sea cual sea su nivel'
 set request.jwt.claim.sub = 'aaaa1111-0000-0000-0000-000000000001';

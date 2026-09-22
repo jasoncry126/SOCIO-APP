@@ -93,10 +93,12 @@ select validar_pago((select id from pagos where numero_operacion='OP-RLS-000013'
 set request.jwt.claim.sub = 'd1000000-0000-0000-0000-00000000000a';
 update pedidos set estado='en_camino', numero_guia='G-13', guia_url='guias/prueba/g13.jpg',
        courier='olva', tracking='T-13' where codigo = :'cod13';
-update pedidos set estado='entregado' where codigo = :'cod13';
+set request.jwt.claim.sub = 'd1000000-0000-0000-0000-00000000000b';
+select confirmar_entrega((select id from pedidos_socio where codigo = :'cod13'));
 
 \echo ''
 \echo '### 12 · Saldo de la MARCA (su mayorista: 60.00) y del SOCIO (su ganancia: 15.00)'
+set request.jwt.claim.sub = 'd1000000-0000-0000-0000-00000000000a';
 select saldo_disponible() as saldo_de_la_marca;
 set request.jwt.claim.sub = 'd1000000-0000-0000-0000-00000000000b';
 select saldo_disponible() as saldo_del_socio;
