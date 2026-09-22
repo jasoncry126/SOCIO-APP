@@ -579,6 +579,9 @@ const CONECTADO = HAY_CONFIG && HAY_LIBRERIA;
 // en la base cuando en realidad se quedó en su navegador.
 const CONEXION_ROTA = HAY_CONFIG && !HAY_LIBRERIA;
 let CATALOGO = [];            // caché del catálogo cuando hay base
+let PEDIDOS = [];             // caché de los pedidos cuando hay base
+let ITEMS = {};               // qué empacar en cada pedido, por pedido_id
+let SALDO = null;             // lo que la base dice que la marca puede retirar
 let importPendiente = null;   // resultado del archivo leído, a la espera de confirmar
 const mem = {};
 function guardar(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ mem[k]=JSON.stringify(v); } }
@@ -615,8 +618,19 @@ const FIABILIDAD = [
   {nombre:'Preferente',  ic:'⭐', meta:60,  guia:0.90, entrega:0.10, req:'60 entregas, menos de 2% de incidencias', reglaTxt:'90% al registrar guía · 10% a la entrega'},
   {nombre:'Aliada',      ic:'🏅', meta:150, guia:1,    entrega:0,   req:'150 entregas y 6 meses de historial', reglaTxt:'100% al registrar la guía'},
 ];
-function entregasHechas(){ return peds().filter(function(x){ return x.estado==='entregado'; }).length; }
+function entregasHechas(){
+  if(CONECTADO && marca) return marca.entregasOk;   // la lleva la base
+  return peds().filter(function(x){ return x.estado==='entregado'; }).length;
+}
 function nivelFiab(){
+  // Con base, el nivel es el que SOCIO le puso a la marca: subirlo pide
+  // además historial limpio y antigüedad, y eso no lo decide un contador.
+  if(CONECTADO && marca){
+    let j = 0;
+    const porNombre = {nueva:0, confiable:1, preferente:2, aliada:3};
+    j = porNombre[marca.fiab] === undefined ? 0 : porNombre[marca.fiab];
+    return Object.assign({}, FIABILIDAD[j], {idx:j});
+  }
   const n = entregasHechas();
   let i = 0;
   FIABILIDAD.forEach(function(f,k){ if(n >= f.meta) i = k; });
@@ -685,7 +699,10 @@ function registrarMarca(){
 function deLaBase(m){
   return {id:m.id, nombre:m.nombre, ruc:m.ruc, giro:m.giro,
           almacen:m.ciudad_almacen, punto:m.ciudad_punto || '',
-          cel:m.celular, creado:m.creado_en};
+          cel:m.celular, creado:m.creado_en,
+          // El nivel de fiabilidad y las entregas los lleva la base: son los
+          // que deciden qué parte del dinero se libera al registrar la guía.
+          fiab:m.nivel_fiabilidad || 'nueva', entregasOk:m.entregas_ok || 0};
 }
 function ingresarMarca(){
   const cel=val('i-cel').trim(), clave=val('i-clave');
@@ -716,7 +733,7 @@ function abrir(m){
   if(!borrador.length) agregarVariante(); else pintarVariantes();
   if(restaurarBorradorProducto()) pintarAvisoBorrador();
   if(CONECTADO){
-    refrescarCatalogo()
+    Promise.all([refrescarCatalogo(), refrescarPedidos()])
       .then(pintarTodo)
       .catch(function(e){ aviso(e.message); pintarTodo(); });
   } else {
@@ -745,8 +762,59 @@ async function refrescarCatalogo(){
   if(!CONECTADO || !marca) return;
   CATALOGO = window.SocioDatos.aFormatoPanel(await window.SocioDatos.cargarCatalogo(marca.id));
 }
-function peds(){ return marca ? leer('prov_ped_'+marca.cel, []) : []; }
-function guardarPeds(p){ if(marca) guardar('prov_ped_'+marca.cel, p); }
+function peds(){
+  if(CONECTADO) return PEDIDOS;
+  return marca ? leer('prov_ped_'+marca.cel, []) : [];
+}
+function guardarPeds(p){
+  if(CONECTADO){ PEDIDOS = p; return; }   // con base, cada cambio se guarda allá
+  if(marca) guardar('prov_ped_'+marca.cel, p);
+}
+
+/* Un pedido de la base, traducido a lo que las tarjetas de esta pantalla
+   esperan. Los estados no se llaman igual a los dos lados: la base distingue
+   'validado' (pagado y cruzado por SOCIO, listo para despachar) de 'pagado'
+   (el socio dice que pagó, sin cruzar todavía). A la marca solo le llegan los
+   validados, así que aquí 'validado' es lo que la pantalla llama 'pagado'. */
+function pedidoDeLaBase(p){
+  const detalle = (ITEMS[p.id] || [])
+    .map(function(i){ return i.cantidad + '× ' + i.producto + ' · ' + i.presentacion; })
+    .join('  ·  ');
+  const entrega = p.modo_entrega === 'domicilio'
+    ? 'Domicilio · ' + (p.detalle_entrega || '')
+    : 'Agencia ' + (p.agencia || '') + ' · ' + (p.detalle_entrega || '');
+  return {
+    _id: p.id,
+    codigo: p.codigo,
+    estado: p.estado === 'validado' ? 'pagado' : (p.estado === 'en_camino' ? 'camino' : 'entregado'),
+    items: detalle || 'Pedido sin detalle',
+    // Lo que la base le libera a la marca es su precio mayorista. El envío que
+    // el socio pagó no pasa por aquí (ver README, «lo que falta decidir»).
+    proveedor: Number(p.precio_mayorista) || 0,
+    envio: Number(p.costo_envio) || 0,
+    destinatario: p.destinatario,
+    doc: p.doc_destinatario,
+    celular: p.celular_destinatario,
+    entrega: entrega,
+    guia: p.numero_guia || '',
+    courier: p.courier || '',
+    tracking: p.tracking || '',
+    guiaFoto: p.guia_url || '',
+    fechaEntrega: p.entregado_en
+  };
+}
+
+/* La marca ve solo lo que ya pasó por SOCIO: un pedido sin pago cruzado no es
+   asunto suyo, y uno cancelado tampoco. */
+async function refrescarPedidos(){
+  if(!CONECTADO || !marca) return;
+  ITEMS = await window.SocioDatos.itemsDeMisPedidos();
+  const filas = await window.SocioDatos.pedidosDeMiMarca();
+  PEDIDOS = filas
+    .filter(function(p){ return ['validado','en_camino','entregado'].indexOf(p.estado) !== -1; })
+    .map(pedidoDeLaBase);
+  SALDO = await window.SocioDatos.saldoDisponible();
+}
 
 /* ================= Navegación ================= */
 function ir(id){
@@ -1501,24 +1569,36 @@ function tarjetaPedido(x){
         'Sin la foto de la guía el pedido no avanza: es la evidencia de que el paquete salió.</p>'+
       '<p style="font-size:11.5px;color:var(--sol-osc);margin-top:7px;line-height:1.5">💰 '+adelanto+'</p>';
   } else if(x.estado==='camino'){
+    // Con base, la entrega la confirma el socio que hizo la venta: es el mismo
+    // paso que le libera a la marca el resto de su dinero, así que dárselo a
+    // ella sería dejarle firmar su propio cobro.
+    const cierre = CONECTADO
+      ? '<span style="font-size:11.5px;color:var(--tinta-suave)">⏳ Esperando que el socio confirme que llegó</span>'
+      : '<button class="btn btn-ok" onclick="confirmarEntrega(\''+x.codigo+'\')">Confirmar entrega</button>';
     acc = '<div class="zona-guia"><span style="font-size:12px;color:var(--info);font-weight:600;flex:1">📦 Guía '+x.guia+
         (x.tracking ? ' · '+(x.courier||'courier')+' '+x.tracking : '')+
-        (x.guiaFoto ? ' · 📷 '+x.guiaFoto : '')+'</span>'+
-      '<button class="btn btn-ok" onclick="confirmarEntrega(\''+x.codigo+'\')">Confirmar entrega</button></div>'+
+        (x.guiaFoto ? ' · 📷 adjunta' : '')+'</span>'+
+      cierre+'</div>'+
       '<p style="font-size:11.5px;color:var(--tinta-suave);margin-top:7px;line-height:1.5">💰 Liberado S/ '+r.liberado.toFixed(2)+' · quedan <b>S/ '+r.pendiente.toFixed(2)+'</b> hasta confirmar la entrega.</p>';
   } else {
     acc = '<div class="zona-guia" style="border:none;padding-top:7px"><span style="font-size:12px;color:var(--ok);font-weight:600">✓ Entregado · guía '+x.guia+' · liberado S/ '+r.total.toFixed(2)+'</span></div>';
   }
   return '<div class="tarjeta pedido"><div class="ped-cab">'+
     '<div><span class="cod">'+x.codigo+'</span> '+chip+'<div class="items">'+x.items+'</div></div>'+
-    '<div class="lado"><b class="num">S/ '+Number(x.proveedor).toFixed(2)+'</b><small>tu precio + envío</small></div></div>'+
+    '<div class="lado"><b class="num">S/ '+Number(x.proveedor).toFixed(2)+'</b><small>'+(CONECTADO?'tu precio mayorista':'tu precio + envío')+'</small></div></div>'+
     '<div class="envio-caja">'+
       '<div class="fila"><b>Recibe</b><span>'+x.destinatario+' · DNI/RUC '+x.doc+' · '+x.celular+'</span></div>'+
       '<div class="fila"><b>Entrega</b><span>'+x.entrega+'</span></div>'+
-      '<div class="fila"><b>Vendido por</b><span>'+x.socio+'</span></div>'+
+      (CONECTADO
+        ? (x.envio > 0 ? '<div class="fila"><b>Envío</b><span>S/ '+Number(x.envio).toFixed(2)+' cobrados al cliente</span></div>' : '')
+        : '<div class="fila"><b>Vendido por</b><span>'+x.socio+'</span></div>')+
     '</div>'+acc+'</div>';
 }
 function confirmarEntrega(codigo){
+  if(CONECTADO){
+    aviso('La entrega la confirma el socio que hizo la venta, o SOCIO. Tú ya registraste tu guía.');
+    return;
+  }
   const p = peds();
   const x = p.find(function(y){ return y.codigo===codigo; });
   if(!x) return;
@@ -1571,6 +1651,29 @@ function despachar(codigo){
       aviso('Falta el courier con el que despachaste'); return; }
     if(!tracking){ const e=document.getElementById('track-'+codigo); if(e) e.focus();
       aviso('Falta el número de tracking del courier'); return; }
+  }
+
+  if(CONECTADO){
+    // Primero sube la foto y luego se despacha: si la subida falla, el pedido
+    // no se mueve y la marca lo vuelve a intentar con el mismo formulario.
+    aviso('Subiendo la foto de la guía…');
+    window.SocioDatos.subirGuia(foto.files[0], codigo)
+      .then(function(ruta){
+        return window.SocioDatos.despacharPedido({
+          pedidoId: x._id, guia: guia, courier: courier, tracking: tracking, guiaRuta: ruta
+        });
+      })
+      .then(refrescarPedidos)
+      .then(function(){
+        pintarTodo();
+        const y = peds().find(function(z){ return z.codigo===codigo; });
+        const rr = y ? repartoPedido(y) : {liberado:0};
+        aviso(rr.liberado>0
+          ? codigo+' despachado ✓ Se liberaron S/ '+rr.liberado.toFixed(2)+' a tu favor'
+          : codigo+' despachado ✓ El socio y su cliente ya ven la guía '+guia);
+      })
+      .catch(function(e){ aviso(e.message); });
+    return;
   }
 
   x.estado='camino'; x.guia=guia; x.courier=courier; x.tracking=tracking;
@@ -1633,6 +1736,9 @@ function pintarLiq(){
   let disp = 0, transito = 0;
   conMovimiento.forEach(function(x){ const r = repartoPedido(x); disp += r.liberado; transito += r.pendiente; });
   disp = Math.round(disp*100)/100; transito = Math.round(transito*100)/100;
+  // Con base, lo que se puede retirar lo dice saldo_disponible(): es lo
+  // liberado menos lo que ya se pidió, y eso la pantalla no lo sabe.
+  if(CONECTADO && SALDO !== null) disp = Math.round(SALDO*100)/100;
   const com = Math.round(disp*0.05*100)/100;
 
   const g = document.getElementById('g-din');
@@ -1676,6 +1782,16 @@ function escaleraFiab(){
 }
 function retirar(monto){
   if(monto<=0) return;
+  if(CONECTADO){
+    window.SocioDatos.solicitarRetiro(monto)
+      .then(function(r){
+        SALDO = r.saldoRestante;
+        pintarTodo();
+        aviso('Retiro de S/ '+r.monto.toFixed(2)+' solicitado ✓ SOCIO lo transfiere a tu cuenta registrada');
+      })
+      .catch(function(e){ aviso(e.message); });
+    return;
+  }
   aviso('Retiro de S/ '+monto.toFixed(2)+' solicitado — se transfiere a tu cuenta registrada en el día');
 }
 

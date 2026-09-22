@@ -334,3 +334,137 @@ select '...y sigue sin poder editarse ni borrarse',
               or has_table_privilege('authenticated','bitacora','delete')
             then '❌ todavía puede' else '✅' end;
 
+
+-- =============================================================================
+-- Migración 20260921 · Stock, voucher e índices
+-- Todo debe salir en '✅'.
+-- =============================================================================
+
+select 'El stock se reserva al registrar el pedido' as regla,
+       case when (select prosrc from pg_proc where proname='crear_pedido')
+                 like '%set stock_almacen = stock_almacen - it.cant%'
+            then '✅' else '❌ el stock no se descuenta' end as resultado
+union all
+select '...y la reserva es el mismo update que comprueba',
+       case when (select prosrc from pg_proc where proname='crear_pedido')
+                 like '%and stock_almacen >= it.cant%'
+            then '✅' else '❌ vuelve a comprobar por separado' end
+union all
+select 'Cancelar un pedido devuelve la mercadería',
+       case when exists (select 1 from pg_trigger where tgname='trg_devolver_stock')
+            then '✅' else '❌ falta el trigger' end
+union all
+select '...salvo si ya había salido del almacén',
+       case when (select prosrc from pg_proc where proname='devolver_stock_al_cancelar')
+                 like '%old.estado = ''en_camino''%'
+            then '✅' else '❌ devolvería stock que va camino al cliente' end
+union all
+select 'La misma foto de voucher no paga dos pedidos',
+       case when exists (select 1 from pg_indexes
+                          where indexname='pagos_hash_imagen_unico')
+            then '✅' else '❌ falta el índice único' end
+union all
+select '...y el socio lee una explicación, no un error de base',
+       case when (select prosrc from pg_proc where proname='declarar_pago')
+                 like '%ya se usó para pagar otro pedido%'
+            then '✅' else '❌ falta el aviso' end
+union all
+select 'Las claves foráneas por las que se consulta tienen índice',
+       case when (select count(*) from pg_indexes
+                   where schemaname='public' and indexname like 'idx_%') >= 14
+            then '✅' else '❌ faltan índices' end;
+
+
+-- =============================================================================
+-- Migración 20260921140000 · El depósito y su captura
+-- Todo debe salir en '✅'.
+-- =============================================================================
+
+-- El cubo se consulta con query_to_xml y no con un 'select' normal a propósito:
+-- Postgres resuelve los nombres de tabla al leer la consulta, antes de ejecutar
+-- nada, así que un 'select ... from storage.buckets' haría fallar este archivo
+-- entero en un Postgres sin Supabase. Con query_to_xml el nombre se resuelve al
+-- ejecutarse, que es cuando el CASE ya decidió no entrar ahí.
+
+select 'Hay dónde guardar la captura del depósito' as regla,
+       case when to_regclass('storage.buckets') is null then '— (esto no es Supabase)'
+            when (xpath('/row/c/text()',
+                        query_to_xml('select count(*) as c from storage.buckets where id = ''vouchers''',
+                                     false, true, '')))[1]::text::int > 0
+            then '✅' else '❌ falta el cubo vouchers' end as resultado
+union all
+select '...y solo el socio dueño y SOCIO la pueden mirar',
+       case when to_regclass('storage.objects') is null then '— (esto no es Supabase)'
+            when (select count(*) from pg_policies
+                   where tablename = 'objects' and schemaname = 'storage'
+                     and (coalesce(qual,'') like '%vouchers%'
+                          or coalesce(with_check,'') like '%vouchers%')) >= 3
+            then '✅' else '❌ faltan reglas del cubo' end
+union all
+select 'Un pago rechazado devuelve el pedido a la cola',
+       case when (select prosrc from pg_proc where proname='validar_pago')
+                 like '%estado = ''pendiente_pago''%'
+            then '✅' else '❌ el pedido se queda muerto en "pagado"' end
+union all
+select '...y el socio lee por qué se lo rechazaron',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='pagos' and column_name='motivo_rechazo')
+            then '✅' else '❌ falta la columna' end
+union all
+select '...pero solo si SOCIO lo rechazó de verdad',
+       case when (select prosrc from pg_proc where proname='pedido_transicion_valida')
+                 like '%no está rechazado%'
+            then '✅' else '❌ la marca puede desandar un pago bueno' end
+union all
+select 'Y el trigger conserva los controles de despacho',
+       case when (select prosrc from pg_proc where proname='pedido_transicion_valida')
+                 like '%Falta la foto de la guía%'
+            then '✅' else '❌ se perdieron al reescribir la función' end
+union all
+select 'El socio ve cuánto depositar aunque cierre la app',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='pedidos_socio' and column_name='monto_a_pagar')
+            then '✅' else '❌ falta en la vista' end
+union all
+select '...y nada del pago que no sea suyo',
+       case when not exists (select 1 from information_schema.columns
+                              where table_name='pedidos_socio'
+                                and column_name in ('validado_por','validado_en','hash_imagen'))
+            then '✅' else '❌ se le escapó una columna de SOCIO' end
+union all
+select 'SOCIO tiene su cola de validación',
+       case when to_regclass('cola_de_validacion') is not null
+            then '✅' else '❌ falta la vista' end
+union all
+select 'Un pedido sin pagar se puede cancelar y devuelve el stock',
+       case when exists (select 1 from pg_proc where proname='cancelar_pedido_sin_pagar')
+            then '✅' else '❌ falta la función' end
+union all
+select 'La entrega la confirma el socio, no la marca',
+       case when (select prosrc from pg_proc where proname='pedido_transicion_valida')
+                 like '%La entrega la confirma el socio%'
+            then '✅' else '❌ la marca se da por entregada sola y cobra' end
+union all
+select '...y tiene su botón',
+       case when exists (select 1 from pg_proc where proname='confirmar_entrega')
+            then '✅' else '❌ falta la función' end
+union all
+select 'La marca ve qué empacar en cada pedido',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='pedido_items_marca' and column_name='producto')
+            then '✅' else '❌ solo ve ids de presentación' end
+union all
+select '...y sigue sin ver lo que paga el socio',
+       case when not exists (select 1 from information_schema.columns
+                              where table_name='pedido_items_marca'
+                                and column_name='precio_unit_socio')
+            then '✅' else '❌ se le escapó el precio del socio' end
+union all
+select 'El nivel del socio también puede bajar',
+       case when exists (select 1 from information_schema.columns
+                          where table_name='usuarios_socios' and column_name='descensos')
+            then '✅' else '❌ falta la columna' end
+union all
+select '...y SOCIO tiene la revisión del trimestre',
+       case when exists (select 1 from pg_proc where proname='revisar_niveles_trimestrales')
+            then '✅' else '❌ falta la función' end;

@@ -30,6 +30,9 @@ supabase/
     10-especificacion-tecnica.sql ← PVP, foto de la guía, orden del reporte
     12-quien-mueve-el-pedido.sql  ← los dos huecos de permisos que tocaban dinero
     13-los-otros-cuatro-huecos.sql ← los cuatro restantes de esa misma revisión
+    14-stock-voucher-e-indices.sql ← la reserva de stock, el voucher y los índices
+    15-el-deposito-y-su-captura.sql ← el circuito del depósito, de punta a punta
+    16-la-marca-despacha-y-el-socio-confirma.sql ← el despacho, la entrega y los niveles
 ```
 
 ---
@@ -339,6 +342,198 @@ Con esto los seis huecos de la revisión quedan cerrados.
 una marca sube queda en revisión *siempre*, aunque el navegador mande otra
 cosa. `05-circuito-de-venta.sql` se actualizó por eso — ahora sube el producto
 y SOCIO lo aprueba, que es el camino real.
+
+---
+
+## La décima migración: stock, voucher e índices
+
+`20260921120000_stock_voucher_e_indices.sql` son tres arreglos independientes
+que no tocan ninguna regla de negocio ya decidida. Salen de la auditoría del 20
+de setiembre de 2026.
+
+**1 · El stock nunca se descontaba.** `crear_pedido()` comprobaba que hubiera
+suficiente y luego no restaba nada. Dos socios que venden la última unidad el
+mismo minuto pasaban los dos la comprobación, registraban los dos su pedido, y
+la marca se enteraba al despachar — con un cliente ya cobrado del otro lado.
+
+Ahora la comprobación y la reserva son la misma operación: donde había un
+`select` del stock y una comparación, hay un `update` con
+`where stock >= cantidad`. La diferencia no es de estilo. Un `select` no
+bloquea nada, así que los dos navegadores leen «queda 1» y los dos pasan; un
+`update` bloquea la fila, así que el segundo espera al primero y se encuentra
+el stock en cero. Es la base la que pone el orden, no la suerte.
+
+**Cancelar devuelve la mercadería al catálogo**, que es la otra mitad de
+reservar: sin eso, cada pedido cancelado se lleva su stock para siempre. Con
+una excepción: si el pedido ya iba `en_camino`, la caja salió del almacén y no
+está de vuelta en el estante. Qué hacer con ella es una decisión de la marca,
+no un automatismo.
+
+**2 · El mismo voucher valía dos veces.** `numero_operacion` es único, así que
+una misma transferencia no paga dos pedidos con el mismo número. Pero
+`hash_imagen` —la huella del archivo, que existe justamente para detectar la
+foto reusada— no lo era: bastaba con teclear otro número y la misma imagen
+entraba otra vez. Ahora hay un índice único sobre los pagos que tienen huella,
+y `declarar_pago()` lo avisa con una explicación en vez de un error de base.
+
+**3 · No había un solo índice.** Ni sobre `pedidos(socio_id)`, ni
+`pedido_items(pedido_id)`, ni ninguna de las claves foráneas por las que se
+consulta todo el tiempo — Postgres indexa sola la clave primaria y las columnas
+únicas, las foráneas no. Y son justo esas las que usan todas las políticas RLS
+(«mis pedidos» es `pedidos.socio_id = auth.uid()`) y todas las pantallas. Con
+RLS cada política se evalúa fila por fila sobre un recorrido completo de la
+tabla: hoy no se nota, con diez mil pedidos sí. Van los catorce cruces que el
+código hace hoy, ni uno más.
+
+Se verifica con `14-stock-voucher-e-indices.sql`: el stock bajando unidad por
+unidad, el pedido que ya no cabe, la columna del origen que no se toca, las dos
+caras de la cancelación, la foto repetida y la propia, y los índices en su
+sitio.
+
+**Qué NO cambia:** ninguna pantalla. El stock ya se mostraba desde el catálogo
+y el socio ya veía el error cuando no alcanzaba; lo que cambia es que ahora el
+error dice la verdad.
+
+## La undécima migración: el depósito y su captura
+
+`20260921140000_el_deposito_y_su_captura.sql` es lo que faltaba para cobrar de
+verdad mientras no haya pasarela de pago. El orden que instala es este:
+
+1. el socio registra su pedido y **recién entonces** la base le dice cuánto
+   depositar, con los céntimos que identifican ese pedido y de nadie más;
+2. deposita por fuera, vuelve y sube la captura con su número de operación;
+3. SOCIO la cruza contra el estado de cuenta y valida o rechaza;
+4. validado, el pedido queda listo para que la marca despache.
+
+Ese orden no es una preferencia de pantalla. Los céntimos salen del código del
+pedido, y el código no existe hasta que el pedido está en la base. Cobrar antes
+obligaría a pedir una cifra redonda — justo la que no se distingue de las demás
+del día en el extracto bancario.
+
+**1 · Dónde vive la captura.** `pagos.imagen_voucher_url` existía desde la
+primera migración, pero no había ningún sitio donde guardar el archivo, así que
+la app nunca lo mandaba. Se crea el cubo privado `vouchers`, con las mismas
+reglas que el de las guías: el socio escribe y lee solo dentro de su carpeta,
+SOCIO las ve todas, y nadie borra ni reemplaza una captura ya subida. La marca
+no aparece: el voucher es plata entre el socio y SOCIO. En la columna se guarda
+la **ruta** dentro del cubo, no una URL: la URL firmada caduca a los diez
+minutos y la ruta sirve meses después, que es cuando llega el reclamo.
+
+**2 · Un pago rechazado dejaba el pedido muerto.** `declarar_pago()` exige que
+el pedido esté en `pendiente_pago`, y `pagos.pedido_id` es único. Con las dos
+reglas juntas, el socio que tecleaba mal su número de operación no tenía forma
+de corregirlo: ni podía declarar otro pago, ni el pedido podía volver atrás.
+Ahora un rechazo lo devuelve a `pendiente_pago` con el motivo escrito para que
+él lo lea, y puede declarar de nuevo sobre el mismo pedido. La máquina de
+estados gana ese único camino de vuelta, y va con candado: solo si el pago de
+ese pedido está rechazado, para que la marca —que puede escribir la columna
+`estado`— no desande un pago que sí era bueno.
+
+**3 · El socio no veía cuánto depositar.** El monto se devolvía una sola vez, al
+registrar; si cerraba la app camino al banco, lo perdía. Ahora `pedidos_socio`
+lo trae siempre, junto con el estado de su pago y el motivo si se lo
+rechazaron. Lo que no trae, y no debe: quién validó, cuándo, la huella de la
+imagen ni ningún importe de la marca.
+
+**4 · SOCIO no tenía cola de validación.** Los datos estaban repartidos entre
+cuatro tablas. La vista `cola_de_validacion` deja un pago por fila con lo que
+hace falta para cruzarlo: lo que se le pidió, lo que dice haber depositado, si
+cuadra, el número de operación, la ruta de la captura y quién vende. `cuadra`
+se calcula en la base y no en el panel, por lo de siempre: una comparación que
+vive en el navegador la cambia quien abra la página.
+
+**5 · Se puede desistir de un pedido sin pagar.** Esto no existía porque hasta
+ahora el pedido y el pago se registraban en el mismo clic, así que nunca había
+un pedido vivo y sin pagar. Ahora sí lo hay, y tiene consecuencia: desde la
+décima migración el pedido aparta stock al crearse, de modo que uno abandonado
+deja mercadería reservada para nadie. `cancelar_pedido_sin_pagar()` lo cancela
+—solo el propio, solo desde `pendiente_pago`— y el trigger de cancelación
+devuelve la mercadería al catálogo.
+
+Se verifica con `15-el-deposito-y-su-captura.sql`: los 26 pasos del circuito,
+incluidos los siete que **deben** fallar (la captura repetida, el rechazo sin
+motivo, la marca intentando desandar un pago bueno o saltarse la validación,
+cancelar un pedido ya pagado o ajeno, y la cola leída sin cuenta).
+
+> **Aviso para quien toque `pedido_transicion_valida()`.** Esa función se
+> reescribe entera con cada `create or replace`, y ya va por su quinta versión.
+> Al preparar esta migración se copió por error la de la cuarta, y eso borró de
+> un golpe tres controles que se habían añadido después: la foto de la guía
+> obligatoria, el courier y el tracking en los envíos por agencia, y que solo
+> SOCIO pueda validar. La suite lo detectó porque **bajó** el número de errores
+> en `10-especificacion-tecnica` y `12-quien-mueve-el-pedido` — en esta suite
+> los errores son el resultado correcto, así que menos errores es peor, no
+> mejor. Parte siempre de la última versión, no de la que encuentres primero.
+
+---
+
+## La duodécima migración: la marca despacha y el socio confirma
+
+`20260921160000_la_marca_despacha_y_el_socio_confirma.sql` cierra el último
+tramo del recorrido. Hasta aquí un pedido llegaba a `validado` y se quedaba ahí
+para siempre: el panel de la marca tenía su pantalla de despacho dibujada, pero
+contra datos de mentira guardados en su propio navegador. Como el nivel del
+socio, el dinero de la marca y el saldo para retirar cuelgan **todos** de la
+entrega, el circuito se cortaba justo antes de pagarle a nadie.
+
+**1 · Quién confirma la entrega.** Era la marca, y ese mismo cambio de estado le
+soltaba su segundo hito: se daba por cumplida sola y cobraba el resto de su
+mayorista sin que nadie hubiera recibido nada. Era el hallazgo abierto de la
+auditoría del 20 de septiembre. Ahora la marca despacha —con su guía, su foto y,
+por agencia, courier y tracking, como siempre— y **la entrega la confirma el
+socio**, que es quien tiene al cliente al teléfono, o SOCIO si el socio no
+aparece. El socio no tiene permiso de escribir en `pedidos` y no conviene
+dárselo: entra por `confirmar_entrega()`, que comprueba que el pedido sea suyo y
+que esté realmente en camino.
+
+**2 · La marca no sabía qué empacar.** `pedido_items_marca` devolvía el id de la
+presentación y la cantidad. Ahora lleva también el nombre del producto y el de
+su presentación. Sigue sin llevar `precio_unit_socio`: lo que el socio paga no
+es asunto de la marca.
+
+Se verifica con `16-la-marca-despacha-y-el-socio-confirma.sql`: los 22 pasos del
+tramo, incluidos los siete que **deben** fallar (la marca dándose por entregada
+—por update y por función—, un socio ajeno confirmando, confirmar dos veces,
+despachar sin foto de la guía, la marca leyendo el precio del socio y un socio
+lanzando la revisión de niveles).
+
+## La decimotercera migración: el nivel también baja
+
+`20260921170000_el_nivel_baja_si_baja_el_ritmo.sql` cumple lo que la pantalla
+del socio promete desde el primer día y `docs/09` deja escrito: el nivel se
+revisa cada trimestre y quien baja el ritmo desciende **un** escalón, nunca dos.
+
+La base solo sabía subir, y el problema era de fondo: el nivel se calculaba cada
+vez desde el total histórico de ventas entregadas, que solo crece. Bajarlo a
+mano no servía —a la siguiente venta el trigger lo devolvía a su sitio—. Ahora
+son dos cosas separadas: `ventas_entregadas` (el total, solo sube) y `descensos`
+(los escalones perdidos). El nivel es el que abrió el volumen menos los
+descensos, con piso en Bronce, así que el mérito no se borra y el descuento sí
+se apaga.
+
+El ritmo que se pide para conservar cada nivel **es una decisión de esta
+migración**, porque `docs/09` dice «baja el ritmo» sin poner número: Plata 3
+entregas por trimestre, Oro 7, Diamante 13 — la cuarta parte de lo que costó
+abrir el escalón. Si hay que cambiarlo, se cambia en `ritmo_del_nivel()` y en
+ningún sitio más.
+
+La revisión la lanza SOCIO desde su panel (`revisar_niveles_trimestrales()`).
+No hay tarea programada y no hace falta: solo entra quien lleva un trimestre sin
+revisar, así que pulsarla dos veces el mismo día no baja a nadie dos veces.
+Quien se registró hace menos de un trimestre no se revisa. Si se prefiere que
+corra sola, en Supabase se agenda con `pg_cron`.
+
+---
+
+## Lo que falta decidir: el envío
+
+El socio paga `precio_socio + costo_envio` y la base le libera a la marca su
+`precio_mayorista` y nada más. Ese `costo_envio` hoy **no se le paga a nadie**:
+se queda en la cuenta de SOCIO. Si quien despacha —la marca— es quien paga la
+agencia, hay que decidir si ese importe se le suma a su liquidación. Es una
+decisión de negocio, no un error del código, y por eso el panel de la marca
+muestra el envío como una línea aparte («S/ X cobrados al cliente») en vez de
+sumarlo a lo que va a cobrar.
 
 ---
 

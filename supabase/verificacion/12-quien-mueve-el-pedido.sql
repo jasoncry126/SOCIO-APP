@@ -81,11 +81,13 @@ select validar_pago((select id from pagos where numero_operacion='OP-RLS-000012'
 select codigo, estado from pedidos_admin where codigo = :'cod';
 
 \echo ''
-\echo '### 9 · Ahora SÍ la marca despacha y confirma la entrega  (debe: pasar)'
+\echo '### 9 · Ahora SÍ la marca despacha, y el socio confirma la entrega  (debe: pasar)'
 set request.jwt.claim.sub = 'c0000000-0000-0000-0000-00000000000a';
 update pedidos set estado='en_camino', numero_guia='G-12', guia_url='guias/prueba/g.jpg',
        courier='olva', tracking='T-12' where codigo = :'cod';
-update pedidos set estado='entregado' where codigo = :'cod';
+set request.jwt.claim.sub = 'c0000000-0000-0000-0000-00000000000b';
+select confirmar_entrega((select id from pedidos_socio where codigo = :'cod'));
+set request.jwt.claim.sub = 'c0000000-0000-0000-0000-00000000000a';
 select codigo, estado from pedidos_marca where codigo = :'cod';
 
 \echo ''

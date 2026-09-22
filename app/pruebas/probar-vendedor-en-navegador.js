@@ -81,7 +81,9 @@ var SOCIO_BASE = {
   validado: true, nivel: "oro", ventas_entregadas: 30
 };
 
-function stubDeSupabase(socioFingido) {
+function stubDeSupabase(datos) {
+  var socioFingido = datos && datos.socio ? datos.socio : datos;
+  var PEDIDOS = (datos && datos.pedidos) || [];
   var MARCA = {
     marca_id: "22222222-2222-2222-2222-222222222222",
     marca: "Marca Prueba", marca_giro: "alimentos",
@@ -109,6 +111,7 @@ function stubDeSupabase(socioFingido) {
   var SOCIO = socioFingido;
 
   window.__llamadas = [];          // lo que la app le pidió a la base
+  window.__subidas  = [];          // las capturas que subió al cubo
 
   function consulta(filas) {
     var t = {
@@ -134,7 +137,23 @@ function stubDeSupabase(socioFingido) {
         from: function (tabla) {
           if (tabla === "catalogo_publico") return consulta(CATALOGO);
           if (tabla === "usuarios_socios")  return consulta([SOCIO]);
-          return consulta([]);                       // pedidos_socio: sin pedidos
+          if (tabla === "pedidos_socio")    return consulta(PEDIDOS);
+          return consulta([]);
+        },
+        /* El cubo de capturas. La app sube el archivo ANTES de declarar el
+           pago, así que sin esto el circuito se corta aquí. */
+        storage: {
+          from: function (cubo) {
+            return {
+              upload: function (ruta, archivo) {
+                window.__subidas.push({ cubo: cubo, ruta: ruta, tipo: archivo && archivo.type });
+                return Promise.resolve({ data: { path: ruta }, error: null });
+              },
+              createSignedUrl: function (ruta) {
+                return Promise.resolve({ data: { signedUrl: "https://firmada/" + ruta }, error: null });
+              }
+            };
+          }
         },
         rpc: function (nombre, args) {
           window.__llamadas.push({ nombre: nombre, args: args });
@@ -145,6 +164,10 @@ function stubDeSupabase(socioFingido) {
           if (nombre === "declarar_pago") return Promise.resolve({ data: [{
             pago_id: "77777777-7777-7777-7777-777777777777",
             monto_esperado: 64.07, cuadra: true
+          }], error: null });
+          if (nombre === "confirmar_entrega") return Promise.resolve({ data: [{
+            codigo: "SOC-0921-CAMINO", estado: "entregado",
+            entregado_en: "2026-09-21T12:00:00Z"
           }], error: null });
           return Promise.resolve({ data: [], error: null });
         }
@@ -183,7 +206,10 @@ async function principal() {
           : 'window.SOCIO_CONFIG={URL:"",ANON:""};'
       });
     });
-    if (opciones.base) await pg.addInitScript(stubDeSupabase, opciones.socio || SOCIO_BASE);
+    if (opciones.base) await pg.addInitScript(stubDeSupabase, {
+      socio: opciones.socio || SOCIO_BASE,
+      pedidos: opciones.pedidos || []
+    });
     await pg.goto(PAGINA);
     await pg.waitForTimeout(900);
     return { pg: pg, ctx: ctx, errores: errores };
@@ -252,8 +278,14 @@ async function principal() {
             clave.hallado && clave.idPres === "33333333-3333-3333-3333-333333333333",
             JSON.stringify(clave));
 
-  /* Registrar una venta de punta a punta. */
-  var venta = await a.pg.evaluate(async function () {
+  /* Registrar una venta de punta a punta, en los dos pasos que ahora son.
+
+     El orden importa y es lo que esta prueba vigila: PRIMERO se registra el
+     pedido —y recién entonces la base dice cuánto hay que depositar, con sus
+     céntimos— y DESPUÉS se sube la captura y se declara el pago. Al revés, el
+     socio depositaría una cifra redonda que no se puede distinguir de las
+     demás del día en el estado de cuenta. */
+  var paso1 = await a.pg.evaluate(async function () {
     var p = productos[0];
     carrito = {}; carrito[claveItem(p.id, 0, "cusco")] = 2;
     ultimoMetodo = "qr";
@@ -261,28 +293,39 @@ async function principal() {
     document.getElementById("r-cli-dni").value    = "70999888";
     document.getElementById("r-cli-cel").value    = "987111222";
     document.getElementById("r-cli-dir").value    = "Av. Siempre Viva 123";
+    /* Por agencia, que es lo único que despacha el origen de esta prueba
+       (Cusco): modoEnvio("local") lo rechazaría la propia app. */
+    document.getElementById("r-ciudad-envio").value  = "lima";
+    document.getElementById("r-agencia-local").value = "Shalom Av. Aviación 2345";
 
-    document.getElementById("r-operacion").value = "";
-    registrarPedido();                       // sin N° de operación: no debe hacer nada
-    await new Promise(function (r) { setTimeout(r, 300); });
-    var sinOperacion = window.__llamadas.length;
-
-    document.getElementById("r-operacion").value = "OP-12345";
-    registrarPedido();
+    /* Dos toques seguidos, como los da un dedo impaciente con la red lenta.
+       Tiene que registrarse UN pedido, no dos: cada uno aparta su stock. */
+    continuarPago();
+    continuarPago();
     await new Promise(function (r) { setTimeout(r, 600); });
 
     return {
-      sinOperacion: sinOperacion,
-      llamadas: window.__llamadas,
-      codigo: document.getElementById("conf-codigo").textContent
+      llamadas: window.__llamadas.slice(),
+      pantalla: document.querySelector(".pantalla.activa").id,
+      monto:    document.getElementById("pago-total").textContent,
+      codigo:   document.getElementById("pago-codigo").textContent,
+      carritoVacio: Object.keys(carrito).length === 0
     };
   });
 
-  comprobar("sin N° de operación no se registra nada", venta.sinOperacion === 0);
-  var crear = venta.llamadas.filter(function (x) { return x.nombre === "crear_pedido"; })[0];
-  var pagar = venta.llamadas.filter(function (x) { return x.nombre === "declarar_pago"; })[0];
+  var crear = paso1.llamadas.filter(function (x) { return x.nombre === "crear_pedido"; })[0];
+  comprobar("registrar el pedido NO declara todavía ningún pago",
+            paso1.llamadas.filter(function (x) { return x.nombre === "declarar_pago"; }).length === 0);
   comprobar("se llama a crear_pedido()", !!crear);
-  comprobar("se llama a declarar_pago()", !!pagar);
+  comprobar("dos toques seguidos registran UN pedido, no dos",
+            paso1.llamadas.filter(function (x) { return x.nombre === "crear_pedido"; }).length === 1,
+            paso1.llamadas.filter(function (x) { return x.nombre === "crear_pedido"; }).length + " llamadas");
+  comprobar("se pasa a la pantalla del depósito", paso1.pantalla === "p-pago", paso1.pantalla);
+  comprobar("la pantalla muestra el monto EXACTO que dio la base",
+            paso1.monto === "S/ 64.07", paso1.monto);
+  comprobar("y el código del pedido que ya existe",
+            paso1.codigo === "SOC-0919-TEST", paso1.codigo);
+  comprobar("el carrito se vacía: el pedido ya está en la base", paso1.carritoVacio);
 
   if (crear) {
     // Lo que de verdad protege el dinero: que el teléfono no mande importes.
@@ -294,11 +337,67 @@ async function principal() {
               crear.args.p_items[0].cantidad === 2,
               JSON.stringify(crear.args.p_items));
   }
+
+  /* Paso 2: el socio vuelve del banco con su captura. */
+  var paso2 = await a.pg.evaluate(async function () {
+    function intentar() {
+      confirmarDeposito();
+      return new Promise(function (r) { setTimeout(r, 400); });
+    }
+
+    // Sin número de operación ni captura: no debe declararse nada.
+    document.getElementById("r-operacion").value = "";
+    await intentar();
+    var sinNada = window.__llamadas.filter(function (x) { return x.nombre === "declarar_pago"; }).length;
+
+    // Con número pero sin captura: tampoco. Mientras no haya pasarela, la
+    // captura es la única evidencia del depósito.
+    document.getElementById("r-operacion").value = "OP-12345";
+    await intentar();
+    var sinCaptura = window.__llamadas.filter(function (x) { return x.nombre === "declarar_pago"; }).length;
+
+    // Ahora sí, con la captura adjunta.
+    var dt = new DataTransfer();
+    dt.items.add(new File([new Uint8Array([1,2,3,4])], "voucher.png", { type: "image/png" }));
+    var inp = document.getElementById("input-voucher");
+    inp.files = dt.files;
+    inp.dispatchEvent(new Event("change"));
+    await intentar();
+
+    return {
+      sinNada: sinNada,
+      sinCaptura: sinCaptura,
+      llamadas: window.__llamadas.slice(),
+      subidas: window.__subidas.slice(),
+      pantalla: document.querySelector(".pantalla.activa").id,
+      codigo: document.getElementById("conf-codigo").textContent
+    };
+  });
+
+  comprobar("sin N° de operación no se declara nada", paso2.sinNada === 0);
+  comprobar("sin captura tampoco: es la única evidencia del depósito", paso2.sinCaptura === 0);
+
+  var subida = paso2.subidas[0];
+  comprobar("la captura se sube al cubo de vouchers",
+            !!subida && subida.cubo === "vouchers", JSON.stringify(paso2.subidas));
+  comprobar("y va dentro de la carpeta del socio, que es de donde cuelgan los permisos",
+            !!subida && subida.ruta.indexOf("55555555-5555-5555-5555-555555555555/") === 0,
+            subida && subida.ruta);
+
+  var pagar = paso2.llamadas.filter(function (x) { return x.nombre === "declarar_pago"; })[0];
+  comprobar("se llama a declarar_pago()", !!pagar);
   if (pagar) {
     comprobar("el pago lleva el N° de operación", pagar.args.p_numero_operacion === "OP-12345");
+    comprobar("el pago lleva la ruta de la captura",
+              !!pagar.args.p_voucher_url, JSON.stringify(pagar.args.p_voucher_url));
+    comprobar("y su huella, que es lo que detecta la captura reusada",
+              typeof pagar.args.p_hash_imagen === "string" && pagar.args.p_hash_imagen.length === 64,
+              String(pagar.args.p_hash_imagen));
+    comprobar("el pago es del pedido que se acaba de registrar",
+              pagar.args.p_pedido_id === "66666666-6666-6666-6666-666666666666");
   }
   comprobar("la confirmación muestra el código que dio la base",
-            venta.codigo === "SOC-0919-TEST", venta.codigo);
+            paso2.codigo === "SOC-0919-TEST", paso2.codigo);
   await a.ctx.close();
 
   /* ---- 4 · de dónde sale el nivel ---- */
@@ -355,8 +454,18 @@ async function principal() {
     ["r-cli-nombre","r-cli-dni","r-cli-cel","r-cli-dir"].forEach(function (id, n) {
       document.getElementById(id).value = ["Cliente Prueba","70999888","987111222","Av. Siempre Viva 123"][n];
     });
+    document.getElementById("r-ciudad-envio").value  = "lima";
+    document.getElementById("r-agencia-local").value = "Shalom Av. Aviación 2345";
+    continuarPago();
+    await new Promise(function (r) { setTimeout(r, 600); });
+
     document.getElementById("r-operacion").value = "OP-54321";
-    registrarPedido();
+    var dt = new DataTransfer();
+    dt.items.add(new File([new Uint8Array([9,9,9])], "v.png", { type: "image/png" }));
+    var inp = document.getElementById("input-voucher");
+    inp.files = dt.files;
+    inp.dispatchEvent(new Event("change"));
+    confirmarDeposito();
     await new Promise(function (r) { setTimeout(r, 900); });
     return { antes: antes, despues: nivelActual().id };
   });
@@ -364,6 +473,45 @@ async function principal() {
             tras.antes === "plata" && tras.despues === "plata",
             tras.antes + " → " + tras.despues);
   await c.ctx.close();
+
+  /* ---- 5 · el socio cierra el circuito: confirma que llegó ---- */
+  console.log("\n### 5 · el pedido en camino lo cierra el socio");
+  var PEDIDO_EN_CAMINO = {
+    id: "88888888-8888-8888-8888-888888888888", codigo: "SOC-0921-CAMINO",
+    socio_id: SOCIO_BASE.id, marca: "Marca Prueba",
+    precio_publico: "80.00", precio_socio: "64.00", ganancia_socio: "16.00", costo_envio: "0",
+    destinatario: "Cliente Uno", doc_destinatario: "70111222", celular_destinatario: "987111222",
+    origen: "almacen", modo_entrega: "agencia", agencia: "shalom", detalle_entrega: "Shalom Arequipa",
+    numero_guia: "G-77", courier: "shalom", tracking: "T-77", guia_url: "marca/G-77.jpg",
+    estado: "en_camino", creado_en: "2026-09-20T10:00:00Z", despachado_en: "2026-09-20T17:00:00Z"
+  };
+  var d = await abrir({ config: true, base: true, pedidos: [PEDIDO_EN_CAMINO] });
+  comprobar("la página carga sin errores de JS", d.errores.length === 0, d.errores[0]);
+  await d.pg.waitForTimeout(700);
+
+  var vista = await d.pg.evaluate(function () {
+    irA("p-pedidos");
+    return {
+      html: document.getElementById("lista-pedidos").innerHTML,
+      estado: (misPedidos()[0] || {}).estado
+    };
+  });
+  comprobar("el pedido se ve 'En camino'", vista.estado === "En camino", vista.estado);
+  comprobar("y trae el botón para confirmar que llegó",
+            vista.html.indexOf("Ya le llegó a mi cliente") !== -1);
+  comprobar("con la guía y el tracking a la vista",
+            vista.html.indexOf("G-77") !== -1 && vista.html.indexOf("T-77") !== -1);
+
+  var cerrado = await d.pg.evaluate(async function () {
+    window.confirm = function () { return true; };
+    confirmarQueLlego("SOC-0921-CAMINO");
+    await new Promise(function (r) { setTimeout(r, 700); });
+    return window.__llamadas.filter(function (l) { return l.nombre === "confirmar_entrega"; });
+  });
+  comprobar("confirmar llama a confirmar_entrega() con el id del pedido",
+            cerrado.length === 1 && cerrado[0].args.p_pedido_id === PEDIDO_EN_CAMINO.id,
+            JSON.stringify(cerrado));
+  await d.ctx.close();
 
   await navegador.close();
 
