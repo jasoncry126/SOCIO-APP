@@ -104,7 +104,8 @@ function stubDeSupabase(datos) {
   }
   var CATALOGO = [
     fila({ id: "33333333-3333-3333-3333-333333333333", presentacion: "1 kg",
-           precio_publico: "80.00", stock_almacen: 10, stock_punto: 4 }),
+           precio_publico: "80.00", stock_almacen: 10, stock_punto: 4,
+           imagen: "22222222-2222-2222-2222-222222222222/cafe-1kg.webp" }),
     fila({ id: "44444444-4444-4444-4444-444444444444", presentacion: "500 g",
            precio_publico: "45.00", stock_almacen: 7, stock_punto: 2 })
   ];
@@ -140,8 +141,11 @@ function stubDeSupabase(datos) {
           if (tabla === "pedidos_socio")    return consulta(PEDIDOS);
           return consulta([]);
         },
-        /* El cubo de capturas. La app sube el archivo ANTES de declarar el
-           pago, así que sin esto el circuito se corta aquí. */
+        /* Un solo cubo de mentira para los tres usos: la captura del depósito
+           se sube, la guía se mira firmada y la foto del catálogo se lee. Que
+           sea uno solo importa: dos claves `storage` en el mismo objeto se
+           pisan en silencio, la app se queda sin `getPublicUrl` y el catálogo
+           entero deja de cargar. */
         storage: {
           from: function (cubo) {
             return {
@@ -151,6 +155,9 @@ function stubDeSupabase(datos) {
               },
               createSignedUrl: function (ruta) {
                 return Promise.resolve({ data: { signedUrl: "https://firmada/" + ruta }, error: null });
+              },
+              getPublicUrl: function (ruta) {
+                return { data: { publicUrl: "https://base.falsa/" + cubo + "/" + ruta } };
               }
             };
           }
@@ -252,7 +259,8 @@ async function principal() {
       prods: productos.length,
       marca: marcas[0] ? { nombre: marcas[0].nombre, almacen: marcas[0].ciudadAlmacen } : null,
       ventas: ventasHechas(), nivel: nivelActual().id, ganancia: gananciaRef(),
-      idsPres: productos[0] ? productos[0].variantes.map(function (v) { return v.id; }) : []
+      idsPres: productos[0] ? productos[0].variantes.map(function (v) { return v.id; }) : [],
+      fotos: productos[0] ? productos[0].variantes.map(function (v) { return v.img || ""; }) : []
     };
   });
   comprobar("el catálogo es el de la base, no el de demostración", s.prods === 1, "hay " + s.prods);
@@ -265,6 +273,14 @@ async function principal() {
             s.ganancia === "16%", s.ganancia);
   comprobar("las presentaciones conservan su UUID",
             s.idsPres[0] && s.idsPres[0].length === 36);
+
+  /* La foto sale de la base, no del catálogo escrito a mano. La base guarda la
+     ruta dentro del cubo; la app arma la URL pública. */
+  comprobar("la foto del producto viene de la base",
+            s.fotos[0] === "https://base.falsa/catalogo/22222222-2222-2222-2222-222222222222/cafe-1kg.webp",
+            s.fotos[0]);
+  comprobar("una presentación sin foto no inventa ninguna",
+            s.fotos[1] === "", s.fotos[1]);
 
   /* El fallo del separador: los id de la base llevan guiones dentro y la clave
      del carrito se partía por donde no era. */

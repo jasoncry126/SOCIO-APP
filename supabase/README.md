@@ -33,6 +33,7 @@ supabase/
     14-stock-voucher-e-indices.sql ← la reserva de stock, el voucher y los índices
     15-el-deposito-y-su-captura.sql ← el circuito del depósito, de punta a punta
     16-la-marca-despacha-y-el-socio-confirma.sql ← el despacho, la entrega y los niveles
+    17-las-fotos-del-catalogo.sql  ← la foto de cada presentación y su cubo
 ```
 
 ---
@@ -616,3 +617,43 @@ Si Chromium no está instalado la prueba se salta y lo dice, en vez de fallar. S
 lo está pero `playwright-core` no da con él (pasa en contenedores donde viene
 preinstalado en otra versión), la prueba lo busca en `PLAYWRIGHT_BROWSERS_PATH`;
 `SOCIO_CHROMIUM=/ruta/al/chrome` fuerza uno concreto.
+
+
+---
+
+## Las fotos del catálogo (migración `20260921180000`)
+
+Hasta esta migración la base no guardaba ninguna foto de producto: las que hay
+en el repositorio viven dentro de `app/vendedor.html`, escritas a mano junto al
+catálogo, así que solo las ve esa pantalla y solo sirven para la marca piloto.
+
+Ahora:
+
+- **`presentaciones.imagen`** guarda la RUTA de la foto dentro del cubo
+  `catalogo` (`<marca_id>/archivo.webp`), no la URL entera. La URL lleva dentro
+  el identificador del proyecto Supabase: guardarla ataría el catálogo a un
+  proyecto y habría que reescribir cada fila al migrar. La app la arma al pintar.
+  Si una marca aloja sus fotos en su propia web, guarda la URL `https://…`
+  completa y se usa tal cual.
+- **El cubo `catalogo` es PÚBLICO**, a diferencia de `guias` y `vouchers`. No hay
+  nada que proteger: es la foto del producto que la marca quiere vender, y sale
+  en la misma vista que ya está concedida a `anon`. Cada marca escribe solo
+  dentro de su carpeta, y a diferencia de una guía o una captura, **sí puede
+  reemplazar y borrar las suyas**: una foto de catálogo no es evidencia de nada,
+  y que la marca mejore la foto de su producto es lo que queremos que pase.
+- **`catalogo_publico` devuelve `imagen`.** Sigue sin devolver precio mayorista.
+
+Si algún día se decide que el catálogo solo se vea con cuenta, este cubo tiene
+que volverse privado a la vez: las dos cosas van juntas o no sirve de nada.
+
+Para cargar de golpe las fotos que ya existen en `app/imagenes/`:
+
+```bash
+cd web
+node ../supabase/datos/subir-fotos.mjs --celular 9XXXXXXXX --clave XXXX --seco
+```
+
+Entra como la marca —con su celular y su clave, las de `app/proveedor.html`— así
+que no hace falta ninguna clave de servicio: todo lo que hace ese script lo
+podría hacer la marca desde su panel, donde cada presentación tiene ahora una
+columna «Foto».
