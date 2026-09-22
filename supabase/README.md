@@ -14,6 +14,8 @@ supabase/
   migrations/
     20260912000000_modelo_de_datos_inicial.sql   ← las 10 tablas + RLS + trigger
   reiniciar-desde-cero.sql   ← ⚠️ borra las 10 tablas, para volver a empezar limpio
+  datos/
+    datos-de-prueba.sql      ← catálogo de prueba para poder generar ventas (docs/17)
   verificacion/
     comprobar-en-supabase.sql ← pégalo en el SQL Editor: dice si quedó bien aplicada
     ejecutar-local.sh        ← levanta un Postgres temporal y prueba todo
