@@ -81,14 +81,59 @@ select orden,
  order by orden;
 
 -- Y en una línea: por dónde seguir.
+--
+-- El caso feo que hay que detectar aquí es el HUECO: una migración sin aplicar
+-- con otras posteriores ya puestas. Pasa sin que nadie se dé cuenta, porque
+-- aplicar la 13ª sobre una base a la que le falta la 12ª no da ningún error.
+-- Y tiene una trampa al repararlo: varias migraciones reescriben enteras las
+-- mismas funciones (`pedido_transicion_valida()` sobre todo), así que aplicar
+-- ahora la que faltaba PISA la versión buena que dejó una posterior. Por eso,
+-- cuando hay hueco, hay que reaplicar también todas las de después.
+
+with migraciones(orden, hay) as (
+  values
+  ( 1, to_regclass('public.usuarios_socios')                is not null),
+  ( 2, to_regclass('public.catalogo_publico')               is not null),
+  ( 3, to_regclass('public.administradores')                is not null),
+  ( 4, exists (select 1 from information_schema.columns
+                where table_name='pedidos' and column_name='comprobante_tipo')),
+  ( 5, exists (select 1 from information_schema.columns
+                where table_name='productos' and column_name='nombre_comprobante')),
+  ( 6, exists (select 1 from information_schema.columns
+                where table_name='pedidos' and column_name='precio_publico')),
+  ( 7, to_regprocedure('monto_a_pagar(text,numeric)')       is not null),
+  ( 8, exists (select 1 from information_schema.columns
+                where table_name='catalogo_publico' and column_name='marca')),
+  ( 9, to_regclass('public.liquidaciones_socio')            is not null),
+  (10, exists (select 1 from pg_constraint
+                where conname='retiros_un_solo_dueno')),
+  (11, to_regclass('public.pagos_hash_imagen_unico')        is not null),
+  (12, exists (select 1 from information_schema.columns
+                where table_name='pagos' and column_name='motivo_rechazo')),
+  (13, to_regprocedure('confirmar_entrega(uuid)')           is not null),
+  (14, exists (select 1 from information_schema.columns
+                where table_name='usuarios_socios' and column_name='descensos')),
+  (15, exists (select 1 from information_schema.columns
+                where table_name='presentaciones' and column_name='imagen'))
+),
+cuentas as (
+  select min(orden) filter (where not hay) as primera_que_falta,
+         max(orden) filter (where hay)     as ultima_aplicada,
+         count(*)   filter (where not hay) as cuantas_faltan
+    from migraciones
+)
 select case
-         when (select count(*) from (
-                 select 1 from information_schema.columns
-                  where table_name='presentaciones' and column_name='imagen') x) = 1
-              and to_regprocedure('monto_a_pagar(text,numeric)') is not null
-         then 'Todo aplicado. Sigue con la cuenta de administrador.'
-         else 'Faltan migraciones: aplica, en orden, todas las que salgan ❌ arriba.'
-       end as siguiente_paso;
+         when cuantas_faltan = 0
+           then 'Todo aplicado. Sigue con la cuenta de administrador.'
+         when ultima_aplicada > primera_que_falta
+           then 'HUECO: falta la ' || primera_que_falta || 'ª pero la ' ||
+                ultima_aplicada || 'ª ya está puesta. Aplica la ' ||
+                primera_que_falta || 'ª y DESPUÉS vuelve a aplicar, en orden, ' ||
+                'todas las de detrás hasta la 15ª — si no, la que faltaba pisa ' ||
+                'lo que dejaron las posteriores.'
+         else 'Faltan ' || cuantas_faltan || ': aplica, en orden, todas las ❌ de arriba.'
+       end as siguiente_paso
+  from cuentas;
 
 
 with esperado(tabla) as (

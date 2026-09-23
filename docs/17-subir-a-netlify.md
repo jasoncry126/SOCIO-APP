@@ -64,6 +64,19 @@ esa migración ya estaba aplicada: pasa a la siguiente.
 > Por eso el `00-` va primero: es la única manera de ver el hueco antes de
 > tropezarse con él.
 
+### Si el `00-` te dice que hay un HUECO
+
+Es el caso de una migración sin aplicar con otras posteriores ya puestas. Tiene
+una trampa al repararlo, y conviene entenderla porque no es evidente: **varias
+migraciones reescriben enteras las mismas funciones.** Si aplicas ahora la que
+faltaba, su versión —más antigua— pisa la que dejó una posterior, y pierdes lo
+que aquella arreglaba sin que nada te avise.
+
+La regla, entonces: aplicas la que falta y **vuelves a aplicar, en orden, todas
+las de detrás hasta la 15ª**. Reaplicar una que ya tenías no rompe nada. El
+propio `00-` te lo dice con el número exacto cuando detecta el hueco, y al
+terminar lo corres otra vez para confirmar que quedó todo en ✅.
+
 ### 1.2 · Crear tu cuenta de administrador
 
 El panel de SOCIO es el que valida los depósitos. Nadie se nombra administrador
