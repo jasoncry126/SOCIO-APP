@@ -58,19 +58,19 @@ ZIPSQL="$SALIDA/socio-sql-para-supabase.zip"
 rm -rf "$SQLDIR" "$ZIPSQL"
 mkdir -p "$SQLDIR"
 
-# Las cinco migraciones que faltan por aplicar, numeradas en el orden en que van.
+# TODAS las migraciones, numeradas en el orden en que van. Van todas y no solo
+# las últimas a propósito: aplicar una de más no hace nada (cada una comprueba
+# lo suyo antes de tocar), mientras que saltarse una anterior deja la base a
+# medias de una forma que solo se ve al fallar una venta.
 i=1
-for m in 20260921120000_stock_voucher_e_indices \
-         20260921140000_el_deposito_y_su_captura \
-         20260921160000_la_marca_despacha_y_el_socio_confirma \
-         20260921170000_el_nivel_baja_si_baja_el_ritmo \
-         20260921180000_las_fotos_del_catalogo; do
-  cp "$RAIZ/supabase/migrations/$m.sql" "$SQLDIR/$i-$m.sql"
+for m in $(ls "$RAIZ/supabase/migrations"/*.sql | sort); do
+  printf -v n '%02d' "$i"
+  cp "$m" "$SQLDIR/$n-$(basename "$m")"
   i=$((i + 1))
 done
 
-cp "$RAIZ/supabase/verificacion/comprobar-en-supabase.sql" "$SQLDIR/6-comprobar-que-quedo-bien.sql"
-cp "$RAIZ/supabase/datos/datos-de-prueba.sql"              "$SQLDIR/7-datos-de-prueba.sql"
+cp "$RAIZ/supabase/verificacion/comprobar-en-supabase.sql" "$SQLDIR/00-EMPIEZA-AQUI-que-falta.sql"
+cp "$RAIZ/supabase/datos/datos-de-prueba.sql"              "$SQLDIR/99-datos-de-prueba.sql"
 cp "$RAIZ/docs/17-subir-a-netlify.md"                      "$SQLDIR/LEEME-PRIMERO.md"
 
 ( cd "$SQLDIR" && zip -qr "$ZIPSQL" . -x ".*" )

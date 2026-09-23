@@ -4,12 +4,92 @@
 -- Esto NO cambia nada: solo mira y reporta. Pégalo en el SQL Editor de Supabase
 -- y pulsa Run. Se puede correr las veces que quieras, sin riesgo.
 --
--- Lo que debes ver: 10 filas, todas en 'creada'.
+-- LO PRIMERO que sale es la lista de las 15 migraciones, diciendo cuáles están
+-- aplicadas y cuál toca. Si ahí falta alguna, todo lo que venga después va a
+-- salir en ❌ por esa razón y no por otra: aplica lo que falte y vuelve a correr
+-- esto antes de mirar nada más.
+--
+-- Después, el detalle. Lo que debes ver: 10 filas, todas en 'creada'.
 --   · Las 4 primeras (marcas, pedidos, productos, usuarios_socios) con
 --     permisos_rls = true y con políticas.
 --   · Las otras 6 con permisos_rls = false y 0 políticas — así está el diseño
 --     de docs/13 hoy (es una de las brechas anotadas, no un fallo de la carga).
+--
+-- Con la base todavía VACÍA del todo (ni siquiera la 1ª migración), la primera
+-- tabla se lee igual, pero varias consultas de más abajo van a cortarse porque
+-- preguntan por permisos de tablas que aún no existen. Es lo esperado: aplica
+-- la 1ª migración y vuelve.
 -- =============================================================================
+
+-- =============================================================================
+-- LO PRIMERO: ¿qué migraciones están aplicadas, y cuál es la siguiente?
+-- -----------------------------------------------------------------------------
+-- Las migraciones se aplican EN ORDEN y cada una se apoya en la anterior. Esta
+-- tabla busca, de cada una, una pieza que solo ella crea. La primera que salga
+-- ❌ es por donde hay que seguir; de ahí para abajo, todas.
+--
+-- Solo mira catálogos del sistema, así que se puede correr con la base a medias
+-- sin que falle.
+-- =============================================================================
+
+with migraciones(orden, archivo, pieza, hay) as (
+  values
+  ( 1, '20260912000000_modelo_de_datos_inicial',            'tabla usuarios_socios',
+       to_regclass('public.usuarios_socios')                         is not null),
+  ( 2, '20260912100000_permisos_para_operar',               'vista catalogo_publico',
+       to_regclass('public.catalogo_publico')                        is not null),
+  ( 3, '20260913120000_administradores',                    'tabla administradores',
+       to_regclass('public.administradores')                         is not null),
+  ( 4, '20260913180000_estructura_fiscal',                  'pedidos.comprobante_tipo',
+       exists (select 1 from information_schema.columns
+                where table_name='pedidos' and column_name='comprobante_tipo')),
+  ( 5, '20260915100000_manual_operativo',                   'productos.nombre_comprobante',
+       exists (select 1 from information_schema.columns
+                where table_name='productos' and column_name='nombre_comprobante')),
+  ( 6, '20260915180000_especificacion_tecnica',             'pedidos.precio_publico',
+       exists (select 1 from information_schema.columns
+                where table_name='pedidos' and column_name='precio_publico')),
+  ( 7, '20260917100000_circuito_de_venta',                  'función monto_a_pagar()',
+       to_regprocedure('monto_a_pagar(text,numeric)')                is not null),
+  ( 8, '20260919120000_marca_en_el_catalogo',               'catalogo_publico.marca',
+       exists (select 1 from information_schema.columns
+                where table_name='catalogo_publico' and column_name='marca')),
+  ( 9, '20260920120000_quien_mueve_el_pedido',              'vista liquidaciones_socio',
+       to_regclass('public.liquidaciones_socio')                     is not null),
+  (10, '20260920140000_los_otros_cuatro_huecos',            'regla retiros_un_solo_dueno',
+       exists (select 1 from pg_constraint
+                where conname='retiros_un_solo_dueno')),
+  (11, '20260921120000_stock_voucher_e_indices',            'índice pagos_hash_imagen_unico',
+       to_regclass('public.pagos_hash_imagen_unico')                 is not null),
+  (12, '20260921140000_el_deposito_y_su_captura',           'pagos.motivo_rechazo',
+       exists (select 1 from information_schema.columns
+                where table_name='pagos' and column_name='motivo_rechazo')),
+  (13, '20260921160000_la_marca_despacha_y_el_socio_confirma', 'función confirmar_entrega()',
+       to_regprocedure('confirmar_entrega(uuid)')                    is not null),
+  (14, '20260921170000_el_nivel_baja_si_baja_el_ritmo',     'usuarios_socios.descensos',
+       exists (select 1 from information_schema.columns
+                where table_name='usuarios_socios' and column_name='descensos')),
+  (15, '20260921180000_las_fotos_del_catalogo',             'presentaciones.imagen',
+       exists (select 1 from information_schema.columns
+                where table_name='presentaciones' and column_name='imagen'))
+)
+select orden,
+       archivo,
+       case when hay then '✅ aplicada' else '❌ falta' end as estado,
+       pieza                                               as se_reconoce_por
+  from migraciones
+ order by orden;
+
+-- Y en una línea: por dónde seguir.
+select case
+         when (select count(*) from (
+                 select 1 from information_schema.columns
+                  where table_name='presentaciones' and column_name='imagen') x) = 1
+              and to_regprocedure('monto_a_pagar(text,numeric)') is not null
+         then 'Todo aplicado. Sigue con la cuenta de administrador.'
+         else 'Faltan migraciones: aplica, en orden, todas las que salgan ❌ arriba.'
+       end as siguiente_paso;
+
 
 with esperado(tabla) as (
   values ('usuarios_socios'),('marcas'),('productos'),('presentaciones'),
@@ -212,13 +292,20 @@ select 'Ni un pago con el monto que quiera',
             then '❌ todavía puede' else '✅' end
 union all
 select 'El monto a pagar lleva céntimos únicos (docs/12 capa 2)',
-       case when exists (select 1 from pg_proc where proname='monto_a_pagar')
-            then '✅' else '❌ falta' end
+       case when to_regprocedure('monto_a_pagar(text,numeric)') is not null
+            then '✅' else '❌ falta — aplica la 7ª migración (20260917100000)' end
 union all
+-- Aquí NO se llama a monto_a_pagar(): se lee su código, como en el resto del
+-- archivo. Postgres resuelve las funciones al planificar la consulta, así que
+-- una llamada directa hace fallar el informe ENTERO —y deja de decir nada—
+-- justo cuando la función falta, que es cuando más falta hace leerlo.
+-- La comprobación numérica de verdad, con 200 montos, está en
+-- verificacion/11-circuito-de-venta.sql, que corre contra un Postgres de prueba.
 select 'Y nunca cobra de menos',
-       case when (select count(*) from generate_series(1,200) g
-                   where monto_a_pagar('SOC-'||g, 100 + g*0.37) < round((100 + g*0.37)::numeric,2)) = 0
-            then '✅' else '❌ hay casos que cobran de menos' end;
+       case when coalesce((select prosrc from pg_proc
+                            where proname='monto_a_pagar'), '')
+                 like '%floor(p_total) + 1%'
+            then '✅' else '❌ falta, o se perdió el redondeo hacia arriba' end;
 
 -- =============================================================================
 -- 8ª migración · La marca, dentro del catálogo

@@ -9,7 +9,7 @@
 | Archivo | Qué es | Dónde va |
 |---|---|---|
 | `socio-netlify.zip` | El sitio entero: portada, las tres pantallas, fotos e íconos. | Se arrastra a Netlify, sin descomprimir. |
-| `socio-sql-para-supabase.zip` | Siete archivos de SQL numerados en el orden en que se pegan. | Se descomprime y se pega en el SQL Editor de Supabase. |
+| `socio-sql-para-supabase.zip` | Las quince migraciones numeradas, el comprobador y el catálogo de prueba. | Se descomprime y se pega en el SQL Editor de Supabase. |
 
 ---
 
@@ -36,20 +36,33 @@ pantallas abren pero no puedes hacer nada. Tres cosas, en este orden:
 
 ### 1.1 · Aplicar las cinco migraciones que faltan
 
-Descomprime `socio-sql-para-supabase.zip`. Dentro hay siete archivos numerados:
-el número es el orden en que se pegan, y ese orden importa porque cada uno se
-apoya en el anterior.
+Descomprime `socio-sql-para-supabase.zip`. Dentro están las quince migraciones
+numeradas `01-` a `15-`: el número es el orden en que se pegan, y ese orden
+importa porque cada una se apoya en la anterior.
 
-En tu proyecto de supabase.com → **SQL Editor** → **New query**. Abre el archivo
-`1-…`, copia todo su contenido, pégalo, **Run**. Luego el `2-…`, y así hasta el
-`5-…`. Son cinco.
+**Empieza por `00-EMPIEZA-AQUI-que-falta.sql`.** En tu proyecto de supabase.com →
+**SQL Editor** → **New query**, lo pegas entero y **Run**. No cambia nada, solo
+mira. Lo primero que sale es la lista de las quince, diciendo cuáles ya están
+aplicadas y cuáles no:
+
+```
+ 1 | 20260912000000_modelo_de_datos_inicial | ✅ aplicada
+ …
+ 7 | 20260917100000_circuito_de_venta       | ❌ falta
+```
+
+Ahí ves exactamente por dónde seguir. Aplicas las que salgan ❌, **en orden**,
+una por una: abres el archivo, copias todo, pegas, **Run**. Y cuando termines,
+vuelves a correr el `00-` para confirmar que quedaron las quince en ✅.
 
 Cada archivo es una sola transacción: si algo falla, no queda nada a medias y la
 base se queda como estaba. Si sale un error que dice que algo «already exists»,
 esa migración ya estaba aplicada: pasa a la siguiente.
 
-Cuando termines, pega el `6-comprobar-que-quedo-bien.sql` y léelo: te dice
-cuántas tablas, políticas y funciones hay, para que veas que quedó completo.
+> **Saltarse una migración anterior no da error al aplicar las siguientes**, pero
+> deja la base a medias de una forma que solo se nota cuando falla una venta.
+> Por eso el `00-` va primero: es la única manera de ver el hueco antes de
+> tropezarse con él.
 
 ### 1.2 · Crear tu cuenta de administrador
 
@@ -141,7 +154,7 @@ siguiente paso. Usa un celular que no sea el real, para distinguirla después.
 
 ### 3.2 · Cuélgale un catálogo de prueba
 
-En el SQL Editor de Supabase pega el archivo `7-datos-de-prueba.sql`, cambia el
+En el SQL Editor de Supabase pega el archivo `99-datos-de-prueba.sql`, cambia el
 celular de la línea marcada por el que acabas de registrar, y **Run**.
 
 Te deja seis productos en tres categorías, con doce presentaciones, ya aprobados
