@@ -123,6 +123,11 @@ CABECERA
 } > "$INSTALADOR"
 
 cp "$RAIZ/supabase/verificacion/comprobar-en-supabase.sql" "$SQLDIR/00-EMPIEZA-AQUI-que-falta.sql"
+# La versión corta del comprobador: una sola consulta que cabe de un vistazo.
+# El largo son 600 líneas y, si al pegarlo se queda un trozo fuera o el editor
+# ejecuta solo lo seleccionado, Postgres se queja de un error de sintaxis que no
+# es del archivo. Con esta no puede pasar.
+cp "$RAIZ/supabase/verificacion/lista-corta-de-migraciones.sql" "$SQLDIR/00-LISTA-CORTA-de-migraciones.sql"
 cp "$RAIZ/supabase/datos/datos-de-prueba.sql"              "$SQLDIR/99-datos-de-prueba.sql"
 cp "$RAIZ/docs/17-subir-a-netlify.md"                      "$SQLDIR/LEEME-PRIMERO.md"
 

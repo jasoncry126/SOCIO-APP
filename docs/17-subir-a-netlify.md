@@ -59,6 +59,12 @@ Cada archivo es una sola transacción: si algo falla, no queda nada a medias y l
 base se queda como estaba. Si sale un error que dice que algo «already exists»,
 esa migración ya estaba aplicada: pasa a la siguiente.
 
+> **Si al pegar el `00-` sale «syntax error», no es el archivo: es que se ejecutó
+> solo un trozo.** Son 600 líneas, y el SQL Editor corre únicamente lo que esté
+> seleccionado. Vacía el editor, pega otra vez y pulsa Run sin nada seleccionado.
+> O usa `00-LISTA-CORTA-de-migraciones.sql`, que es la misma lista de las quince
+> en una sola consulta que cabe de un vistazo.
+
 > **Saltarse una migración anterior no da error al aplicar las siguientes**, pero
 > deja la base a medias de una forma que solo se nota cuando falla una venta.
 > Por eso el `00-` va primero: es la única manera de ver el hueco antes de
