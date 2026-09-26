@@ -24,6 +24,20 @@ drop table if exists productos           cascade;
 drop table if exists marcas              cascade;
 drop table if exists usuarios_socios     cascade;
 
+-- La 11ª tabla, que llegó después de que se escribiera este archivo: la de los
+-- administradores de SOCIO (3ª migración). Faltaba aquí, y era la única razón
+-- por la que reinstalar de cero fallaba: la 3ª migración crea la tabla sin
+-- 'if not exists', así que al reaplicarla se encontraba con la vieja y cortaba.
+-- Se pierde la fila que dice quién es administrador, no la cuenta: esa vive en
+-- Authentication y sigue ahí. Después de reinstalar, vuelve a correr el
+-- 'insert into administradores' con tu User UID.
+drop table if exists administradores     cascade;
+
 drop function if exists actualizar_nivel_socio() cascade;
+
+-- Lo que NO se borra, a propósito: los cubos de archivos (guias, vouchers,
+-- catalogo) con sus reglas y sus ficheros dentro, y las cuentas de
+-- Authentication. Las migraciones saben reencontrárselos, y borrarlos se
+-- llevaría por delante fotos y comprobantes que no estorban.
 
 commit;

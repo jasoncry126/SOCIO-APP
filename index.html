@@ -65,8 +65,8 @@
     <a class="panel" href="app/vendedor.html">
       <span class="ic">🛍️</span>
       <h2>App del socio</h2>
-      <p>Donde el vendedor ve el catálogo, arma el pedido y sigue su comisión por nivel.</p>
-      <span class="chip chip-demo">Datos de demostración</span>
+      <p>Donde el vendedor ve el catálogo, arma el pedido, deposita y sigue su comisión por nivel.</p>
+      <span class="chip chip-ok">Conectado a la base</span>
     </a>
 
     <a class="panel" href="app/proveedor.html">
@@ -86,16 +86,17 @@
 
   <div class="nota">
     <b>Qué significan las etiquetas.</b> «Conectado a la base» quiere decir que lo que haces ahí
-    se guarda de verdad en Supabase y lo ven los demás. «Datos de demostración» quiere decir que
-    la pantalla funciona pero guarda solo en tu navegador: sirve para ver cómo se siente, no para
-    operar. El panel de SOCIO tiene la pestaña <b>Contabilidad</b> conectada y el resto en
-    demostración.
+    se guarda de verdad en Supabase y lo ven los demás. La app del socio y el panel de la marca
+    están conectados de punta a punta: la venta, el depósito, el despacho y la entrega. Del panel
+    de SOCIO están conectadas la <b>validación de pagos</b> y la <b>contabilidad</b>; sus otros
+    tableros todavía enseñan datos de demostración.
   </div>
 
   <div class="nota">
     <b>Si algo no carga.</b> Los paneles conectados necesitan que <code>app/socio-config.js</code>
     tenga la dirección del proyecto y su clave pública. Sin eso funcionan igual, pero en modo de
-    prueba y avisándolo en pantalla.
+    demostración —guardando solo en tu navegador— y avisándolo en pantalla. Cómo publicar esto en
+    Netlify y cómo cargar datos de prueba: <code>docs/17-subir-a-netlify.md</code>.
   </div>
 
   <footer>

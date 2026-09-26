@@ -1,0 +1,53 @@
+# ===========================================================================
+# SOCIO · Ajustes para Netlify
+# ---------------------------------------------------------------------------
+# Este archivo viaja dentro del zip. Netlify lo lee solo, no hay que tocarlo.
+#
+# No hay nada que "construir": las tres apps son HTML suelto, así que el sitio
+# se publica tal cual viene. Lo único que se configura aquí son las cabeceras
+# que hacen que una versión nueva llegue al celular del socio en vez de
+# quedarse pegado a la copia vieja.
+# ===========================================================================
+
+[build]
+  publish = "."
+  command = ""
+
+# El service worker decide qué se guarda en el celular. Si el propio worker
+# se cachea, una versión nueva puede tardar días en llegar: se pide siempre.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Igual con las páginas y la configuración: son livianas y cambian seguido.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/app/*.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/app/socio-config.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Las fotos del catálogo sí se guardan: pesan y casi nunca cambian.
+[[headers]]
+  for = "/app/imagenes/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/icons/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
