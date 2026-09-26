@@ -69,6 +69,59 @@ for m in $(ls "$RAIZ/supabase/migrations"/*.sql | sort); do
   i=$((i + 1))
 done
 
+# Un solo archivo que lo hace todo, en orden, sin que nadie pueda equivocarse:
+# el borrado y detrás las quince migraciones, una tras otra. Es la forma de
+# reinstalar cuando la base quedó desordenada — que es justo el estado en el que
+# aplicar los archivos sueltos uno por uno vuelve a fallar.
+INSTALADOR="$SQLDIR/REINSTALAR-TODO-DE-CERO.sql"
+{
+  cat <<'CABECERA'
+-- =============================================================================
+-- ⚠️  REINSTALA LA BASE ENTERA, DESDE CERO Y EN ORDEN
+-- -----------------------------------------------------------------------------
+-- QUÉ HACE
+--   Primero BORRA las once tablas con todo lo que tengan dentro —socios,
+--   marcas, productos, pedidos, pagos— y después vuelve a crear la base
+--   aplicando las quince migraciones en su orden correcto, de una sentada.
+--
+--   Se usa cuando la base quedó desordenada: migraciones aplicadas salteadas o
+--   fuera de orden. En ese estado, volver a pegar los archivos uno por uno
+--   vuelve a fallar; esto lo deja limpio de una vez.
+--
+-- QUÉ SE PIERDE
+--   Todo lo que hayas registrado: cuentas de socio, marcas, catálogo, pedidos.
+--   Si alguien ya usó las páginas de verdad, eso desaparece. No se puede
+--   deshacer.
+--
+-- QUÉ NO SE PIERDE
+--   Las cuentas de Authentication (los correos y celulares con los que se
+--   entra) y los archivos ya subidos a los cubos. Lo único que tendrás que
+--   rehacer a mano es la fila de la tabla 'administradores' con tu User UID.
+--
+-- CÓMO SE USA
+--   SQL Editor → New query → pega esto entero → Run. Tarda un poco: son
+--   quince migraciones seguidas. Al terminar, corre '00-EMPIEZA-AQUI-que-falta'
+--   y tienen que salir las quince en ✅.
+-- =============================================================================
+
+CABECERA
+  echo "-- ---------------------------------------------------------------------------"
+  echo "-- PASO 0 · Borrar lo que haya"
+  echo "-- ---------------------------------------------------------------------------"
+  cat "$RAIZ/supabase/reiniciar-desde-cero.sql"
+  echo
+  i=1
+  for m in $(ls "$RAIZ/supabase/migrations"/*.sql | sort); do
+    echo
+    echo "-- ---------------------------------------------------------------------------"
+    echo "-- PASO $i de 15 · $(basename "$m" .sql)"
+    echo "-- ---------------------------------------------------------------------------"
+    cat "$m"
+    echo
+    i=$((i + 1))
+  done
+} > "$INSTALADOR"
+
 cp "$RAIZ/supabase/verificacion/comprobar-en-supabase.sql" "$SQLDIR/00-EMPIEZA-AQUI-que-falta.sql"
 cp "$RAIZ/supabase/datos/datos-de-prueba.sql"              "$SQLDIR/99-datos-de-prueba.sql"
 cp "$RAIZ/docs/17-subir-a-netlify.md"                      "$SQLDIR/LEEME-PRIMERO.md"

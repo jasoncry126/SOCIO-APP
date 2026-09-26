@@ -9,7 +9,7 @@
 | Archivo | Qué es | Dónde va |
 |---|---|---|
 | `socio-netlify.zip` | El sitio entero: portada, las tres pantallas, fotos e íconos. | Se arrastra a Netlify, sin descomprimir. |
-| `socio-sql-para-supabase.zip` | Las quince migraciones numeradas, el comprobador y el catálogo de prueba. | Se descomprime y se pega en el SQL Editor de Supabase. |
+| `socio-sql-para-supabase.zip` | Las quince migraciones numeradas, el comprobador, el reinstalador de un solo archivo y el catálogo de prueba. | Se descomprime y se pega en el SQL Editor de Supabase. |
 
 ---
 
@@ -63,6 +63,24 @@ esa migración ya estaba aplicada: pasa a la siguiente.
 > deja la base a medias de una forma que solo se nota cuando falla una venta.
 > Por eso el `00-` va primero: es la única manera de ver el hueco antes de
 > tropezarse con él.
+
+### El atajo: reinstalar todo de cero
+
+Si la base quedó desordenada —migraciones aplicadas salteadas o fuera de orden—
+y todavía no hay nada dentro que duela perder, esto es más corto y más seguro
+que ir tapando agujeros: pega `REINSTALAR-TODO-DE-CERO.sql` entero y pulsa Run.
+Borra las once tablas y vuelve a aplicar las quince migraciones seguidas, en
+orden, en una sola pasada. Tarda un poco.
+
+**Lo que se pierde:** todo lo registrado —socios, marcas, catálogo, pedidos,
+pagos—. Si alguien ya usó las páginas de verdad, eso desaparece y no se puede
+deshacer.
+
+**Lo que no se pierde:** las cuentas de Authentication, y los archivos ya
+subidos a los cubos. Lo único que hay que rehacer a mano después es la fila de
+la tabla `administradores` con tu User UID.
+
+Al terminar, corre el `00-` y tienen que salir las quince en ✅.
 
 ### Si el `00-` te dice que hay un HUECO
 
